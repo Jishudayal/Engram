@@ -6,6 +6,7 @@ __all__ = [
     # Enums
     "MemoryType",
     "MemoryStatus",
+    "SourceType",
     "ConflictType",
     "ResolutionStatus",
     "ActionType",
@@ -38,6 +39,16 @@ class MemoryStatus(StrEnum):
     FLAGGED = "flagged"
     ARCHIVED = "archived"
     PENDING_REVIEW = "pending_review"
+
+
+class SourceType(StrEnum):
+    """Origin channel of a ProvenanceRecord."""
+
+    CONVERSATION = "conversation"
+    DOCUMENT = "document"
+    API = "api"
+    MANUAL = "manual"
+    SYSTEM = "system"
 
 
 class ConflictType(StrEnum):

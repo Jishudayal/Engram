@@ -27,19 +27,27 @@ from pydantic import (
 
 from engram.core.constants import (
     DEFAULT_IMPORTANCE,
+    ActionType,
     ConflictType,
+    ConsolidationTier,
     MemoryStatus,
     MemoryType,
     ResolutionStatus,
+    RiskLevel,
     SourceType,
 )
 
 __all__ = [
     "UTCDatetime",
     "OptionalUTCDatetime",
+    "NonEmptyStr",
     "ProvenanceRecord",
     "ConflictRecord",
     "Memory",
+    "HealthScore",
+    "ConsolidationAction",
+    "ConsolidationPlan",
+    "SearchResult",
 ]
 
 
@@ -54,6 +62,17 @@ def _require_utc_aware(v: datetime | None) -> datetime | None:
 # to sub-step 1.6 models without duplicating the validator.
 UTCDatetime = Annotated[datetime, AfterValidator(_require_utc_aware)]
 OptionalUTCDatetime = Annotated[datetime | None, AfterValidator(_require_utc_aware)]
+
+
+def _require_non_empty_stripped(v: str) -> str:
+    """Strip whitespace and reject blank strings — shared across required string fields."""
+    stripped = v.strip()
+    if not stripped:
+        raise ValueError("must not be empty or whitespace")
+    return stripped
+
+
+NonEmptyStr = Annotated[str, AfterValidator(_require_non_empty_stripped)]
 
 
 class ProvenanceRecord(BaseModel):
@@ -363,3 +382,281 @@ class Memory(BaseModel):
         for key, value in changes.items():
             setattr(self, key, value)
         self.updated_at = datetime.now(UTC)
+
+
+# ---------------------------------------------------------------------------
+# Sub-step 1.6 models
+# ---------------------------------------------------------------------------
+
+
+class HealthScore(BaseModel):
+    """Point-in-time health snapshot for an agent's memory collection.
+
+    Produced by the health scorer on demand. Immutable after creation — to
+    refresh, compute a new HealthScore rather than mutating an existing one.
+
+    Fields are grouped by concern:
+      Identity   — record and owning agent
+      Counts     — raw memory and issue counts
+      Metrics    — derived aggregates over the collection
+      Signatures — per-dimension health signals (0–1 scale; 1.0 is healthiest)
+      Assessment — overall score and risk tier
+      Conflicts  — unresolved conflict records queued for human review
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    # --- Identity ---
+    score_id: str = Field(default_factory=lambda: str(uuid4()))
+    agent_id: NonEmptyStr
+    computed_at: UTCDatetime = Field(default_factory=lambda: datetime.now(UTC))
+
+    # --- Counts ---
+    total_memories: int = Field(ge=0)
+    stale_count: int = Field(ge=0)
+    conflict_count: int = Field(ge=0)
+
+    # --- Metrics ---
+    avg_importance: float = Field(ge=0.0, le=1.0)
+    oldest_memory_age_days: float | None = Field(default=None, ge=0.0)
+
+    # --- Signatures ---
+    contradiction_score: float = Field(ge=0.0, le=1.0)
+    freshness_score: float = Field(ge=0.0, le=1.0)
+    confidence_accuracy_gap: float = Field(ge=0.0, le=1.0)
+    provenance_completeness: float = Field(ge=0.0, le=1.0)
+
+    # --- Assessment ---
+    score: float = Field(ge=0.0, le=1.0)
+    risk_level: RiskLevel
+
+    # --- Conflicts ---
+    pending_review: tuple[ConflictRecord, ...] = Field(default_factory=tuple)
+
+    # --- Validators ---
+
+    @model_validator(mode="after")
+    def cross_field_invariants(self) -> HealthScore:
+        if self.stale_count > self.total_memories:
+            raise ValueError(
+                f"stale_count ({self.stale_count}) cannot exceed "
+                f"total_memories ({self.total_memories})"
+            )
+        return self
+
+
+class ConsolidationAction(BaseModel):
+    """A single action planned or executed by the consolidation engine.
+
+    Created when the engine classifies a memory cluster and decides what to do.
+    Mutable until executed — use mark_executed() to record execution atomically.
+
+    The source_memory_ids tuple is frozen after construction: the set of inputs
+    to an action cannot change once the action is created.
+
+    Fields are grouped by concern:
+      Identity   — record and owning agent
+      Decision   — what to do, why, and at what confidence
+      Inputs     — memory IDs being consolidated (immutable after construction)
+      Result     — the surviving or merged memory ID, set post-execution
+      Timing     — when planned and when executed
+    """
+
+    model_config = ConfigDict(validate_assignment=True)
+
+    # --- Identity ---
+    action_id: str = Field(default_factory=lambda: str(uuid4()))
+    agent_id: NonEmptyStr
+
+    # --- Decision ---
+    action_type: ActionType
+    tier: ConsolidationTier
+    confidence: float = Field(ge=0.0, le=1.0)
+
+    # --- Inputs ---
+    source_memory_ids: tuple[str, ...] = Field(frozen=True)  # non-empty; set at creation
+
+    # --- Result (set after execution) ---
+    result_memory_id: str | None = None
+    reasoning: str | None = None
+
+    # --- Timing ---
+    created_at: UTCDatetime = Field(default_factory=lambda: datetime.now(UTC), frozen=True)
+    executed_at: OptionalUTCDatetime = None
+
+    # --- Validators ---
+
+    @field_validator("source_memory_ids")
+    @classmethod
+    def source_memory_ids_valid(cls, v: tuple[str, ...]) -> tuple[str, ...]:
+        if not v:
+            raise ValueError("source_memory_ids must not be empty")
+        for mid in v:
+            if not mid.strip():
+                raise ValueError("source_memory_ids must not contain blank strings")
+        return v
+
+    @field_validator("result_memory_id", "reasoning")
+    @classmethod
+    def optional_strings_not_blank(cls, v: str | None) -> str | None:
+        if v is not None and not v.strip():
+            raise ValueError("string fields must not be blank when provided")
+        return v
+
+    @model_validator(mode="after")
+    def cross_field_invariants(self) -> ConsolidationAction:
+        if self.executed_at is not None and self.executed_at < self.created_at:
+            raise ValueError("executed_at must not be before created_at")
+        if self.executed_at is not None and self.result_memory_id is None:
+            raise ValueError("result_memory_id must be set when action is executed")
+        return self
+
+    # --- Helper methods ---
+
+    def mark_executed(self, result_memory_id: str, *, executed_at: datetime | None = None) -> None:
+        """Record execution atomically — sets result_memory_id then executed_at.
+
+        result_memory_id is set first so that if this action is later serialized
+        and deserialized, the construction-time invariant (executed_at requires
+        result_memory_id) is satisfied.
+        Raises if already executed or if result_memory_id is blank.
+        """
+        if self.executed_at is not None:
+            raise ValueError("action already executed; mark_executed cannot be called again")
+        if not result_memory_id.strip():
+            raise ValueError("result_memory_id must not be blank")
+        at = executed_at if executed_at is not None else datetime.now(UTC)
+        self.result_memory_id = result_memory_id
+        self.executed_at = at
+
+
+class ConsolidationPlan(BaseModel):
+    """An ordered batch of ConsolidationActions for a single agent.
+
+    Created by the consolidation engine after clustering and classification.
+    All actions in a plan must belong to the same agent. The actions tuple is
+    frozen after construction to prevent mid-plan mutations.
+
+    Execution is all-or-nothing: a plan deserialized with partial execution is
+    rejected by the cross-field invariant.
+
+    Fields are grouped by concern:
+      Identity  — plan ID and owning agent
+      Actions   — ordered tuple of actions to execute (immutable after construction)
+      Metadata  — dry-run flag and estimated health impact
+      Timing    — when planned and when executed
+    """
+
+    model_config = ConfigDict(validate_assignment=True)
+
+    # --- Identity ---
+    plan_id: str = Field(default_factory=lambda: str(uuid4()), frozen=True)
+    agent_id: NonEmptyStr
+
+    # --- Actions ---
+    actions: tuple[ConsolidationAction, ...] = Field(frozen=True)
+
+    # --- Metadata ---
+    is_dry_run: bool = False
+    estimated_health_delta: dict[str, float] = Field(default_factory=dict)
+
+    # --- Timing ---
+    created_at: UTCDatetime = Field(default_factory=lambda: datetime.now(UTC), frozen=True)
+    executed_at: OptionalUTCDatetime = None
+
+    # --- Validators ---
+
+    @field_validator("actions")
+    @classmethod
+    def actions_not_empty(cls, v: tuple[ConsolidationAction, ...]) -> tuple[ConsolidationAction, ...]:
+        if not v:
+            raise ValueError("actions must not be empty")
+        return v
+
+    @model_validator(mode="after")
+    def cross_field_invariants(self) -> ConsolidationPlan:
+        if self.executed_at is not None and self.executed_at < self.created_at:
+            raise ValueError("executed_at must not be before created_at")
+        for action in self.actions:
+            if action.agent_id != self.agent_id:
+                raise ValueError(
+                    f"action {action.action_id!r} has agent_id={action.agent_id!r} "
+                    f"but plan agent_id={self.agent_id!r}"
+                )
+        executed_count = sum(1 for a in self.actions if a.executed_at is not None)
+        if executed_count and executed_count != len(self.actions):
+            raise ValueError(
+                f"plan execution is all-or-nothing: "
+                f"{executed_count}/{len(self.actions)} actions are executed"
+            )
+        return self
+
+    # --- Properties ---
+
+    @property
+    def would_merge(self) -> tuple[ConsolidationAction, ...]:
+        """Actions in this plan that merge memories."""
+        return tuple(a for a in self.actions if a.action_type == ActionType.MERGE)
+
+    @property
+    def would_supersede(self) -> tuple[ConsolidationAction, ...]:
+        """Actions in this plan that supersede memories."""
+        return tuple(a for a in self.actions if a.action_type == ActionType.SUPERSEDE)
+
+    @property
+    def would_flag_for_review(self) -> tuple[ConsolidationAction, ...]:
+        """Actions in this plan that flag memories for human review."""
+        return tuple(a for a in self.actions if a.action_type == ActionType.FLAG)
+
+
+class SearchResult(BaseModel):
+    """A single result from a memory search query.
+
+    Wraps the matched Memory with relevance metadata. Immutable — search
+    results are computed outputs, not mutable state.
+
+    Note: frozen=True prevents field reassignment but does not prevent in-place
+    mutation of nested mutable objects (e.g., memory.metadata). Treat search
+    results as value objects.
+
+    Fields are grouped by concern:
+      Match    — the retrieved memory
+      Ranking  — similarity score and position in the result set
+      Conflict — conflict-flagging metadata surfaced to the caller
+      Context  — optional reference to the query that produced this result
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    # --- Match ---
+    memory: Memory
+
+    # --- Ranking ---
+    score: float = Field(ge=0.0, le=1.0)
+    rank: int = Field(ge=1)
+
+    # --- Conflict ---
+    conflict_flag: bool = False
+    conflicts_with: tuple[str, ...] = Field(default_factory=tuple)
+    conflict_summary: str | None = None
+    recommended: bool = True
+
+    # --- Context ---
+    query_id: str | None = None
+
+    # --- Validators ---
+
+    @field_validator("query_id", "conflict_summary")
+    @classmethod
+    def optional_strings_not_blank(cls, v: str | None) -> str | None:
+        if v is not None and not v.strip():
+            raise ValueError("string fields must not be blank when provided")
+        return v
+
+    @model_validator(mode="after")
+    def cross_field_invariants(self) -> SearchResult:
+        if self.conflict_flag and not self.conflicts_with:
+            raise ValueError("conflicts_with must not be empty when conflict_flag is True")
+        if self.conflicts_with and not self.conflict_flag:
+            raise ValueError("conflict_flag must be True when conflicts_with is non-empty")
+        return self

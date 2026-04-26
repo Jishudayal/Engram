@@ -9,7 +9,6 @@ from engram.core.constants import MemoryStatus
 from engram.core.exceptions import AdapterError, EngramError, NotFoundError
 from engram.core.models import Memory, SearchResult
 
-
 # ---------------------------------------------------------------------------
 # Minimal concrete adapter used across all tests
 # ---------------------------------------------------------------------------
@@ -76,13 +75,28 @@ class TestAbstractAdapterEnforcement:
 
     def test_missing_backend_name_raises(self) -> None:
         class MissingName(AbstractAdapter):
-            async def store(self, memory: Memory) -> None: pass
-            async def update(self, memory: Memory) -> None: pass
-            async def delete(self, agent_id: str, memory_id: str) -> bool: return False
-            async def fetch(self, agent_id: str, memory_id: str) -> Memory | None: return None
-            async def search(self, agent_id, query_embedding, *, top_k=10, score_threshold=None, filters=None) -> list: return []  # type: ignore[override]
-            async def list_all(self, agent_id, *, status=None, limit=None, offset=0) -> list: return []  # type: ignore[override]
-            async def close(self) -> None: pass
+            async def store(self, memory: Memory) -> None:
+                pass
+
+            async def update(self, memory: Memory) -> None:
+                pass
+
+            async def delete(self, agent_id: str, memory_id: str) -> bool:
+                return False
+
+            async def fetch(self, agent_id: str, memory_id: str) -> Memory | None:
+                return None
+
+            async def search(
+                self, agent_id, query_embedding, *, top_k=10, score_threshold=None, filters=None
+            ) -> list:
+                return []  # type: ignore[override]
+
+            async def list_all(self, agent_id, *, status=None, limit=None, offset=0) -> list:
+                return []  # type: ignore[override]
+
+            async def close(self) -> None:
+                pass
 
         with pytest.raises(TypeError):
             MissingName()  # type: ignore[abstract]
@@ -90,13 +104,29 @@ class TestAbstractAdapterEnforcement:
     def test_missing_one_method_raises(self) -> None:
         class MissingClose(AbstractAdapter):
             @property
-            def backend_name(self) -> str: return "x"
-            async def store(self, memory: Memory) -> None: pass
-            async def update(self, memory: Memory) -> None: pass
-            async def delete(self, agent_id: str, memory_id: str) -> bool: return False
-            async def fetch(self, agent_id: str, memory_id: str) -> Memory | None: return None
-            async def search(self, agent_id, query_embedding, *, top_k=10, score_threshold=None, filters=None) -> list: return []  # type: ignore[override]
-            async def list_all(self, agent_id, *, status=None, limit=None, offset=0) -> list: return []  # type: ignore[override]
+            def backend_name(self) -> str:
+                return "x"
+
+            async def store(self, memory: Memory) -> None:
+                pass
+
+            async def update(self, memory: Memory) -> None:
+                pass
+
+            async def delete(self, agent_id: str, memory_id: str) -> bool:
+                return False
+
+            async def fetch(self, agent_id: str, memory_id: str) -> Memory | None:
+                return None
+
+            async def search(
+                self, agent_id, query_embedding, *, top_k=10, score_threshold=None, filters=None
+            ) -> list:
+                return []  # type: ignore[override]
+
+            async def list_all(self, agent_id, *, status=None, limit=None, offset=0) -> list:
+                return []  # type: ignore[override]
+
             # close() not implemented
 
         with pytest.raises(TypeError):
@@ -446,9 +476,7 @@ class TestCount:
 
     async def test_count_can_be_overridden(self) -> None:
         class FastCount(_MinimalAdapter):
-            async def count(
-                self, agent_id: str, *, status: MemoryStatus | None = None
-            ) -> int:
+            async def count(self, agent_id: str, *, status: MemoryStatus | None = None) -> int:
                 return 42
 
         assert await FastCount().count("agent-1") == 42

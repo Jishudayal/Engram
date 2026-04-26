@@ -568,7 +568,9 @@ class ConsolidationPlan(BaseModel):
 
     @field_validator("actions")
     @classmethod
-    def actions_not_empty(cls, v: tuple[ConsolidationAction, ...]) -> tuple[ConsolidationAction, ...]:
+    def actions_not_empty(
+        cls, v: tuple[ConsolidationAction, ...]
+    ) -> tuple[ConsolidationAction, ...]:
         if not v:
             raise ValueError("actions must not be empty")
         return v

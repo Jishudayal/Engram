@@ -78,7 +78,9 @@ class TestConsolidationTier:
 
     def test_from_confidence_auto_merge(self) -> None:
         assert ConsolidationTier.from_confidence(0.95) is ConsolidationTier.AUTO_MERGE
-        assert ConsolidationTier.from_confidence(AUTO_MERGE_THRESHOLD) is ConsolidationTier.AUTO_MERGE
+        assert (
+            ConsolidationTier.from_confidence(AUTO_MERGE_THRESHOLD) is ConsolidationTier.AUTO_MERGE
+        )
 
     def test_from_confidence_auto_flag(self) -> None:
         assert ConsolidationTier.from_confidence(0.85) is ConsolidationTier.AUTO_FLAG
@@ -90,8 +92,14 @@ class TestConsolidationTier:
 
     def test_from_confidence_boundaries(self) -> None:
         """Values just below each threshold cross into the lower tier."""
-        assert ConsolidationTier.from_confidence(AUTO_MERGE_THRESHOLD - 0.01) is ConsolidationTier.AUTO_FLAG
-        assert ConsolidationTier.from_confidence(AUTO_FLAG_THRESHOLD - 0.01) is ConsolidationTier.HUMAN_REVIEW
+        assert (
+            ConsolidationTier.from_confidence(AUTO_MERGE_THRESHOLD - 0.01)
+            is ConsolidationTier.AUTO_FLAG
+        )
+        assert (
+            ConsolidationTier.from_confidence(AUTO_FLAG_THRESHOLD - 0.01)
+            is ConsolidationTier.HUMAN_REVIEW
+        )
 
 
 class TestRiskLevel:

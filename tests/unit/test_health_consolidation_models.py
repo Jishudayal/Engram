@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from engram.core.constants import ActionType, ConsolidationTier, ConflictType, RiskLevel, SourceType
+from engram.core.constants import ActionType, ConflictType, ConsolidationTier, RiskLevel, SourceType
 from engram.core.models import (
     ConsolidationAction,
     ConsolidationPlan,
@@ -14,7 +14,6 @@ from engram.core.models import (
     ProvenanceRecord,
     SearchResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared factories
@@ -576,7 +575,6 @@ class TestHealthScorePendingReview:
 
     def test_pending_review_accepts_conflict_records(self) -> None:
         from engram.core.models import ConflictRecord
-        from engram.core.constants import ConflictType
 
         cr = ConflictRecord(
             agent_id="agent-1",
@@ -594,7 +592,6 @@ class TestHealthScorePendingReview:
 
     def test_pending_review_survives_round_trip(self) -> None:
         from engram.core.models import ConflictRecord
-        from engram.core.constants import ConflictType
 
         cr = ConflictRecord(
             agent_id="agent-1",

@@ -318,14 +318,14 @@ class TestMemoryWithProvenance:
             make_memory(memory_id="mem-b", provenance=pr)
 
     def test_provenance_memory_id_match_accepted(self) -> None:
-        m = make_memory(memory_id="mem-x")
+        make_memory(memory_id="mem-x")
         pr = make_provenance(memory_id="mem-x", source_type=SourceType.DOCUMENT)
         m2 = make_memory(memory_id="mem-x", provenance=pr)
         assert m2.provenance is not None
         assert m2.provenance.source_type == SourceType.DOCUMENT
 
     def test_provenance_included_in_model_dump(self) -> None:
-        m = make_memory(memory_id="mem-x")
+        make_memory(memory_id="mem-x")
         pr = make_provenance(memory_id="mem-x", source_type=SourceType.API, source_id="req-42")
         m2 = make_memory(memory_id="mem-x", provenance=pr)
         data = m2.model_dump()
@@ -334,7 +334,7 @@ class TestMemoryWithProvenance:
         assert data["provenance"]["source_id"] == "req-42"
 
     def test_provenance_round_trips_through_json(self) -> None:
-        m = make_memory(memory_id="mem-x")
+        make_memory(memory_id="mem-x")
         pr = make_provenance(memory_id="mem-x", source_type=SourceType.MANUAL)
         m2 = make_memory(memory_id="mem-x", provenance=pr)
         restored = Memory.model_validate_json(m2.model_dump_json())
@@ -343,7 +343,7 @@ class TestMemoryWithProvenance:
         assert restored.provenance.source_type == SourceType.MANUAL
 
     def test_memory_type_unaffected_by_provenance(self) -> None:
-        m = make_memory(memory_id="mem-x")
+        make_memory(memory_id="mem-x")
         pr = make_provenance(memory_id="mem-x")
         m2 = make_memory(memory_id="mem-x", provenance=pr, memory_type=MemoryType.CONVERSATION)
         assert m2.memory_type == MemoryType.CONVERSATION

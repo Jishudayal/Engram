@@ -191,9 +191,7 @@ class AbstractAdapter(ABC):
         for memory in memories:
             await self.store(memory)
 
-    async def fetch_batch(
-        self, agent_id: str, memory_ids: list[str]
-    ) -> dict[str, Memory]:
+    async def fetch_batch(self, agent_id: str, memory_ids: list[str]) -> dict[str, Memory]:
         """Fetch multiple memories by ID.
 
         Returns a dict keyed by memory_id. Absent records are simply omitted
@@ -224,9 +222,7 @@ class AbstractAdapter(ABC):
                 deleted += 1
         return deleted
 
-    async def count(
-        self, agent_id: str, *, status: MemoryStatus | None = None
-    ) -> int:
+    async def count(self, agent_id: str, *, status: MemoryStatus | None = None) -> int:
         """Return the count of memories for an agent, optionally filtered by status.
 
         Default: calls list_all() and returns len(). Override with a COUNT

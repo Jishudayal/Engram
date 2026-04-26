@@ -71,7 +71,6 @@ class ActionType(StrEnum):
 # ---------------------------------------------------------------------------
 
 # Cosine similarity above which two memories enter the consolidation pipeline.
-# Starting point based on SarthiAI production data; tune during Step 6.
 CLUSTER_SIMILARITY_THRESHOLD: float = 0.82
 
 # LLM classification confidence above which a merge/supersede runs automatically.

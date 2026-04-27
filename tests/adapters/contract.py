@@ -70,6 +70,18 @@ class AdapterContractTests:
         await self.adapter.store(m)
         assert await self.adapter.fetch("a2", m.memory_id) is None
 
+    async def test_store_same_memory_id_different_agents_isolated(self) -> None:
+        """Two agents storing the same memory_id must not overwrite each other."""
+        shared_id = "00000000-0000-0000-0000-000000000001"
+        m1 = Memory(memory_id=shared_id, agent_id="a1", text="agent1 text")
+        m2 = Memory(memory_id=shared_id, agent_id="a2", text="agent2 text")
+        await self.adapter.store(m1)
+        await self.adapter.store(m2)
+        result1 = await self.adapter.fetch("a1", shared_id)
+        result2 = await self.adapter.fetch("a2", shared_id)
+        assert result1 is not None and result1.text == "agent1 text"
+        assert result2 is not None and result2.text == "agent2 text"
+
     async def test_store_is_upsert(self) -> None:
         m = _m()
         await self.adapter.store(m)
@@ -262,7 +274,7 @@ class AdapterContractTests:
         """Full field equality — the primary serialization-correctness test for each adapter."""
         m = _m(
             text="complex memory",
-            embedding=[0.1, 0.2, 0.3],
+            embedding=[0.1, 0.2],
             metadata={"nested": {"k": [1, 2, 3]}},
             supersedes=["id1", "id2"],
             importance=0.87,

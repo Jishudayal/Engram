@@ -29,6 +29,7 @@ __version__ = "0.1.0-alpha"
 _OPTIONAL_ADAPTERS: dict[str, tuple[str, str, str]] = {
     # name: (module_path, dep_module_prefix, install_hint)
     "QdrantAdapter": ("engram.adapters.qdrant", "qdrant_client", "engram[qdrant]"),
+    "ChromaAdapter": ("engram.adapters.chroma", "chromadb", "engram[chroma]"),
 }
 
 
@@ -60,6 +61,7 @@ __all__ = [
     "AbstractAdapter",
     "InMemoryAdapter",
     "QdrantAdapter",
+    "ChromaAdapter",
     # Exceptions
     "EngramError",
     "AdapterError",

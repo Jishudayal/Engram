@@ -16,13 +16,20 @@ map_adapter_errors
 from __future__ import annotations
 
 import functools
+import uuid
 from collections.abc import Callable, Coroutine
 from typing import Any, ParamSpec, TypeVar
 
 from engram.core.exceptions import AdapterError, EngramError, NotFoundError
 from engram.core.models import Memory
 
-__all__ = ["map_adapter_errors", "memory_to_payload", "payload_to_memory"]
+__all__ = ["POINT_NAMESPACE", "map_adapter_errors", "memory_to_payload", "payload_to_memory"]
+
+# Engram-specific UUID5 namespace for deriving per-backend point IDs from
+# (agent_id, memory_id). Using a project-specific namespace makes generated
+# IDs distinguishable from UUIDv5s produced under other namespaces (e.g., DNS)
+# and keeps cross-adapter IDs consistent when data is migrated.
+POINT_NAMESPACE = uuid.UUID("7f8da9c2-3e5b-4a1f-b6d8-9c2e5f0a3d7e")
 
 _P = ParamSpec("_P")
 _T = TypeVar("_T")

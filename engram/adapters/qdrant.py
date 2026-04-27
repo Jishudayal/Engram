@@ -58,7 +58,7 @@ from qdrant_client.models import (
     VectorParams,
 )
 
-from engram.adapters._utils import map_adapter_errors, memory_to_payload, payload_to_memory
+from engram.adapters._utils import POINT_NAMESPACE, map_adapter_errors, memory_to_payload, payload_to_memory
 from engram.adapters.base import AbstractAdapter
 from engram.core.constants import MemoryStatus
 from engram.core.exceptions import AdapterError, NotFoundError
@@ -79,9 +79,7 @@ _DISTANCE_MAP: dict[str, Distance] = {
     "Manhattan": Distance.MANHATTAN,
 }
 
-# Stable namespace for deterministic point-ID derivation. The value is
-# arbitrary — only its stability across restarts matters.
-_POINT_NAMESPACE = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
+_POINT_NAMESPACE = POINT_NAMESPACE  # shared Engram-specific namespace from _utils
 
 
 def _point_id(agent_id: str, memory_id: str) -> str:

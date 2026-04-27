@@ -1,6 +1,7 @@
 """Engram — memory traces you can trust."""
 
 from engram.adapters.base import AbstractAdapter
+from engram.adapters.memory import InMemoryAdapter
 from engram.core.constants import (
     ActionType,
     ConflictType,
@@ -29,8 +30,9 @@ __all__ = [
     "__version__",
     # Main class
     "Engram",
-    # Adapter base
+    # Adapters
     "AbstractAdapter",
+    "InMemoryAdapter",
     # Exceptions
     "EngramError",
     "AdapterError",

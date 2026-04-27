@@ -394,11 +394,13 @@ class ChromaAdapter(AbstractAdapter):
         if not result["ids"]:
             return {}
         raw_embeddings = result["embeddings"]
+        metadatas = result["metadatas"] or []
+        no_emb_sentinel = [None] * len(metadatas)
+        emb_list = raw_embeddings if raw_embeddings is not None else no_emb_sentinel
         output: dict[str, Memory] = {}
-        for i, meta in enumerate(result["metadatas"] or []):
+        for emb, meta in zip(emb_list, metadatas, strict=True):
             if meta.get(_AGENT_ID_KEY) != agent_id:
                 continue
-            emb = raw_embeddings[i] if raw_embeddings is not None else None
             memory = _from_chroma(emb, meta)
             output[memory.memory_id] = memory
         return output
@@ -411,7 +413,7 @@ class ChromaAdapter(AbstractAdapter):
         result = await asyncio.to_thread(self._c.get, ids=cids, include=["metadatas"])
         owned = [
             cid
-            for cid, meta in zip(result["ids"], result["metadatas"] or [])
+            for cid, meta in zip(result["ids"], result["metadatas"] or [], strict=True)
             if meta.get(_AGENT_ID_KEY) == agent_id
         ]
         if not owned:

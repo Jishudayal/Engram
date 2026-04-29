@@ -122,7 +122,7 @@ class InMemoryAdapter(AbstractAdapter):
         scored.sort(key=lambda t: t[0], reverse=True)
         # max(0, top_k) guards against negative top_k silently dropping results
         return [
-            SearchResult(memory=mem.model_copy(deep=True), score=score, rank=rank)
+            SearchResult(memory=mem.model_copy(deep=True), score=min(1.0, score), rank=rank)
             for rank, (score, mem) in enumerate(scored[: max(0, top_k)], start=1)
         ]
 

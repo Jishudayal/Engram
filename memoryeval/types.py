@@ -207,6 +207,11 @@ class BenchmarkReport(BaseModel):
         """Dict of category → score for quick programmatic access."""
         return {cs.category: cs.score for cs in self.categories}
 
+    @property
+    def all_results(self) -> tuple[CaseResult, ...]:
+        """Flat tuple of every CaseResult, grouped by report category order."""
+        return tuple(r for cs in self.categories for r in cs.results)
+
     @classmethod
     def from_category_scores(
         cls,

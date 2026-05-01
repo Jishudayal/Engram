@@ -21,6 +21,7 @@ classifiers = [
 ]
 
 dependencies = [
+    "engram>=0.1.0a0",
     "pydantic>=2.0",
     "click>=8.1",
     "rich>=13.0",
@@ -42,4 +43,4 @@ Repository = "https://github.com/engram-ai/engram"
 Issues = "https://github.com/engram-ai/engram/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["memoryeval"]
+packages = ["src/memoryeval"]

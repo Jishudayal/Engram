@@ -2,6 +2,8 @@
 
 from memoryeval.case import TestCase
 from memoryeval.config import BackendConfig, MemoryEvalConfig
+from memoryeval.report import ReportRenderer
+from memoryeval.scorer import BenchmarkScorer
 from memoryeval.types import (
     BenchmarkCategory,
     BenchmarkReport,
@@ -21,6 +23,10 @@ __all__ = [
     "BenchmarkReport",
     # Test case interface
     "TestCase",
+    # Scoring
+    "BenchmarkScorer",
+    # Reporting
+    "ReportRenderer",
     # Config
     "BackendConfig",
     "MemoryEvalConfig",

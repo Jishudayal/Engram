@@ -397,9 +397,9 @@ class HealthScore(BaseModel):
 
     Fields are grouped by concern:
       Identity   — record and owning agent
-      Counts     — raw memory and issue counts
+      Counts     — active memory and issue counts
       Metrics    — derived aggregates over the collection
-      Signatures — per-dimension health signals (0–1 scale; 1.0 is healthiest)
+      Signatures — per-dimension health signals (0–1 scale; polarity varies)
       Assessment — overall score and risk tier
       Conflicts  — unresolved conflict records queued for human review
     """
@@ -412,7 +412,10 @@ class HealthScore(BaseModel):
     computed_at: UTCDatetime = Field(default_factory=lambda: datetime.now(UTC))
 
     # --- Counts ---
-    total_memories: int = Field(ge=0)
+    total_memories: int = Field(
+        ge=0,
+        description="Number of currently usable ACTIVE memories in the collection.",
+    )
     stale_count: int = Field(ge=0)
     conflict_count: int = Field(ge=0)
 
@@ -421,10 +424,26 @@ class HealthScore(BaseModel):
     oldest_memory_age_days: float | None = Field(default=None, ge=0.0)
 
     # --- Signatures ---
-    contradiction_score: float = Field(ge=0.0, le=1.0)
-    freshness_score: float = Field(ge=0.0, le=1.0)
-    confidence_accuracy_gap: float = Field(ge=0.0, le=1.0)
-    provenance_completeness: float = Field(ge=0.0, le=1.0)
+    contradiction_score: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Higher is worse: fraction of embedded memories in candidate conflict pairs.",
+    )
+    freshness_score: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Higher is better: freshness of currently usable memories.",
+    )
+    confidence_accuracy_gap: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Higher is worse: retrieval confidence vs measured precision gap.",
+    )
+    provenance_completeness: float = Field(
+        ge=0.0,
+        le=1.0,
+        description="Higher is better: provenance coverage of currently usable memories.",
+    )
 
     # --- Assessment ---
     score: float = Field(ge=0.0, le=1.0)

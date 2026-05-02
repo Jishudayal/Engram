@@ -9,7 +9,6 @@ from engram.core.constants import MemoryStatus, SourceType
 from engram.core.health import HealthScorer
 from engram.core.models import Memory, ProvenanceRecord
 
-
 # ---------------------------------------------------------------------------
 # Shared factory
 # ---------------------------------------------------------------------------
@@ -907,16 +906,290 @@ class TestConfidenceAccuracyGapScoreFormula:
 
 
 # ---------------------------------------------------------------------------
-# compute() — not yet implemented
+# compute() — basic
 # ---------------------------------------------------------------------------
 
 
-class TestComputeNotImplemented:
-    @pytest.mark.asyncio
-    async def test_compute_raises_not_implemented(self) -> None:
+class TestComputeBasic:
+    async def test_compute_returns_health_score(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.core.models import HealthScore
+
+        adapter = InMemoryAdapter()
+        await _store_memories(adapter, [make_embedded_memory(V_X), make_embedded_memory(V_Y)])
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert isinstance(result, HealthScore)
+
+    async def test_compute_empty_collection_is_healthy(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.core.constants import RiskLevel
+
+        adapter = InMemoryAdapter()
+        result = await HealthScorer().compute("agent-1", adapter)
+        # All empty-collection defaults are "perfect" → score = 1.0
+        assert result.score == pytest.approx(1.0, abs=1e-9)
+        assert result.risk_level == RiskLevel.LOW
+
+    async def test_compute_agent_id_set_correctly(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        result = await HealthScorer().compute("my-agent", adapter)
+        assert result.agent_id == "my-agent"
+
+    async def test_compute_pending_review_is_empty_tuple(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert result.pending_review == ()
+
+
+# ---------------------------------------------------------------------------
+# compute() — counts and metrics
+# ---------------------------------------------------------------------------
+
+
+class TestComputeCounts:
+    async def test_total_memories_counts_active_only(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [
+                make_memory(),
+                make_memory(),
+                make_memory(status=MemoryStatus.SUPERSEDED),
+            ],
+        )
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert result.total_memories == 2
+
+    async def test_stale_count_from_freshness(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_memory(age_days=1.0), make_memory(age_days=60.0)],
+        )
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert result.stale_count == 1
+
+    async def test_conflict_count_from_similar_pairs(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        # Identical embeddings → cosine = 1.0 > 0.82 threshold → 1 pair
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X), make_embedded_memory(V_X)],
+        )
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert result.conflict_count == 1
+
+    async def test_avg_importance_correct(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_memory(importance=0.2), make_memory(importance=0.8)],
+        )
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert result.avg_importance == pytest.approx(0.5, abs=1e-9)
+
+    async def test_oldest_age_days_set(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_memory(age_days=5.0), make_memory(age_days=10.0)],
+        )
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert result.oldest_memory_age_days == pytest.approx(10.0, abs=0.01)
+
+    async def test_oldest_age_days_none_for_empty(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert result.oldest_memory_age_days is None
+
+    async def test_empty_collection_zero_avg_importance(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert result.avg_importance == 0.0
+
+
+# ---------------------------------------------------------------------------
+# compute() — composite score and risk level
+# ---------------------------------------------------------------------------
+
+
+class TestComputeScore:
+    async def test_score_in_unit_interval(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(adapter, [make_embedded_memory(V_X), make_embedded_memory(V_Y)])
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert 0.0 <= result.score <= 1.0
+
+    async def test_score_uses_inverted_contradiction(self) -> None:
+        """Four identical-embedding memories → contradiction_score=1.0 pulls composite down.
+
+        Setup:
+          freshness  = 1.0 (age=0)    provenance = 0.0 (no records)
+          contradiction = 1.0 (all 4 form pairs)   cag = 0.0 (all ACTIVE, score=1.0)
+          score = 0.25*1.0 + 0.25*0.0 + 0.25*(1-1.0) + 0.25*(1-0.0) = 0.50
+        """
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X) for _ in range(4)],
+        )
+        result = await HealthScorer().compute("agent-1", adapter)
+        assert result.score == pytest.approx(0.50, abs=0.01)
+
+    async def test_risk_level_consistent_with_score(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.core.constants import RiskLevel
+
+        adapter = InMemoryAdapter()
+        await _store_memories(adapter, [make_embedded_memory(V_X), make_embedded_memory(V_Y)])
+        scorer = HealthScorer()
+        result = await scorer.compute("agent-1", adapter)
+
+        if result.score >= scorer.RISK_THRESHOLD_LOW:
+            assert result.risk_level == RiskLevel.LOW
+        elif result.score >= scorer.RISK_THRESHOLD_MEDIUM:
+            assert result.risk_level == RiskLevel.MEDIUM
+        elif result.score >= scorer.RISK_THRESHOLD_HIGH:
+            assert result.risk_level == RiskLevel.HIGH
+        else:
+            assert result.risk_level == RiskLevel.CRITICAL
+
+    async def test_custom_weights_change_score(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        # Two identical embeddings → contradiction_score = 1.0
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X), make_embedded_memory(V_X)],
+        )
+        scorer_default = HealthScorer()
+        scorer_heavy = HealthScorer()
+        # Heavily penalise contradiction — contradiction component gets more weight
+        scorer_heavy.SCORE_WEIGHT_CONTRADICTION = 0.70
+        scorer_heavy.SCORE_WEIGHT_FRESHNESS = 0.10
+        scorer_heavy.SCORE_WEIGHT_PROVENANCE = 0.10
+        scorer_heavy.SCORE_WEIGHT_CONFIDENCE_GAP = 0.10
+
+        default_result = await scorer_default.compute("agent-1", adapter)
+        heavy_result = await scorer_heavy.compute("agent-1", adapter)
+        # Higher contradiction weight → lower composite when contradiction_score is high
+        assert heavy_result.score < default_result.score
+
+    async def test_custom_risk_thresholds_applied(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.core.constants import RiskLevel
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X), make_embedded_memory(V_X)],
+        )
+        scorer = HealthScorer()
+        scorer.RISK_THRESHOLD_LOW = 0.99
+        scorer.RISK_THRESHOLD_MEDIUM = 0.90
+        scorer.RISK_THRESHOLD_HIGH = 0.80
+        result = await scorer.compute("agent-1", adapter)
+        assert result.risk_level == RiskLevel.CRITICAL
+
+
+# ---------------------------------------------------------------------------
+# compute() — composite config validation
+# ---------------------------------------------------------------------------
+
+
+class TestComputeConfigValidation:
+    async def test_negative_weight_raises(self) -> None:
         from engram.adapters.memory import InMemoryAdapter
 
         scorer = HealthScorer()
+        scorer.SCORE_WEIGHT_FRESHNESS = -0.1
+        with pytest.raises(ValueError, match="SCORE_WEIGHT_FRESHNESS"):
+            await scorer.compute("agent-1", InMemoryAdapter())
+
+    async def test_all_zero_weights_raise(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        scorer = HealthScorer()
+        scorer.SCORE_WEIGHT_FRESHNESS = 0.0
+        scorer.SCORE_WEIGHT_PROVENANCE = 0.0
+        scorer.SCORE_WEIGHT_CONTRADICTION = 0.0
+        scorer.SCORE_WEIGHT_CONFIDENCE_GAP = 0.0
+        with pytest.raises(ValueError, match="at least one SCORE_WEIGHT"):
+            await scorer.compute("agent-1", InMemoryAdapter())
+
+    async def test_risk_threshold_out_of_range_raises(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        scorer = HealthScorer()
+        scorer.RISK_THRESHOLD_LOW = 1.1
+        with pytest.raises(ValueError, match="RISK_THRESHOLD_LOW"):
+            await scorer.compute("agent-1", InMemoryAdapter())
+
+    async def test_risk_thresholds_must_be_ordered(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        scorer = HealthScorer()
+        scorer.RISK_THRESHOLD_LOW = 0.60
+        scorer.RISK_THRESHOLD_MEDIUM = 0.80
+        with pytest.raises(ValueError, match="risk thresholds must be ordered"):
+            await scorer.compute("agent-1", InMemoryAdapter())
+
+
+# ---------------------------------------------------------------------------
+# Engram.health() — delegation
+# ---------------------------------------------------------------------------
+
+
+class TestEngramHealth:
+    async def test_health_returns_health_score(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.core.models import HealthScore
+        from engram.engram import Engram
+
         adapter = InMemoryAdapter()
-        with pytest.raises(NotImplementedError, match="Step 4.4"):
-            await scorer.compute("agent-1", adapter)
+        eng = Engram(adapter)
+        result = await eng.health("agent-1")
+        assert isinstance(result, HealthScore)
+
+    async def test_health_uses_correct_agent_id(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.engram import Engram
+
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter)
+        result = await eng.health("my-agent")
+        assert result.agent_id == "my-agent"
+
+    async def test_health_sees_stored_memories(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.engram import Engram
+
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter)
+        await eng.store(make_memory(agent_id="agent-1"))
+        await eng.store(make_memory(agent_id="agent-1"))
+        result = await eng.health("agent-1")
+        assert result.total_memories == 2

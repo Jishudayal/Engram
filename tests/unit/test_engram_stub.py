@@ -463,10 +463,6 @@ class TestEngramExists:
 
 
 class TestEngramNotImplementedStubs:
-    async def test_health_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="Step 4"):
-            await Engram(_StubAdapter()).health("agent-1")
-
     async def test_consolidate_raises_not_implemented(self) -> None:
         with pytest.raises(NotImplementedError, match="Step 6"):
             await Engram(_StubAdapter()).consolidate("agent-1")

@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Any
 
 from engram.adapters.base import AbstractAdapter
 from engram.core.constants import MemoryStatus
+from engram.core.health import HealthScorer
 from engram.core.models import Memory, SearchResult
 
 if TYPE_CHECKING:
@@ -164,11 +165,8 @@ class Engram:
     # ------------------------------------------------------------------
 
     async def health(self, agent_id: str) -> HealthScore:
-        """Compute a health snapshot for an agent's memory collection.
-
-        Not yet implemented — arrives in Step 4.
-        """
-        raise NotImplementedError("health() is not yet implemented (Step 4)")
+        """Compute a health snapshot for an agent's memory collection."""
+        return await HealthScorer().compute(agent_id, self._adapter)
 
     async def consolidate(self, agent_id: str) -> ConsolidationPlan:
         """Plan and execute memory consolidation for an agent.

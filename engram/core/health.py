@@ -112,12 +112,16 @@ class HealthScorer:
             freshness_values.append(min(1.0, math.exp(-age_days * _LN2 / half_life)))
 
         stale_ids = [
-            m.memory_id for m, f in zip(active, freshness_values) if f < threshold
+            m.memory_id
+            for m, f in zip(active, freshness_values, strict=True)
+            if f < threshold
         ]
 
         total_importance = sum(m.importance for m in active)
         if total_importance > 0.0:
-            weighted = sum(f * m.importance for f, m in zip(freshness_values, active))
+            weighted = sum(
+                f * m.importance for f, m in zip(freshness_values, active, strict=True)
+            )
             score = weighted / total_importance
         else:
             score = sum(freshness_values) / len(freshness_values)
@@ -249,7 +253,7 @@ class HealthScorer:
         matrix = np.array([m.embedding for m in candidates], dtype=np.float64)
         norms = np.linalg.norm(matrix, axis=1)
         valid_mask = norms > 0.0
-        active_embedded = [m for m, v in zip(candidates, valid_mask) if v]
+        active_embedded = [m for m, v in zip(candidates, valid_mask, strict=True) if v]
 
         # Embedding coverage over all active memories (not just those with embeddings).
         embedding_coverage = len(active_embedded) / len(active_all) if active_all else 1.0
@@ -288,7 +292,7 @@ class HealthScorer:
 
         candidate_pairs = [
             (active_embedded[r].memory_id, active_embedded[c].memory_id)
-            for r, c in zip(candidate_rows, candidate_cols)
+            for r, c in zip(candidate_rows, candidate_cols, strict=True)
         ]
 
         involved: set[int] = set(candidate_rows) | set(candidate_cols)
@@ -364,6 +368,24 @@ class HealthScorer:
             raise ValueError(f"top_k must be >= 1, got {top_k!r}")
 
         all_memories = await adapter.list_all(agent_id)
+        return await self._confidence_accuracy_gap_from_memories(
+            agent_id,
+            adapter,
+            all_memories,
+            probe_count=probe_count,
+            top_k=top_k,
+        )
+
+    async def _confidence_accuracy_gap_from_memories(
+        self,
+        agent_id: str,
+        adapter: AbstractAdapter,
+        all_memories: list[Memory],
+        *,
+        probe_count: int,
+        top_k: int,
+    ) -> tuple[float, int]:
+        """Compute confidence gap from an already-fetched memory collection."""
         active = [m for m in all_memories if m.is_usable()]
         embedded = [
             m
@@ -430,12 +452,164 @@ class HealthScorer:
         return gap_score, num_probed
 
     # ------------------------------------------------------------------
-    # Step 4.4 — Full health snapshot (not yet implemented)
+    # Step 4.4 — Full health snapshot
     # ------------------------------------------------------------------
+
+    # Weights for the composite score produced by compute().
+    # contradiction_score and confidence_accuracy_gap are higher-is-worse and
+    # are inverted to (1 − metric) before weighting. The composite is clamped
+    # to [0, 1] regardless of whether the weights sum to 1.0.
+    # Override per-instance to tune scoring for your domain.
+    SCORE_WEIGHT_FRESHNESS: float = 0.25
+    SCORE_WEIGHT_PROVENANCE: float = 0.25
+    SCORE_WEIGHT_CONTRADICTION: float = 0.25
+    SCORE_WEIGHT_CONFIDENCE_GAP: float = 0.25
+
+    # Composite score thresholds for risk tier assignment in compute().
+    RISK_THRESHOLD_LOW: float = 0.80     # score >= 0.80 → LOW
+    RISK_THRESHOLD_MEDIUM: float = 0.60  # score >= 0.60 → MEDIUM
+    RISK_THRESHOLD_HIGH: float = 0.40    # score >= 0.40 → HIGH; below → CRITICAL
+
+    def _validate_composite_config(self) -> None:
+        """Validate overridable weights and risk thresholds before scoring."""
+        weights = {
+            "SCORE_WEIGHT_FRESHNESS": self.SCORE_WEIGHT_FRESHNESS,
+            "SCORE_WEIGHT_PROVENANCE": self.SCORE_WEIGHT_PROVENANCE,
+            "SCORE_WEIGHT_CONTRADICTION": self.SCORE_WEIGHT_CONTRADICTION,
+            "SCORE_WEIGHT_CONFIDENCE_GAP": self.SCORE_WEIGHT_CONFIDENCE_GAP,
+        }
+        for name, value in weights.items():
+            if value < 0.0:
+                raise ValueError(f"{name} must be >= 0, got {value!r}")
+        if sum(weights.values()) <= 0.0:
+            raise ValueError("at least one SCORE_WEIGHT_* value must be > 0")
+
+        thresholds = {
+            "RISK_THRESHOLD_LOW": self.RISK_THRESHOLD_LOW,
+            "RISK_THRESHOLD_MEDIUM": self.RISK_THRESHOLD_MEDIUM,
+            "RISK_THRESHOLD_HIGH": self.RISK_THRESHOLD_HIGH,
+        }
+        for name, value in thresholds.items():
+            if not 0.0 <= value <= 1.0:
+                raise ValueError(f"{name} must be in [0, 1], got {value!r}")
+        if not (
+            self.RISK_THRESHOLD_LOW
+            >= self.RISK_THRESHOLD_MEDIUM
+            >= self.RISK_THRESHOLD_HIGH
+        ):
+            raise ValueError(
+                "risk thresholds must be ordered as "
+                "RISK_THRESHOLD_LOW >= RISK_THRESHOLD_MEDIUM >= RISK_THRESHOLD_HIGH"
+            )
 
     async def compute(self, agent_id: str, adapter: AbstractAdapter) -> HealthScore:
         """Compute a full health snapshot for an agent's memory collection.
 
-        Not yet implemented — arrives in Step 4.4.
+        Fetches all memories for the agent, computes all four sub-metrics, and
+        assembles them into a HealthScore snapshot.
+
+        Sub-metrics and their polarities:
+          freshness_score         — higher is healthier
+          provenance_completeness — higher is healthier
+          contradiction_score     — lower is healthier; inverted to
+                                    (1 − contradiction_score) before weighting
+          confidence_accuracy_gap — lower is healthier; inverted to
+                                    (1 − cag) before weighting
+
+        Composite score formula:
+          score = SCORE_WEIGHT_FRESHNESS      × freshness_score
+                + SCORE_WEIGHT_PROVENANCE     × provenance_completeness
+                + SCORE_WEIGHT_CONTRADICTION  × (1 − contradiction_score)
+                + SCORE_WEIGHT_CONFIDENCE_GAP × (1 − confidence_accuracy_gap)
+          Clamped to [0, 1].
+
+        Risk tier (RiskLevel):
+          score ≥ RISK_THRESHOLD_LOW    (0.80) → LOW
+          score ≥ RISK_THRESHOLD_MEDIUM (0.60) → MEDIUM
+          score ≥ RISK_THRESHOLD_HIGH   (0.40) → HIGH
+          score <  RISK_THRESHOLD_HIGH         → CRITICAL
+
+        HealthScore.total_memories counts only ACTIVE (usable) memories.
+        HealthScore.pending_review is empty until Step 5 wires in the LLM
+        contradiction classifier.
         """
-        raise NotImplementedError("compute() is not yet implemented (Step 4.4)")
+        from engram.core.constants import RiskLevel
+        from engram.core.models import HealthScore as _HealthScore
+
+        self._validate_composite_config()
+
+        all_memories = await adapter.list_all(agent_id)
+        active = [m for m in all_memories if m.is_usable()]
+
+        freshness, stale_ids = self.freshness_score(active)
+        prov = self.provenance_completeness(active)
+        contradiction, pairs, _coverage = self.contradiction_score(active)
+        cag, _probed = await self._confidence_accuracy_gap_from_memories(
+            agent_id,
+            adapter,
+            all_memories,
+            probe_count=50,
+            top_k=5,
+        )
+
+        score = (
+            self.SCORE_WEIGHT_FRESHNESS * freshness
+            + self.SCORE_WEIGHT_PROVENANCE * prov
+            + self.SCORE_WEIGHT_CONTRADICTION * (1.0 - contradiction)
+            + self.SCORE_WEIGHT_CONFIDENCE_GAP * (1.0 - cag)
+        )
+        score = max(0.0, min(1.0, score))
+
+        if score >= self.RISK_THRESHOLD_LOW:
+            risk = RiskLevel.LOW
+        elif score >= self.RISK_THRESHOLD_MEDIUM:
+            risk = RiskLevel.MEDIUM
+        elif score >= self.RISK_THRESHOLD_HIGH:
+            risk = RiskLevel.HIGH
+        else:
+            risk = RiskLevel.CRITICAL
+
+        now = datetime.now(UTC)
+        avg_importance = (
+            sum(m.importance for m in active) / len(active) if active else 0.0
+        )
+        oldest_age: float | None = (
+            max(
+                (now - m.updated_at).total_seconds() / _SECONDS_PER_DAY
+                for m in active
+            )
+            if active
+            else None
+        )
+
+        logger.debug(
+            "compute: agent=%s total=%d active=%d stale=%d conflicts=%d"
+            " freshness=%.3f provenance=%.3f contradiction=%.3f cag=%.3f score=%.3f risk=%s",
+            agent_id,
+            len(all_memories),
+            len(active),
+            len(stale_ids),
+            len(pairs),
+            freshness,
+            prov,
+            contradiction,
+            cag,
+            score,
+            risk,
+        )
+
+        return _HealthScore(
+            agent_id=agent_id,
+            total_memories=len(active),
+            stale_count=len(stale_ids),
+            conflict_count=len(pairs),
+            avg_importance=avg_importance,
+            oldest_memory_age_days=oldest_age,
+            freshness_score=freshness,
+            provenance_completeness=prov,
+            contradiction_score=contradiction,
+            confidence_accuracy_gap=cag,
+            score=score,
+            risk_level=risk,
+            pending_review=(),
+        )

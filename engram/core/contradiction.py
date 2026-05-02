@@ -199,6 +199,11 @@ class ContradictionDetector:
         self._confidence_threshold = confidence_threshold
         self._max_concurrency = max_concurrency
 
+    @property
+    def cluster_threshold(self) -> float:
+        """Cosine similarity cutoff used for Stage 1 candidate filtering."""
+        return self._cluster_threshold
+
     async def classify_pair(
         self,
         memory_a: Memory,

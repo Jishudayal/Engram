@@ -507,3 +507,202 @@ class TestPublicImports:
         import engram
 
         assert engram.__version__ == "0.1.0-alpha"
+
+    def test_contradiction_detector_importable_from_root(self) -> None:
+        from engram import ClassificationResult, ContradictionDetector, LLMClassifyFn
+
+        assert ContradictionDetector is not None
+        assert ClassificationResult is not None
+        assert LLMClassifyFn is not None
+
+
+# ---------------------------------------------------------------------------
+# Engram with ContradictionDetector — step 5.2
+# ---------------------------------------------------------------------------
+
+# These tests use InMemoryAdapter directly because _StubAdapter does not
+# implement conflict storage. InMemoryAdapter is the reference implementation.
+
+from engram.adapters.memory import InMemoryAdapter  # noqa: E402
+from engram.core.contradiction import ContradictionDetector  # noqa: E402
+
+
+def _make_detector(responses: list[str], **kwargs: object) -> ContradictionDetector:
+    it = iter(responses)
+
+    async def mock_llm(prompt: str) -> str:
+        return next(it, '{"verdict": "unrelated", "confidence": 0.0, "summary": ""}')
+
+    return ContradictionDetector(llm_fn=mock_llm, **kwargs)  # type: ignore[arg-type]
+
+
+_CONTRADICTION_RESP = (
+    '{"verdict": "direct_contradiction", "confidence": 0.93, "summary": "Rate limits conflict"}'
+)
+_UNRELATED_RESP = (
+    '{"verdict": "unrelated", "confidence": 0.90, "summary": ""}'
+)
+
+
+class TestEngramReprWithDetector:
+    def test_repr_without_detector(self) -> None:
+        assert repr(Engram(_StubAdapter())) == "Engram(adapter='stub')"
+
+    def test_repr_with_detector(self) -> None:
+        det = _make_detector([])
+        r = repr(Engram(_StubAdapter(), detector=det))
+        assert "ContradictionDetector" in r
+        assert "stub" in r
+
+
+class TestEngramStoreTimeDetection:
+    async def test_store_without_detector_no_conflict_stored(self) -> None:
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter)
+        mem_a = make_memory(embedding=[1.0, 0.0])
+        mem_b = make_memory(embedding=[0.99, 0.01])
+        await eng.store(mem_a)
+        await eng.store(mem_b)
+        conflicts = await adapter.list_conflicts("agent-1")
+        assert conflicts == []
+
+    async def test_store_with_no_embedding_skips_detection(self) -> None:
+        adapter = InMemoryAdapter()
+        det = _make_detector([_CONTRADICTION_RESP])
+        eng = Engram(adapter, detector=det)
+        mem = make_memory(embedding=None)
+        await eng.store(mem)
+        assert await adapter.list_conflicts("agent-1") == []
+
+    async def test_store_first_memory_no_candidates(self) -> None:
+        adapter = InMemoryAdapter()
+        det = _make_detector([_CONTRADICTION_RESP])
+        eng = Engram(adapter, detector=det)
+        await eng.store(make_memory(embedding=[1.0, 0.0]))
+        assert await adapter.list_conflicts("agent-1") == []
+
+    async def test_store_triggers_detection_and_stores_conflict(self) -> None:
+        adapter = InMemoryAdapter()
+        det = _make_detector([_CONTRADICTION_RESP], cluster_threshold=0.80)
+        eng = Engram(adapter, detector=det)
+        mem_a = make_memory(embedding=[1.0, 0.01], text="Rate limit is 100 req/min")
+        mem_b = make_memory(embedding=[0.99, 0.02], text="Rate limit is 500 req/min")
+        await eng.store(mem_a)
+        await eng.store(mem_b)
+        conflicts = await adapter.list_conflicts("agent-1")
+        assert len(conflicts) == 1
+        assert conflicts[0].conflict_type == ConflictType.DIRECT_CONTRADICTION
+        assert conflicts[0].description == "Rate limits conflict"
+
+    async def test_store_batch_skips_detection(self) -> None:
+        adapter = InMemoryAdapter()
+        det = _make_detector([_CONTRADICTION_RESP], cluster_threshold=0.80)
+        eng = Engram(adapter, detector=det)
+        mem_a = make_memory(embedding=[1.0, 0.01], text="Rate limit is 100")
+        mem_b = make_memory(embedding=[0.99, 0.02], text="Rate limit is 500")
+        await eng.store_batch([mem_a, mem_b])
+        assert await adapter.list_conflicts("agent-1") == []
+
+
+class TestEngramSearchEnrichment:
+    async def _setup(
+        self,
+    ) -> tuple[Engram, InMemoryAdapter, Memory, Memory, Memory]:
+        adapter = InMemoryAdapter()
+        det = _make_detector([_CONTRADICTION_RESP], cluster_threshold=0.80)
+        eng = Engram(adapter, detector=det)
+        mem_a = make_memory(embedding=[1.0, 0.01], text="Rate limit is 100 req/min")
+        mem_b = make_memory(embedding=[0.99, 0.02], text="Rate limit is 500 req/min")
+        mem_c = make_memory(embedding=[-1.0, 0.0], text="Office is in London")
+        await eng.store(mem_a)
+        await eng.store(mem_b)
+        await eng.store(mem_c)
+        return eng, adapter, mem_a, mem_b, mem_c
+
+    async def test_search_without_detector_returns_default_flags(self) -> None:
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter)
+        mem = make_memory(embedding=[1.0, 0.0])
+        await adapter.store(mem)
+        results = await eng.search("agent-1", [1.0, 0.0], top_k=1)
+        assert len(results) == 1
+        assert results[0].conflict_flag is False
+        assert results[0].conflicts_with == ()
+        assert results[0].recommended is True
+
+    async def test_search_no_conflicts_returns_unchanged_results(self) -> None:
+        adapter = InMemoryAdapter()
+        det = _make_detector([])
+        eng = Engram(adapter, detector=det)
+        mem = make_memory(embedding=[1.0, 0.0])
+        await adapter.store(mem)
+        results = await eng.search("agent-1", [1.0, 0.0], top_k=1)
+        assert len(results) == 1
+        assert results[0].conflict_flag is False
+
+    async def test_search_flags_conflicting_memories(self) -> None:
+        eng, adapter, mem_a, mem_b, mem_c = await self._setup()
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=3)
+        by_id = {r.memory.memory_id: r for r in results}
+        assert by_id[mem_a.memory_id].conflict_flag is True
+        assert by_id[mem_b.memory_id].conflict_flag is True
+        assert by_id[mem_c.memory_id].conflict_flag is False
+
+    async def test_search_conflict_summary_populated(self) -> None:
+        eng, adapter, mem_a, mem_b, _ = await self._setup()
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=3)
+        by_id = {r.memory.memory_id: r for r in results}
+        assert by_id[mem_a.memory_id].conflict_summary == "Rate limits conflict"
+
+    async def test_search_lower_ranked_conflicting_result_not_recommended(self) -> None:
+        eng, adapter, mem_a, mem_b, _ = await self._setup()
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=3)
+        by_id = {r.memory.memory_id: r for r in results}
+        r_a, r_b = by_id[mem_a.memory_id], by_id[mem_b.memory_id]
+        # Both conflict with each other; exactly one should be not recommended
+        assert r_a.recommended is True or r_b.recommended is True
+        assert not (r_a.recommended and r_b.recommended)
+
+    async def test_search_non_conflicting_result_stays_recommended(self) -> None:
+        eng, adapter, _, _, mem_c = await self._setup()
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=3)
+        by_id = {r.memory.memory_id: r for r in results}
+        assert by_id[mem_c.memory_id].recommended is True
+
+    async def test_search_conflicts_with_contains_other_id(self) -> None:
+        eng, adapter, mem_a, mem_b, _ = await self._setup()
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=3)
+        by_id = {r.memory.memory_id: r for r in results}
+        assert mem_b.memory_id in by_id[mem_a.memory_id].conflicts_with
+        assert mem_a.memory_id in by_id[mem_b.memory_id].conflicts_with
+
+
+class TestEngramScanContradictions:
+    async def test_without_detector_raises_value_error(self) -> None:
+        eng = Engram(InMemoryAdapter())
+        with pytest.raises(ValueError, match="ContradictionDetector"):
+            await eng.scan_contradictions("agent-1")
+
+    async def test_with_detector_returns_list(self) -> None:
+        adapter = InMemoryAdapter()
+        det = _make_detector([_UNRELATED_RESP], cluster_threshold=0.80)
+        eng = Engram(adapter, detector=det)
+        mem_a = make_memory(embedding=[1.0, 0.01], text="fact A")
+        mem_b = make_memory(embedding=[0.99, 0.02], text="fact B")
+        await adapter.store(mem_a)
+        await adapter.store(mem_b)
+        result = await eng.scan_contradictions("agent-1")
+        assert isinstance(result, list)
+
+    async def test_with_detector_stores_new_conflicts(self) -> None:
+        adapter = InMemoryAdapter()
+        det = _make_detector([_CONTRADICTION_RESP], cluster_threshold=0.80)
+        eng = Engram(adapter, detector=det)
+        mem_a = make_memory(embedding=[1.0, 0.01], text="Rate limit is 100")
+        mem_b = make_memory(embedding=[0.99, 0.02], text="Rate limit is 500")
+        await adapter.store(mem_a)
+        await adapter.store(mem_b)
+        result = await eng.scan_contradictions("agent-1")
+        assert len(result) == 1
+        stored = await adapter.list_conflicts("agent-1")
+        assert len(stored) == 1

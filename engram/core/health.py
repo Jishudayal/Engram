@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from engram.core.constants import CLUSTER_SIMILARITY_THRESHOLD
+from engram.core.constants import CLUSTER_SIMILARITY_THRESHOLD, ResolutionStatus
 
 if TYPE_CHECKING:
     from engram.adapters.base import AbstractAdapter
@@ -552,6 +552,23 @@ class HealthScorer:
             top_k=5,
         )
 
+        # Fetch confirmed PENDING conflicts for pending_review.
+        # Falls back gracefully when the adapter does not implement conflict storage.
+        try:
+            pending_conflicts = await adapter.list_conflicts(
+                agent_id, status=ResolutionStatus.PENDING
+            )
+        except NotImplementedError:
+            logger.debug(
+                "compute: adapter %r does not support conflict storage "
+                "— pending_review will be empty",
+                type(adapter).__name__,
+            )
+            pending_conflicts = []
+
+        # Use confirmed conflict count when available; embedding-pair count otherwise.
+        conflict_count = len(pending_conflicts) if pending_conflicts else len(pairs)
+
         score = (
             self.SCORE_WEIGHT_FRESHNESS * freshness
             + self.SCORE_WEIGHT_PROVENANCE * prov
@@ -584,12 +601,14 @@ class HealthScorer:
 
         logger.debug(
             "compute: agent=%s total=%d active=%d stale=%d conflicts=%d"
-            " freshness=%.3f provenance=%.3f contradiction=%.3f cag=%.3f score=%.3f risk=%s",
+            " pending_review=%d freshness=%.3f provenance=%.3f"
+            " contradiction=%.3f cag=%.3f score=%.3f risk=%s",
             agent_id,
             len(all_memories),
             len(active),
             len(stale_ids),
-            len(pairs),
+            conflict_count,
+            len(pending_conflicts),
             freshness,
             prov,
             contradiction,
@@ -602,7 +621,7 @@ class HealthScorer:
             agent_id=agent_id,
             total_memories=len(active),
             stale_count=len(stale_ids),
-            conflict_count=len(pairs),
+            conflict_count=conflict_count,
             avg_importance=avg_importance,
             oldest_memory_age_days=oldest_age,
             freshness_score=freshness,
@@ -611,5 +630,5 @@ class HealthScorer:
             confidence_accuracy_gap=cag,
             score=score,
             risk_level=risk,
-            pending_review=(),
+            pending_review=tuple(pending_conflicts),
         )

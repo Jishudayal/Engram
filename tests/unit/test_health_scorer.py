@@ -1193,3 +1193,146 @@ class TestEngramHealth:
         await eng.store(make_memory(agent_id="agent-1"))
         result = await eng.health("agent-1")
         assert result.total_memories == 2
+
+
+# ---------------------------------------------------------------------------
+# compute() — pending_review population (Step 5.3)
+# ---------------------------------------------------------------------------
+
+
+class TestComputePendingReview:
+    async def test_pending_review_empty_when_no_conflicts(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await adapter.store(make_memory(agent_id="agent-1"))
+        scorer = HealthScorer()
+        result = await scorer.compute("agent-1", adapter)
+        assert result.pending_review == ()
+
+    async def test_pending_review_populated_from_adapter(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.core.constants import ConflictType, ResolutionStatus
+        from engram.core.models import ConflictRecord
+
+        adapter = InMemoryAdapter()
+        await adapter.store(make_memory(agent_id="agent-1"))
+        conflict = ConflictRecord(
+            agent_id="agent-1",
+            memory_a_id="mem-a",
+            memory_b_id="mem-b",
+            conflict_type=ConflictType.DIRECT_CONTRADICTION,
+            confidence=0.92,
+        )
+        await adapter.store_conflict(conflict)
+
+        scorer = HealthScorer()
+        result = await scorer.compute("agent-1", adapter)
+        assert len(result.pending_review) == 1
+        assert result.pending_review[0].conflict_id == conflict.conflict_id
+
+    async def test_pending_review_excludes_resolved_conflicts(self) -> None:
+        from datetime import UTC, datetime
+
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.core.constants import ConflictType, ResolutionStatus
+        from engram.core.models import ConflictRecord
+
+        adapter = InMemoryAdapter()
+        await adapter.store(make_memory(agent_id="agent-1"))
+
+        pending = ConflictRecord(
+            agent_id="agent-1",
+            memory_a_id="mem-a",
+            memory_b_id="mem-b",
+            conflict_type=ConflictType.DIRECT_CONTRADICTION,
+            confidence=0.92,
+        )
+        resolved = ConflictRecord(
+            agent_id="agent-1",
+            memory_a_id="mem-c",
+            memory_b_id="mem-d",
+            conflict_type=ConflictType.PARTIAL_CONFLICT,
+            confidence=0.85,
+        )
+        resolved.resolve(ResolutionStatus.AUTO_RESOLVED)
+
+        await adapter.store_conflict(pending)
+        await adapter.store_conflict(resolved)
+
+        scorer = HealthScorer()
+        result = await scorer.compute("agent-1", adapter)
+        assert len(result.pending_review) == 1
+        assert result.pending_review[0].conflict_id == pending.conflict_id
+
+    async def test_conflict_count_uses_confirmed_conflicts_when_available(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+        from engram.core.constants import ConflictType
+        from engram.core.models import ConflictRecord
+
+        adapter = InMemoryAdapter()
+        await adapter.store(make_memory(agent_id="agent-1"))
+        conflict = ConflictRecord(
+            agent_id="agent-1",
+            memory_a_id="mem-a",
+            memory_b_id="mem-b",
+            conflict_type=ConflictType.DIRECT_CONTRADICTION,
+            confidence=0.92,
+        )
+        await adapter.store_conflict(conflict)
+
+        scorer = HealthScorer()
+        result = await scorer.compute("agent-1", adapter)
+        assert result.conflict_count == 1
+
+    async def test_pending_review_empty_when_adapter_not_implemented(self) -> None:
+        from typing import Any
+
+        from engram.adapters.base import AbstractAdapter
+        from engram.core.constants import MemoryStatus, ResolutionStatus
+        from engram.core.models import Memory, SearchResult
+
+        class _NoConflictAdapter(AbstractAdapter):
+            @property
+            def backend_name(self) -> str:
+                return "no-conflict"
+
+            async def store(self, memory: Memory) -> None:
+                pass
+
+            async def update(self, memory: Memory) -> None:
+                pass
+
+            async def delete(self, agent_id: str, memory_id: str) -> bool:
+                return False
+
+            async def fetch(self, agent_id: str, memory_id: str) -> Memory | None:
+                return None
+
+            async def search(
+                self,
+                agent_id: str,
+                query_embedding: list[float],
+                *,
+                top_k: int = 10,
+                score_threshold: float | None = None,
+                filters: dict[str, Any] | None = None,
+            ) -> list[SearchResult]:
+                return []
+
+            async def list_all(
+                self,
+                agent_id: str,
+                *,
+                status: MemoryStatus | None = None,
+                limit: int | None = None,
+                offset: int = 0,
+            ) -> list[Memory]:
+                return []
+
+            async def close(self) -> None:
+                pass
+
+        scorer = HealthScorer()
+        result = await scorer.compute("agent-1", _NoConflictAdapter())
+        assert result.pending_review == ()

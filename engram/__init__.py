@@ -22,6 +22,7 @@ from engram.core.models import (
     ProvenanceRecord,
     SearchResult,
 )
+from engram.core.health import HealthScorer
 from engram.engram import Engram
 
 __version__ = "0.1.0-alpha"
@@ -57,6 +58,7 @@ __all__ = [
     "__version__",
     # Main class
     "Engram",
+    "HealthScorer",
     # Adapters
     "AbstractAdapter",
     "InMemoryAdapter",

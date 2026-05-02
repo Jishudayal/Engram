@@ -1,5 +1,6 @@
-"""Tests for HealthScorer — freshness_score and provenance_completeness (Step 4.1)."""
+"""Tests for HealthScorer — freshness_score, provenance_completeness, contradiction_score."""
 
+import math
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -339,6 +340,570 @@ class TestProvenanceCompletenessScoring:
     def test_single_active_without_provenance(self) -> None:
         score = HealthScorer().provenance_completeness([make_memory(with_provenance=False)])
         assert score == pytest.approx(0.0)
+
+
+# ---------------------------------------------------------------------------
+# contradiction_score — shared test vectors
+#
+# All vectors are 3-dimensional. Norms are exactly 1.0, so cosine similarity
+# equals the dot product. Verified values:
+#
+#   cosine(V_X, V_X_NEAR)  = 0.9  — above default threshold (0.82) → pair
+#   cosine(V_X, V_Y)       = 0.0  — below threshold → no pair
+#   cosine(V_X, V_Y_NEAR)  = 0.0  — below threshold → no pair
+#   cosine(V_X_NEAR, V_Y)  = sqrt(0.19) ≈ 0.436  — below threshold → no pair
+#   cosine(V_X_NEAR, V_Y_NEAR) = sqrt(0.19)*0.9 ≈ 0.392 — below threshold
+#   cosine(V_Y, V_Y_NEAR)  = 0.9  — above threshold → pair
+# ---------------------------------------------------------------------------
+
+_SQ19 = math.sqrt(0.19)  # sqrt(1 - 0.9²)
+
+V_X: list[float] = [1.0, 0.0, 0.0]
+V_X_NEAR: list[float] = [0.9, _SQ19, 0.0]  # cosine with V_X = 0.9
+V_Y: list[float] = [0.0, 1.0, 0.0]
+V_Y_NEAR: list[float] = [0.0, 0.9, _SQ19]  # cosine with V_Y = 0.9
+V_ZERO: list[float] = [0.0, 0.0, 0.0]
+
+
+def make_embedded_memory(
+    embedding: list[float],
+    *,
+    status: MemoryStatus = MemoryStatus.ACTIVE,
+    agent_id: str = "agent-1",
+) -> Memory:
+    return Memory(agent_id=agent_id, text="test memory", embedding=embedding, status=status)
+
+
+# ---------------------------------------------------------------------------
+# contradiction_score — validation
+# ---------------------------------------------------------------------------
+
+
+class TestContradictionScoreValidation:
+    def test_threshold_above_one_raises(self) -> None:
+        scorer = HealthScorer()
+        scorer.CONTRADICTION_CLUSTER_THRESHOLD = 1.1
+        with pytest.raises(ValueError, match="CONTRADICTION_CLUSTER_THRESHOLD"):
+            scorer.contradiction_score([make_embedded_memory(V_X)])
+
+    def test_threshold_below_minus_one_raises(self) -> None:
+        scorer = HealthScorer()
+        scorer.CONTRADICTION_CLUSTER_THRESHOLD = -1.1
+        with pytest.raises(ValueError, match="CONTRADICTION_CLUSTER_THRESHOLD"):
+            scorer.contradiction_score([make_embedded_memory(V_X)])
+
+    def test_threshold_at_boundaries_accepted(self) -> None:
+        for boundary in (-1.0, 1.0):
+            scorer = HealthScorer()
+            scorer.CONTRADICTION_CLUSTER_THRESHOLD = boundary
+            score, pairs, coverage = scorer.contradiction_score(
+                [make_embedded_memory(V_X), make_embedded_memory(V_X_NEAR)]
+            )
+            assert isinstance(score, float)
+
+    def test_mixed_dimensions_raise(self) -> None:
+        m1 = make_embedded_memory([1.0, 0.0])       # 2D
+        m2 = make_embedded_memory([1.0, 0.0, 0.0])  # 3D
+        with pytest.raises(ValueError, match="same dimension"):
+            HealthScorer().contradiction_score([m1, m2])
+
+    def test_uniform_dimension_accepted(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)
+        score, pairs, coverage = HealthScorer().contradiction_score([m1, m2])
+        assert isinstance(score, float)
+
+
+# ---------------------------------------------------------------------------
+# contradiction_score — edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestContradictionScoreEdgeCases:
+    def test_empty_collection_returns_zero(self) -> None:
+        score, pairs, coverage = HealthScorer().contradiction_score([])
+        assert score == 0.0
+        assert pairs == []
+        assert coverage == 1.0  # vacuously covered
+
+    def test_no_embeddings_returns_zero(self) -> None:
+        memories = [make_memory() for _ in range(3)]  # no embeddings
+        score, pairs, coverage = HealthScorer().contradiction_score(memories)
+        assert score == 0.0
+        assert pairs == []
+        assert coverage == 0.0  # 0 embedded / 3 active
+
+    def test_single_embedded_memory_returns_zero(self) -> None:
+        score, pairs, coverage = HealthScorer().contradiction_score(
+            [make_embedded_memory(V_X)]
+        )
+        assert score == 0.0
+        assert pairs == []
+
+    def test_superseded_memories_excluded(self) -> None:
+        active = make_embedded_memory(V_X)
+        superseded = make_embedded_memory(V_X_NEAR, status=MemoryStatus.SUPERSEDED)
+        score, pairs, coverage = HealthScorer().contradiction_score([active, superseded])
+        assert score == 0.0
+        assert pairs == []
+
+    def test_zero_vector_embedding_excluded(self) -> None:
+        valid = make_embedded_memory(V_X)
+        zero_vec = make_embedded_memory(V_ZERO)
+        score, pairs, coverage = HealthScorer().contradiction_score([valid, zero_vec])
+        assert score == 0.0
+        assert pairs == []
+
+    def test_mixed_embedded_and_no_embedding(self) -> None:
+        with_emb = make_embedded_memory(V_X)
+        without_emb = make_memory()  # embedding=None
+        score, pairs, coverage = HealthScorer().contradiction_score(
+            [with_emb, without_emb]
+        )
+        assert score == 0.0
+        assert pairs == []
+
+    def test_score_in_unit_interval(self) -> None:
+        memories = [make_embedded_memory(V_X), make_embedded_memory(V_X_NEAR)]
+        score, _, _coverage = HealthScorer().contradiction_score(memories)
+        assert 0.0 <= score <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# contradiction_score — embedding coverage
+# ---------------------------------------------------------------------------
+
+
+class TestContradictionScoreEmbeddingCoverage:
+    def test_all_have_embeddings_coverage_is_one(self) -> None:
+        memories = [make_embedded_memory(V_X), make_embedded_memory(V_Y)]
+        _, _, coverage = HealthScorer().contradiction_score(memories)
+        assert coverage == pytest.approx(1.0)
+
+    def test_none_have_embeddings_coverage_is_zero(self) -> None:
+        memories = [make_memory() for _ in range(4)]
+        _, _, coverage = HealthScorer().contradiction_score(memories)
+        assert coverage == pytest.approx(0.0)
+
+    def test_half_have_embeddings_coverage_is_half(self) -> None:
+        memories = [
+            make_embedded_memory(V_X),
+            make_embedded_memory(V_X_NEAR),
+            make_memory(),  # no embedding
+            make_memory(),  # no embedding
+        ]
+        _, _, coverage = HealthScorer().contradiction_score(memories)
+        assert coverage == pytest.approx(0.5)
+
+    def test_coverage_excludes_zero_norm_embeddings(self) -> None:
+        # 3 active: 1 valid, 1 zero-norm (excluded), 1 no embedding (excluded)
+        valid = make_embedded_memory(V_X)
+        zero = make_embedded_memory(V_ZERO)
+        no_emb = make_memory()
+        _, _, coverage = HealthScorer().contradiction_score([valid, zero, no_emb])
+        assert coverage == pytest.approx(1 / 3, abs=0.01)
+
+    def test_coverage_excludes_superseded_from_denominator(self) -> None:
+        # Superseded memories are not ACTIVE, so they don't appear in active_all.
+        active_with = make_embedded_memory(V_X)
+        superseded_with = make_embedded_memory(V_X_NEAR, status=MemoryStatus.SUPERSEDED)
+        _, _, coverage = HealthScorer().contradiction_score(
+            [active_with, superseded_with]
+        )
+        # Only 1 active memory (with valid embedding) → coverage = 1/1 = 1.0
+        assert coverage == pytest.approx(1.0)
+
+    def test_empty_collection_coverage_is_one(self) -> None:
+        _, _, coverage = HealthScorer().contradiction_score([])
+        assert coverage == 1.0
+
+    def test_coverage_is_float(self) -> None:
+        _, _, coverage = HealthScorer().contradiction_score(
+            [make_embedded_memory(V_X), make_embedded_memory(V_Y)]
+        )
+        assert isinstance(coverage, float)
+
+
+# ---------------------------------------------------------------------------
+# contradiction_score — scoring formula
+# ---------------------------------------------------------------------------
+
+
+class TestContradictionScoreFormula:
+    def test_two_similar_memories_score_one(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)
+        score, pairs, _ = HealthScorer().contradiction_score([m1, m2])
+        assert score == pytest.approx(1.0)
+        assert len(pairs) == 1
+
+    def test_two_dissimilar_memories_score_zero(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_Y)
+        score, pairs, _ = HealthScorer().contradiction_score([m1, m2])
+        assert score == 0.0
+        assert pairs == []
+
+    def test_one_pair_among_three_scores_two_thirds(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)
+        m3 = make_embedded_memory(V_Y)
+        score, pairs, _ = HealthScorer().contradiction_score([m1, m2, m3])
+        assert score == pytest.approx(2 / 3, abs=0.01)
+        assert len(pairs) == 1
+
+    def test_two_independent_pairs_all_involved(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)
+        m3 = make_embedded_memory(V_Y)
+        m4 = make_embedded_memory(V_Y_NEAR)
+        score, pairs, _ = HealthScorer().contradiction_score([m1, m2, m3, m4])
+        assert score == pytest.approx(1.0)
+        assert len(pairs) == 2
+
+    def test_two_pairs_plus_isolated_scores_four_fifths(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)
+        m3 = make_embedded_memory(V_Y)
+        m4 = make_embedded_memory(V_Y_NEAR)
+        m5 = make_embedded_memory([0.0, 0.0, 1.0])  # orthogonal to all above
+        score, pairs, _ = HealthScorer().contradiction_score([m1, m2, m3, m4, m5])
+        assert score == pytest.approx(0.8, abs=0.01)
+        assert len(pairs) == 2
+
+    def test_identical_embeddings_form_pair(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X)
+        score, pairs, _ = HealthScorer().contradiction_score([m1, m2])
+        assert score == pytest.approx(1.0)
+        assert len(pairs) == 1
+
+    def test_opposite_embeddings_do_not_form_pair(self) -> None:
+        # cosine(V_X, -V_X) = -1.0 — not a near-duplicate
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory([-1.0, 0.0, 0.0])
+        score, pairs, _ = HealthScorer().contradiction_score([m1, m2])
+        assert score == 0.0
+        assert pairs == []
+
+
+# ---------------------------------------------------------------------------
+# contradiction_score — pair contents
+# ---------------------------------------------------------------------------
+
+
+class TestContradictionScorePairs:
+    def test_pairs_contain_correct_memory_ids(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)
+        _, pairs, _ = HealthScorer().contradiction_score([m1, m2])
+        assert len(pairs) == 1
+        pair_ids = set(pairs[0])
+        assert m1.memory_id in pair_ids
+        assert m2.memory_id in pair_ids
+
+    def test_pairs_are_list_of_two_tuples(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)
+        _, pairs, _ = HealthScorer().contradiction_score([m1, m2])
+        assert isinstance(pairs, list)
+        assert isinstance(pairs[0], tuple)
+        assert len(pairs[0]) == 2
+
+    def test_no_duplicate_pairs(self) -> None:
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)
+        _, pairs, _ = HealthScorer().contradiction_score([m1, m2])
+        assert len(pairs) == len(set(pairs))
+
+    def test_memory_not_paired_with_itself(self) -> None:
+        memories = [make_embedded_memory(V_X), make_embedded_memory(V_X_NEAR)]
+        _, pairs, _ = HealthScorer().contradiction_score(memories)
+        for a, b in pairs:
+            assert a != b
+
+    def test_inactive_memory_id_not_in_pairs(self) -> None:
+        active = make_embedded_memory(V_X)
+        superseded = make_embedded_memory(V_X_NEAR, status=MemoryStatus.SUPERSEDED)
+        _, pairs, _ = HealthScorer().contradiction_score([active, superseded])
+        assert all(superseded.memory_id not in (a, b) for a, b in pairs)
+
+
+# ---------------------------------------------------------------------------
+# contradiction_score — custom threshold
+# ---------------------------------------------------------------------------
+
+
+class TestContradictionScoreCustomThreshold:
+    def test_stricter_threshold_produces_fewer_pairs(self) -> None:
+        scorer = HealthScorer()
+        scorer.CONTRADICTION_CLUSTER_THRESHOLD = 0.95
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)  # cosine ≈ 0.9 < 0.95
+        score, pairs, _ = scorer.contradiction_score([m1, m2])
+        assert score == 0.0
+        assert pairs == []
+
+    def test_looser_threshold_produces_more_pairs(self) -> None:
+        scorer = HealthScorer()
+        scorer.CONTRADICTION_CLUSTER_THRESHOLD = 0.3
+        m1 = make_embedded_memory(V_X)
+        m2 = make_embedded_memory(V_X_NEAR)
+        m3 = make_embedded_memory(V_Y)
+        _, default_pairs, _ = HealthScorer().contradiction_score([m1, m2, m3])
+        _, loose_pairs, _ = scorer.contradiction_score([m1, m2, m3])
+        assert len(loose_pairs) >= len(default_pairs)
+
+    def test_default_threshold_matches_constant(self) -> None:
+        from engram.core.constants import CLUSTER_SIMILARITY_THRESHOLD
+        assert HealthScorer().CONTRADICTION_CLUSTER_THRESHOLD == CLUSTER_SIMILARITY_THRESHOLD
+
+
+# ---------------------------------------------------------------------------
+# confidence_accuracy_gap — helpers
+# ---------------------------------------------------------------------------
+
+
+async def _store_memories(adapter: object, memories: list) -> None:
+    """Store a list of Memory objects in the adapter."""
+    for m in memories:
+        await adapter.store(m)  # type: ignore[attr-defined]
+
+
+# ---------------------------------------------------------------------------
+# confidence_accuracy_gap — validation
+# ---------------------------------------------------------------------------
+
+
+class TestConfidenceAccuracyGapValidation:
+    async def test_probe_count_zero_raises(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        with pytest.raises(ValueError, match="probe_count must be >= 1"):
+            await HealthScorer().confidence_accuracy_gap(
+                "agent-1", adapter, probe_count=0
+            )
+
+    async def test_probe_count_negative_raises(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        with pytest.raises(ValueError, match="probe_count must be >= 1"):
+            await HealthScorer().confidence_accuracy_gap(
+                "agent-1", adapter, probe_count=-1
+            )
+
+    async def test_top_k_zero_raises(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        with pytest.raises(ValueError, match="top_k must be >= 1"):
+            await HealthScorer().confidence_accuracy_gap("agent-1", adapter, top_k=0)
+
+    async def test_top_k_negative_raises(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        with pytest.raises(ValueError, match="top_k must be >= 1"):
+            await HealthScorer().confidence_accuracy_gap("agent-1", adapter, top_k=-5)
+
+
+# ---------------------------------------------------------------------------
+# confidence_accuracy_gap — edge cases
+# ---------------------------------------------------------------------------
+
+
+class TestConfidenceAccuracyGapEdgeCases:
+    async def test_empty_agent_returns_zero(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        gap, n = await HealthScorer().confidence_accuracy_gap("agent-1", adapter)
+        assert gap == 0.0
+        assert n == 0
+
+    async def test_no_embedded_memories_returns_zero(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(adapter, [make_memory(), make_memory(), make_memory()])
+        gap, n = await HealthScorer().confidence_accuracy_gap("agent-1", adapter)
+        assert gap == 0.0
+        assert n == 0
+
+    async def test_single_embedded_active_returns_zero(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(adapter, [make_embedded_memory(V_X)])
+        gap, n = await HealthScorer().confidence_accuracy_gap("agent-1", adapter)
+        assert gap == 0.0
+        assert n == 0
+
+    async def test_superseded_embedded_not_counted_as_probe(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [
+                make_embedded_memory(V_X, status=MemoryStatus.SUPERSEDED),
+                make_embedded_memory(V_X, status=MemoryStatus.SUPERSEDED),
+            ],
+        )
+        gap, n = await HealthScorer().confidence_accuracy_gap("agent-1", adapter)
+        assert gap == 0.0
+        assert n == 0
+
+    async def test_zero_norm_embedding_not_counted(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        # One valid, one zero-norm — only 1 valid embedded → below threshold
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X), make_embedded_memory(V_ZERO)],
+        )
+        gap, n = await HealthScorer().confidence_accuracy_gap("agent-1", adapter)
+        assert gap == 0.0
+        assert n == 0
+
+
+# ---------------------------------------------------------------------------
+# confidence_accuracy_gap — num_probed
+# ---------------------------------------------------------------------------
+
+
+class TestConfidenceAccuracyGapNumProbed:
+    async def test_num_probed_equals_active_embedded_count(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X) for _ in range(3)],
+        )
+        _, n = await HealthScorer().confidence_accuracy_gap(
+            "agent-1", adapter, probe_count=10, top_k=2
+        )
+        assert n == 3
+
+    async def test_sampling_caps_probe_count(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X) for _ in range(10)],
+        )
+        _, n = await HealthScorer().confidence_accuracy_gap(
+            "agent-1", adapter, probe_count=3, top_k=2
+        )
+        assert n == 3
+
+    async def test_returns_int_num_probed(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X), make_embedded_memory(V_Y)],
+        )
+        _, n = await HealthScorer().confidence_accuracy_gap("agent-1", adapter)
+        assert isinstance(n, int)
+
+
+# ---------------------------------------------------------------------------
+# confidence_accuracy_gap — score formula
+# ---------------------------------------------------------------------------
+
+
+class TestConfidenceAccuracyGapScoreFormula:
+    async def test_all_active_identical_embeddings_gives_zero_gap(self) -> None:
+        """Healthy system: all retrieved memories are ACTIVE → precision=1.0.
+
+        With identical unit-norm embeddings, cosine similarity = 1.0 for all
+        pairs, so retrieval_confidence = 1.0 and measured_precision = 1.0,
+        giving gap = 0.0 per probe.
+        """
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X) for _ in range(4)],
+        )
+        gap, n = await HealthScorer().confidence_accuracy_gap(
+            "agent-1", adapter, probe_count=10, top_k=2
+        )
+        assert gap == pytest.approx(0.0, abs=1e-9)
+        assert n == 4
+
+    async def test_superseded_in_results_gives_large_gap(self) -> None:
+        """Silent killer: retrieval is confident but results are superseded.
+
+        SUPERSEDED memories are stored first so they fill the top-k results
+        before any ACTIVE memory (all embeddings identical, scores all = 1.0,
+        stable sort preserves insertion order).
+        """
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        # Store SUPERSEDED first — they appear first in equal-score results.
+        superseded = [
+            make_embedded_memory(V_X, status=MemoryStatus.SUPERSEDED)
+            for _ in range(5)
+        ]
+        active = [make_embedded_memory(V_X) for _ in range(2)]
+        await _store_memories(adapter, superseded + active)
+
+        # top_k=3 < 5 superseded memories → all top-k results are SUPERSEDED
+        gap, n = await HealthScorer().confidence_accuracy_gap(
+            "agent-1", adapter, probe_count=10, top_k=3
+        )
+        assert gap == pytest.approx(1.0, abs=1e-9)
+        assert n == 2
+
+    async def test_gap_score_in_unit_interval(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X), make_embedded_memory(V_Y)],
+        )
+        gap, _ = await HealthScorer().confidence_accuracy_gap("agent-1", adapter)
+        assert 0.0 <= gap <= 1.0
+
+    async def test_gap_is_float(self) -> None:
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X), make_embedded_memory(V_X)],
+        )
+        gap, _ = await HealthScorer().confidence_accuracy_gap("agent-1", adapter)
+        assert isinstance(gap, float)
+
+    async def test_isolated_memories_still_probed(self) -> None:
+        """Orthogonal memories have zero cosine, but are still valid probes."""
+        from engram.adapters.memory import InMemoryAdapter
+
+        adapter = InMemoryAdapter()
+        # m1 and m2 are orthogonal — cosine = 0.0, but the probe still runs.
+        await _store_memories(
+            adapter,
+            [make_embedded_memory(V_X), make_embedded_memory(V_Y)],
+        )
+        gap, n = await HealthScorer().confidence_accuracy_gap(
+            "agent-1", adapter, top_k=1
+        )
+        # Both ACTIVE, score = 0.0 → retrieval_confidence = 0.0, precision = 1.0
+        # gap = |0.0 - 1.0| = 1.0. This shows low score ≠ small gap.
+        assert gap == pytest.approx(1.0, abs=1e-9)
+        assert n == 2
 
 
 # ---------------------------------------------------------------------------

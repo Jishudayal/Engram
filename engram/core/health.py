@@ -11,8 +11,13 @@ from __future__ import annotations
 
 import logging
 import math
+import random
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
+
+import numpy as np
+
+from engram.core.constants import CLUSTER_SIMILARITY_THRESHOLD
 
 if TYPE_CHECKING:
     from engram.adapters.base import AbstractAdapter
@@ -52,6 +57,11 @@ class HealthScorer:
     # Matches the half-life by construction: at age == half_life, freshness == 0.5.
     # Change only if "stale" should mean something other than "past the half-life".
     STALE_FRESHNESS_THRESHOLD: float = 0.5
+
+    # Cosine similarity above which two ACTIVE memories are flagged as a
+    # candidate conflict pair. Sourced from constants.py so a single change
+    # propagates to both the health scorer and the Step 5 detector.
+    CONTRADICTION_CLUSTER_THRESHOLD: float = CLUSTER_SIMILARITY_THRESHOLD  # 0.82
 
     # ------------------------------------------------------------------
     # Step 4.1 — Freshness and provenance scorers
@@ -157,9 +167,267 @@ class HealthScorer:
         return score
 
     # ------------------------------------------------------------------
-    # Steps 4.2 and 4.3 arrive here (contradiction_score,
-    # confidence_accuracy_gap) — stubs until those sub-steps land.
+    # Step 4.2 — Contradiction scorer (embedding similarity clustering)
     # ------------------------------------------------------------------
+
+    def contradiction_score(
+        self, memories: list[Memory]
+    ) -> tuple[float, list[tuple[str, str]], float]:
+        """Compute contradiction score, candidate conflict pairs, and embedding coverage.
+
+        Scans ACTIVE memories that have embeddings for near-duplicate pairs
+        using cosine similarity. Two memories form a "candidate pair" when
+        their cosine similarity strictly exceeds CONTRADICTION_CLUSTER_THRESHOLD.
+
+        Returns:
+          - score: fraction of ACTIVE embedded memories involved in ≥1 candidate
+            pair. 0.0 = no near-duplicates; 1.0 = every embedded memory has a
+            close neighbour. High values signal unresolved near-duplicates that
+            may be contradicting each other. The actual contradiction verdict is
+            deferred to the LLM classifier in Step 5.
+
+            Polarity: unlike freshness_score and provenance_completeness (where
+            higher = better), higher contradiction_score means MORE near-duplicate
+            conflicts, i.e., WORSE health. In the composite score (Step 4.4),
+            use (1.0 - contradiction_score) when combining with other metrics.
+
+          - candidate_pairs: list of (memory_id_a, memory_id_b) for each pair
+            above threshold, in upper-triangle row-major order.
+
+          - embedding_coverage: fraction of ACTIVE memories that have a valid
+            (non-None, non-zero-norm) embedding. Coverage < 1.0 means some active
+            memories could not be checked for contradictions; low coverage makes
+            the score optimistic. A WARNING is logged when coverage < 0.5.
+
+        ACTIVE memories without embeddings, and embeddings whose L2 norm is
+        zero, are excluded from both numerator and denominator of score, but ARE
+        counted in the denominator of embedding_coverage.
+
+        Memory complexity is O(n²) in the number of active embedded memories —
+        the full K×K similarity matrix is materialised in RAM. For collections
+        exceeding ~5 000 memories with embeddings, peak memory can reach several
+        hundred MB. Chunked or ANN-based computation is planned as a follow-on.
+
+        Returns (0.0, [], coverage) when fewer than 2 ACTIVE memories have valid
+        embeddings.
+
+        Raises ValueError if CONTRADICTION_CLUSTER_THRESHOLD is outside [-1, 1],
+        or if active memories carry embeddings of inconsistent dimension.
+        """
+        cluster_threshold = self.CONTRADICTION_CLUSTER_THRESHOLD
+        if not -1.0 <= cluster_threshold <= 1.0:
+            raise ValueError(
+                f"CONTRADICTION_CLUSTER_THRESHOLD must be in [-1, 1], "
+                f"got {cluster_threshold!r}"
+            )
+
+        active_all = [m for m in memories if m.is_usable()]
+
+        # Candidates have a non-None embedding.
+        candidates = [m for m in active_all if m.embedding is not None]
+
+        if len(candidates) < 2:
+            coverage = len(candidates) / len(active_all) if active_all else 1.0
+            logger.debug(
+                "contradiction_score: fewer than 2 embedded active memories (%d/%d)"
+                " — returning (0.0, [], %.2f)",
+                len(candidates),
+                len(active_all),
+                coverage,
+            )
+            return 0.0, [], coverage
+
+        # Guard against accidental mixing of different embedding models.
+        dims = {len(m.embedding) for m in candidates}  # type: ignore[arg-type]
+        if len(dims) > 1:
+            raise ValueError(
+                f"all embeddings must have the same dimension; "
+                f"got mixed dimensions: {sorted(dims)}"
+            )
+
+        # Build float matrix and drop zero-norm rows (all-zeros embeddings).
+        matrix = np.array([m.embedding for m in candidates], dtype=np.float64)
+        norms = np.linalg.norm(matrix, axis=1)
+        valid_mask = norms > 0.0
+        active_embedded = [m for m, v in zip(candidates, valid_mask) if v]
+
+        # Embedding coverage over all active memories (not just those with embeddings).
+        embedding_coverage = len(active_embedded) / len(active_all) if active_all else 1.0
+        if active_all and embedding_coverage < 0.5:
+            logger.warning(
+                "contradiction_score: only %d/%d active memories have valid embeddings"
+                " (%.0f%%) — score may understate true contradictions",
+                len(active_embedded),
+                len(active_all),
+                embedding_coverage * 100,
+            )
+
+        if len(active_embedded) < 2:
+            logger.debug(
+                "contradiction_score: fewer than 2 non-zero embeddings after filtering"
+                " — returning (0.0, [], %.2f)",
+                embedding_coverage,
+            )
+            return 0.0, [], embedding_coverage
+
+        # Normalize each row to unit length; dot-product of unit vectors = cosine similarity.
+        valid_matrix = matrix[valid_mask]
+        valid_norms = np.linalg.norm(valid_matrix, axis=1, keepdims=True)
+        normalized = valid_matrix / valid_norms
+        # Full K×K similarity matrix — O(n²) memory, see docstring for scale warning.
+        sim_matrix = normalized @ normalized.T  # values in [-1, 1]
+
+        # Upper triangle only (k=1 excludes the diagonal) avoids self-pairs and duplicates.
+        n = len(active_embedded)
+        rows, cols = np.triu_indices(n, k=1)
+        sims = sim_matrix[rows, cols]
+
+        above = sims > cluster_threshold
+        candidate_rows = rows[above].tolist()
+        candidate_cols = cols[above].tolist()
+
+        candidate_pairs = [
+            (active_embedded[r].memory_id, active_embedded[c].memory_id)
+            for r, c in zip(candidate_rows, candidate_cols)
+        ]
+
+        involved: set[int] = set(candidate_rows) | set(candidate_cols)
+        score = len(involved) / n
+
+        logger.debug(
+            "contradiction_score: active_embedded=%d candidate_pairs=%d"
+            " involved=%d coverage=%.2f score=%.3f",
+            n,
+            len(candidate_pairs),
+            len(involved),
+            embedding_coverage,
+            score,
+        )
+
+        return score, candidate_pairs, embedding_coverage
+
+    # ------------------------------------------------------------------
+    # Step 4.3 — Confidence-accuracy gap scorer
+    # ------------------------------------------------------------------
+
+    async def confidence_accuracy_gap(
+        self,
+        agent_id: str,
+        adapter: AbstractAdapter,
+        *,
+        probe_count: int = 50,
+        top_k: int = 5,
+    ) -> tuple[float, int]:
+        """Measure the gap between retrieval confidence and measured precision@k.
+
+        Unlike the other HealthScorer methods this method is async and performs
+        adapter I/O: it fetches all memories for the agent, samples up to
+        ``probe_count`` ACTIVE embedded memories as probes, and issues one
+        ``adapter.search()`` call per probe (without a status filter, simulating
+        naive retrieval).
+
+        For each probe two values are extracted from the top-k results after
+        excluding the probe itself:
+
+            retrieval_confidence = mean cosine score of the top-k results
+            measured_precision   = fraction of top-k results that are currently
+                                   ACTIVE (i.e., would be surfaced as truth)
+            per-probe gap        = |retrieval_confidence − measured_precision|
+
+        The score is the mean per-probe gap across all probes that yield at least
+        one result after self-exclusion.  Lower is better:
+
+            gap ≈ 0.00  — well-calibrated; high-confidence results are also
+                          high-precision
+            gap ≥ 0.20  — significant overconfidence; stale/superseded memories
+                          are retrieved at high similarity scores
+            gap ≥ 0.50  — severe miscalibration; the "silent killer" failure mode
+
+        The "silent killer" this detects: cosine similarity keeps producing
+        high-confidence matches, but a growing fraction of those matches are
+        SUPERSEDED or FLAGGED — the system looks confident while returning
+        stale answers.
+
+        Returns:
+          - gap_score in [0, 1]; lower is better.
+          - num_probed: probes that yielded ≥ 1 result after self-exclusion.
+            Surface alongside gap_score; reliability increases with num_probed.
+
+        Returns (0.0, 0) when fewer than 2 ACTIVE memories have a valid
+        (non-None, non-zero-norm) embedding.
+
+        Raises ValueError if probe_count < 1 or top_k < 1.
+        """
+        if probe_count < 1:
+            raise ValueError(f"probe_count must be >= 1, got {probe_count!r}")
+        if top_k < 1:
+            raise ValueError(f"top_k must be >= 1, got {top_k!r}")
+
+        all_memories = await adapter.list_all(agent_id)
+        active = [m for m in all_memories if m.is_usable()]
+        embedded = [
+            m
+            for m in active
+            if m.embedding is not None
+            and float(np.linalg.norm(np.asarray(m.embedding, dtype=np.float64))) > 0.0
+        ]
+
+        if len(embedded) < 2:
+            logger.debug(
+                "confidence_accuracy_gap: fewer than 2 active embedded memories (%d)"
+                " for agent %s — returning (0.0, 0)",
+                len(embedded),
+                agent_id,
+            )
+            return 0.0, 0
+
+        probes = (
+            random.sample(embedded, probe_count)
+            if len(embedded) > probe_count
+            else list(embedded)
+        )
+
+        gaps: list[float] = []
+        for probe in probes:
+            # Request one extra to account for a potential self-hit in results.
+            results = await adapter.search(
+                agent_id,
+                probe.embedding,  # type: ignore[arg-type]
+                top_k=top_k + 1,
+            )
+            results = [r for r in results if r.memory.memory_id != probe.memory_id][
+                :top_k
+            ]
+            if not results:
+                continue
+
+            retrieval_confidence = sum(r.score for r in results) / len(results)
+            active_count = sum(1 for r in results if r.memory.is_usable())
+            measured_precision = active_count / len(results)
+            gaps.append(abs(retrieval_confidence - measured_precision))
+
+        num_probed = len(gaps)
+        if num_probed == 0:
+            logger.debug(
+                "confidence_accuracy_gap: no valid probe results for agent %s"
+                " — returning (0.0, 0)",
+                agent_id,
+            )
+            return 0.0, 0
+
+        gap_score = max(0.0, min(1.0, sum(gaps) / num_probed))
+
+        logger.debug(
+            "confidence_accuracy_gap: agent=%s probes_attempted=%d probes_used=%d"
+            " top_k=%d gap=%.3f",
+            agent_id,
+            len(probes),
+            num_probed,
+            top_k,
+            gap_score,
+        )
+
+        return gap_score, num_probed
 
     # ------------------------------------------------------------------
     # Step 4.4 — Full health snapshot (not yet implemented)

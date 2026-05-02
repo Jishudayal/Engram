@@ -26,9 +26,9 @@ from typing import Any
 import numpy as np
 
 from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus
+from engram.core.constants import MemoryStatus, ResolutionStatus
 from engram.core.exceptions import NotFoundError
-from engram.core.models import Memory, SearchResult
+from engram.core.models import ConflictRecord, Memory, SearchResult
 
 __all__ = ["InMemoryAdapter"]
 
@@ -62,6 +62,8 @@ class InMemoryAdapter(AbstractAdapter):
     def __init__(self) -> None:
         # _store[agent_id][memory_id] = Memory (deep-copied on write)
         self._store: dict[str, dict[str, Memory]] = {}
+        # _conflicts[agent_id][conflict_id] = ConflictRecord (deep-copied on write)
+        self._conflicts: dict[str, dict[str, ConflictRecord]] = {}
 
     @property
     def backend_name(self) -> str:
@@ -175,3 +177,37 @@ class InMemoryAdapter(AbstractAdapter):
 
     async def exists(self, agent_id: str, memory_id: str) -> bool:
         return memory_id in self._store.get(agent_id, {})
+
+    # ------------------------------------------------------------------
+    # Conflict storage
+    # ------------------------------------------------------------------
+
+    async def store_conflict(self, conflict: ConflictRecord) -> None:
+        self._conflicts.setdefault(conflict.agent_id, {})[
+            conflict.conflict_id
+        ] = conflict.model_copy(deep=True)
+
+    async def fetch_conflict(
+        self, agent_id: str, conflict_id: str
+    ) -> ConflictRecord | None:
+        record = self._conflicts.get(agent_id, {}).get(conflict_id)
+        return record.model_copy(deep=True) if record is not None else None
+
+    async def list_conflicts(
+        self,
+        agent_id: str,
+        *,
+        status: ResolutionStatus | None = None,
+    ) -> list[ConflictRecord]:
+        records = list(self._conflicts.get(agent_id, {}).values())
+        if status is not None:
+            records = [r for r in records if r.resolution_status == status]
+        records.sort(key=lambda r: r.detected_at)
+        return [r.model_copy(deep=True) for r in records]
+
+    async def delete_conflict(self, agent_id: str, conflict_id: str) -> bool:
+        bucket = self._conflicts.get(agent_id, {})
+        if conflict_id not in bucket:
+            return False
+        del bucket[conflict_id]
+        return True

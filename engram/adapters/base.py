@@ -41,8 +41,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from engram.core.constants import MemoryStatus
-from engram.core.models import Memory, SearchResult
+from engram.core.constants import MemoryStatus, ResolutionStatus
+from engram.core.models import ConflictRecord, Memory, SearchResult
 
 __all__ = ["AbstractAdapter"]
 
@@ -239,6 +239,74 @@ class AbstractAdapter(ABC):
         Raises AdapterError on backend failure.
         """
         return await self.fetch(agent_id, memory_id) is not None
+
+    # ------------------------------------------------------------------
+    # Conflict storage (concrete defaults — override to enable persistence)
+    # ------------------------------------------------------------------
+    # These methods are NOT abstract so existing adapters are not broken.
+    # Override all four in a concrete adapter to enable contradiction storage.
+    # Step 5 wires these into ContradictionDetector.scan() and Engram.store().
+
+    async def store_conflict(self, conflict: ConflictRecord) -> None:
+        """Persist a ConflictRecord (upsert semantics).
+
+        If a record with the same conflict_id already exists it is overwritten.
+        Raises NotImplementedError until the adapter implements conflict storage.
+        Raises AdapterError on backend failure.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement conflict storage. "
+            "Override store_conflict(), fetch_conflict(), list_conflicts(), "
+            "and delete_conflict() to enable contradiction persistence."
+        )
+
+    async def fetch_conflict(
+        self, agent_id: str, conflict_id: str
+    ) -> ConflictRecord | None:
+        """Return the ConflictRecord, or None if it does not exist.
+
+        agent_id enforces tenant isolation — a conflict for a different agent
+        is treated as absent.
+        Raises NotImplementedError until the adapter implements conflict storage.
+        Raises AdapterError on backend failure.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement conflict storage. "
+            "Override store_conflict(), fetch_conflict(), list_conflicts(), "
+            "and delete_conflict() to enable contradiction persistence."
+        )
+
+    async def list_conflicts(
+        self,
+        agent_id: str,
+        *,
+        status: ResolutionStatus | None = None,
+    ) -> list[ConflictRecord]:
+        """Return ConflictRecords for an agent, optionally filtered by resolution status.
+
+        Results are ordered by detected_at ascending (oldest first).
+        Returns an empty list if no conflicts exist (does not raise).
+        Raises NotImplementedError until the adapter implements conflict storage.
+        Raises AdapterError on backend failure.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement conflict storage. "
+            "Override store_conflict(), fetch_conflict(), list_conflicts(), "
+            "and delete_conflict() to enable contradiction persistence."
+        )
+
+    async def delete_conflict(self, agent_id: str, conflict_id: str) -> bool:
+        """Delete a ConflictRecord.
+
+        Returns True if the record was found and deleted, False if not found.
+        Raises NotImplementedError until the adapter implements conflict storage.
+        Raises AdapterError on backend failure.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement conflict storage. "
+            "Override store_conflict(), fetch_conflict(), list_conflicts(), "
+            "and delete_conflict() to enable contradiction persistence."
+        )
 
     # ------------------------------------------------------------------
     # Async context manager (concrete default)

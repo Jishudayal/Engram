@@ -60,15 +60,22 @@ from qdrant_client.models import (
 
 from engram.adapters._utils import POINT_NAMESPACE, map_adapter_errors, memory_to_payload, payload_to_memory
 from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus
+from engram.core.constants import MemoryStatus, ResolutionStatus
 from engram.core.exceptions import AdapterError, NotFoundError
-from engram.core.models import Memory, SearchResult
+from engram.core.models import ConflictRecord, Memory, SearchResult
 
 __all__ = ["QdrantAdapter"]
 
 _NO_EMBEDDING_KEY = "_no_embedding"
 _RAW_EMBEDDING_KEY = "_raw_embedding"
 _AGENT_ID_KEY = "agent_id"
+
+# Sidecar collection for ConflictRecords. Uses a 1-dim Cosine collection with
+# a zero-vector per point — Qdrant requires a vector for every point, but
+# conflicts are retrieved purely by payload filters (agent_id, resolution_status).
+_CONFLICT_COLLECTION_SUFFIX = "_conflicts"
+_CONFLICT_VECTOR_SIZE = 1
+_CONFLICT_DUMMY_VECTOR = [0.0]
 
 _QDRANT_ERRORS = (UnexpectedResponse, ResponseHandlingException)
 
@@ -451,3 +458,135 @@ class QdrantAdapter(AbstractAdapter):
             with_vectors=False,
         )
         return bool(results)
+
+    # ------------------------------------------------------------------
+    # Conflict storage — sidecar collection "{collection}_conflicts"
+    # ------------------------------------------------------------------
+
+    @property
+    def _conflicts_collection(self) -> str:
+        return f"{self._collection}{_CONFLICT_COLLECTION_SUFFIX}"
+
+    async def _ensure_conflicts_collection(self) -> None:
+        """Lazily create the conflicts sidecar collection if it does not exist."""
+        name = self._conflicts_collection
+        if not await self._c.collection_exists(name):
+            await self._c.create_collection(
+                name,
+                vectors_config=VectorParams(
+                    size=_CONFLICT_VECTOR_SIZE,
+                    distance=Distance.COSINE,
+                ),
+            )
+
+    def _conflict_point_id(self, agent_id: str, conflict_id: str) -> str:
+        return str(uuid.uuid5(POINT_NAMESPACE, f"{agent_id}\x00{conflict_id}"))
+
+    def _conflict_filter(
+        self,
+        agent_id: str,
+        *,
+        status: ResolutionStatus | None = None,
+    ) -> Filter:
+        must: list[Any] = [
+            FieldCondition(key=_AGENT_ID_KEY, match=MatchValue(value=agent_id)),
+        ]
+        if status is not None:
+            must.append(
+                FieldCondition(
+                    key="resolution_status",
+                    match=MatchValue(value=status.value),
+                )
+            )
+        return Filter(must=must)
+
+    @map_adapter_errors(error=_QDRANT_ERRORS)
+    async def store_conflict(self, conflict: ConflictRecord) -> None:
+        await self._ensure_conflicts_collection()
+        payload = conflict.model_dump(mode="json")
+        pid = self._conflict_point_id(conflict.agent_id, conflict.conflict_id)
+        await self._c.upsert(
+            self._conflicts_collection,
+            points=[
+                PointStruct(
+                    id=pid,
+                    vector=_CONFLICT_DUMMY_VECTOR,
+                    payload=payload,
+                )
+            ],
+            wait=True,
+        )
+
+    @map_adapter_errors(error=_QDRANT_ERRORS)
+    async def fetch_conflict(
+        self, agent_id: str, conflict_id: str
+    ) -> ConflictRecord | None:
+        name = self._conflicts_collection
+        if not await self._c.collection_exists(name):
+            return None
+        pid = self._conflict_point_id(agent_id, conflict_id)
+        results = await self._c.retrieve(
+            name,
+            ids=[pid],
+            with_payload=True,
+            with_vectors=False,
+        )
+        if not results:
+            return None
+        p = _payload(results[0])
+        if p.get(_AGENT_ID_KEY) != agent_id:
+            return None
+        return ConflictRecord.model_validate(p)
+
+    @map_adapter_errors(error=_QDRANT_ERRORS)
+    async def list_conflicts(
+        self,
+        agent_id: str,
+        *,
+        status: ResolutionStatus | None = None,
+    ) -> list[ConflictRecord]:
+        name = self._conflicts_collection
+        if not await self._c.collection_exists(name):
+            return []
+
+        scroll_filter = self._conflict_filter(agent_id, status=status)
+        all_records: list[Record] = []
+        next_offset: str | int | None = None
+
+        while True:
+            batch, next_offset = await self._c.scroll(
+                name,
+                scroll_filter=scroll_filter,
+                limit=100,
+                offset=next_offset,
+                with_payload=True,
+                with_vectors=False,
+            )
+            all_records.extend(batch)
+            if next_offset is None:
+                break
+
+        records = [ConflictRecord.model_validate(_payload(r)) for r in all_records]
+        records.sort(key=lambda r: r.detected_at)
+        return records
+
+    @map_adapter_errors(error=_QDRANT_ERRORS)
+    async def delete_conflict(self, agent_id: str, conflict_id: str) -> bool:
+        name = self._conflicts_collection
+        if not await self._c.collection_exists(name):
+            return False
+        pid = self._conflict_point_id(agent_id, conflict_id)
+        existing = await self._c.retrieve(
+            name,
+            ids=[pid],
+            with_payload=[_AGENT_ID_KEY],
+            with_vectors=False,
+        )
+        if not existing or _payload(existing[0]).get(_AGENT_ID_KEY) != agent_id:
+            return False
+        await self._c.delete(
+            name,
+            points_selector=PointIdsList(points=[pid]),
+            wait=True,
+        )
+        return True

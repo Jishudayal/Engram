@@ -22,6 +22,7 @@ from engram.core.models import (
     ProvenanceRecord,
     SearchResult,
 )
+from engram.core.contradiction import ClassificationResult, ContradictionDetector, LLMClassifyFn
 from engram.core.health import HealthScorer
 from engram.engram import Engram
 
@@ -59,6 +60,9 @@ __all__ = [
     # Main class
     "Engram",
     "HealthScorer",
+    "ContradictionDetector",
+    "ClassificationResult",
+    "LLMClassifyFn",
     # Adapters
     "AbstractAdapter",
     "InMemoryAdapter",

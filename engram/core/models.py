@@ -160,6 +160,7 @@ class ConflictRecord(BaseModel):
 
     # --- Classification ---
     confidence: float = Field(ge=0.0, le=1.0)
+    description: str | None = None  # LLM-generated one-sentence explanation of the conflict
 
     # --- Resolution ---
     resolution_status: ResolutionStatus = ResolutionStatus.PENDING
@@ -177,11 +178,11 @@ class ConflictRecord(BaseModel):
             raise ValueError("ID fields must not be empty")
         return stripped
 
-    @field_validator("resolution_notes")
+    @field_validator("resolution_notes", "description")
     @classmethod
     def resolution_notes_not_blank(cls, v: str | None) -> str | None:
         if v is not None and not v.strip():
-            raise ValueError("resolution_notes must not be blank when provided")
+            raise ValueError("string fields must not be blank when provided")
         return v
 
     @model_validator(mode="after")

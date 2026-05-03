@@ -3,6 +3,7 @@
 from engram.core.contradiction import ClassificationResult, ContradictionDetector, LLMClassifyFn
 from engram.core.consolidator import Consolidator, LLMConsolidateFn, PlanningResult
 from engram.core.health import HealthScorer
+from engram.core.provenance import ProvenanceManifest
 
 __all__ = [
     "ClassificationResult",
@@ -12,4 +13,5 @@ __all__ = [
     "LLMConsolidateFn",
     "PlanningResult",
     "HealthScorer",
+    "ProvenanceManifest",
 ]

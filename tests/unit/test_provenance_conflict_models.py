@@ -235,6 +235,40 @@ class TestProvenanceManifest:
         assert manifest is not None
         assert manifest.derived_from == ("mem-a", "mem-b")
 
+    def test_manifest_includes_raw_content(self) -> None:
+        mem = Memory(agent_id="agent-1", text="Processed fact.")
+        prov = ProvenanceRecord(
+            memory_id=mem.memory_id,
+            source_type=SourceType.DOCUMENT,
+            raw_content="Original paragraph text before chunking.",
+        )
+        mem.attach_provenance(prov)
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        assert manifest.raw_content == "Original paragraph text before chunking."
+
+    def test_manifest_includes_chunk_index(self) -> None:
+        mem = Memory(agent_id="agent-1", text="Chunk fact.")
+        prov = ProvenanceRecord(
+            memory_id=mem.memory_id,
+            source_type=SourceType.DOCUMENT,
+            chunk_index=4,
+        )
+        mem.attach_provenance(prov)
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        assert manifest.chunk_index == 4
+
+    def test_manifest_raw_content_defaults_none(self) -> None:
+        manifest = ProvenanceManifest.from_memory(make_memory_with_provenance())
+        assert manifest is not None
+        assert manifest.raw_content is None
+
+    def test_manifest_chunk_index_defaults_none(self) -> None:
+        manifest = ProvenanceManifest.from_memory(make_memory_with_provenance())
+        assert manifest is not None
+        assert manifest.chunk_index is None
+
     def test_manifest_is_frozen(self) -> None:
         mem = make_memory_with_provenance()
         manifest = ProvenanceManifest.from_memory(mem)
@@ -259,6 +293,14 @@ class TestProvenanceManifest:
         restored = ProvenanceManifest.model_validate_json(json_str)
         assert restored.memory_id == manifest.memory_id
         assert restored.source_type == manifest.source_type
+
+    def test_importable_from_engram_core(self) -> None:
+        from engram.core import ProvenanceManifest as PM
+        assert PM is ProvenanceManifest
+
+    def test_importable_from_engram_root(self) -> None:
+        from engram import ProvenanceManifest as PM
+        assert PM is ProvenanceManifest
 
 
 # ---------------------------------------------------------------------------

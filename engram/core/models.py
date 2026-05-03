@@ -701,8 +701,6 @@ class SearchResult(BaseModel):
     # --- Context ---
     query_id: str | None = None
 
-
-
     # --- Validators ---
 
     @field_validator("query_id", "conflict_summary")

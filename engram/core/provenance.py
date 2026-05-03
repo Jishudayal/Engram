@@ -52,9 +52,11 @@ class ProvenanceManifest(BaseModel):
 
     # --- Source ---
     source_type: SourceType
-    source_id: str | None = None    # e.g. document_id, conversation_id
-    ingested_by: str | None = None  # agent or user who triggered ingestion
+    source_id: str | None = None     # e.g. document_id, conversation_id
+    ingested_by: str | None = None   # agent or user who triggered ingestion
     ingested_at: UTCDatetime
+    raw_content: str | None = None   # original text before chunking/processing
+    chunk_index: int | None = None   # position within a chunked document
 
     # --- Factory ---
 
@@ -79,4 +81,6 @@ class ProvenanceManifest(BaseModel):
             source_id=prov.source_id,
             ingested_by=prov.ingested_by,
             ingested_at=prov.ingested_at,
+            raw_content=prov.raw_content,
+            chunk_index=prov.chunk_index,
         )

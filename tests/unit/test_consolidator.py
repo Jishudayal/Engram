@@ -14,7 +14,8 @@ from engram.core.constants import (
     ResolutionStatus,
 )
 from engram.core.consolidator import _DEFAULT_MODEL, Consolidator, PlanningResult
-from engram.core.models import ConflictRecord, ConsolidationPlan, Memory
+from engram.core.exceptions import NotFoundError
+from engram.core.models import ConflictRecord, ConsolidationAction, ConsolidationPlan, Memory
 
 # ---------------------------------------------------------------------------
 # Factories
@@ -827,7 +828,7 @@ class TestExecuteGeneral:
         assert all(a.executed_at is not None for a in executed_plan.actions)
         assert executed_plan.executed_at is not None
 
-    async def test_conflict_not_found_execute_still_completes(self) -> None:
+    async def test_stale_conflict_raises_not_found(self) -> None:
         adapter = InMemoryAdapter()
         m1 = make_memory("old fact")
         m2 = make_memory("new fact")
@@ -843,10 +844,152 @@ class TestExecuteGeneral:
         # Remove the conflict before executing — simulates resolution between plan+execute
         await adapter.delete_conflict("agent-1", conflict.conflict_id)
 
+        with pytest.raises(NotFoundError, match="no longer PENDING"):
+            await det.execute(plan, adapter)
+
+
+# ---------------------------------------------------------------------------
+# execute() — ARCHIVE action
+# ---------------------------------------------------------------------------
+
+
+def make_archive_plan(
+    agent_id: str,
+    source_memory_ids: tuple[str, ...],
+) -> ConsolidationPlan:
+    action = ConsolidationAction(
+        agent_id=agent_id,
+        action_type=ActionType.ARCHIVE,
+        tier=ConsolidationTier.AUTO_MERGE,
+        confidence=1.0,
+        source_memory_ids=source_memory_ids,
+        reasoning="Direct archive.",
+    )
+    return ConsolidationPlan(agent_id=agent_id, actions=(action,))
+
+
+class TestExecuteArchive:
+    async def test_memory_gets_archived_status(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("stale fact")
+        await adapter.store(m1)
+        plan = make_archive_plan("agent-1", (m1.memory_id,))
+
+        det = make_consolidator([])
+        await det.execute(plan, adapter)
+
+        fetched = await adapter.fetch("agent-1", m1.memory_id)
+        assert fetched is not None
+        assert fetched.status.value == "archived"
+
+    async def test_multiple_sources_all_archived(self) -> None:
+        adapter = InMemoryAdapter()
+        memories = [make_memory(f"stale fact {i}") for i in range(3)]
+        for m in memories:
+            await adapter.store(m)
+        plan = make_archive_plan("agent-1", tuple(m.memory_id for m in memories))
+
+        det = make_consolidator([])
+        await det.execute(plan, adapter)
+
+        for m in memories:
+            fetched = await adapter.fetch("agent-1", m.memory_id)
+            assert fetched is not None
+            assert fetched.status.value == "archived"
+
+    async def test_action_marked_executed(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("stale fact")
+        await adapter.store(m1)
+        plan = make_archive_plan("agent-1", (m1.memory_id,))
+
+        det = make_consolidator([])
         executed = await det.execute(plan, adapter)
 
-        # Memory should still be archived even without a conflict record to update
+        assert executed.actions[0].executed_at is not None
+        assert executed.actions[0].result_memory_id is not None
+
+    async def test_missing_source_raises_not_found(self) -> None:
+        adapter = InMemoryAdapter()
+        plan = make_archive_plan("agent-1", ("nonexistent-id",))
+
+        det = make_consolidator([])
+        with pytest.raises(NotFoundError, match="source memories not found"):
+            await det.execute(plan, adapter)
+
+
+# ---------------------------------------------------------------------------
+# execute() — preflight all-or-nothing
+# ---------------------------------------------------------------------------
+
+
+class TestExecutePreflight:
+    async def test_missing_memory_raises_before_any_write(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        det = make_consolidator([])
+        plan = await det.plan("agent-1", adapter)
+        assert plan is not None
+
+        # Delete one memory before executing
+        await adapter.delete("agent-1", m1.memory_id)
+
+        with pytest.raises(NotFoundError, match="source memories not found"):
+            await det.execute(plan, adapter)
+
+        # The keeper memory must be untouched (no partial writes)
+        m2_after = await adapter.fetch("agent-1", m2.memory_id)
+        assert m2_after is not None
+        assert m2_after.status.value == "active"
+
+    async def test_stale_conflict_raises_before_any_write(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        conflict = make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        await adapter.store_conflict(conflict)
+
+        det = make_consolidator([])
+        plan = await det.plan("agent-1", adapter)
+        assert plan is not None
+
+        await adapter.delete_conflict("agent-1", conflict.conflict_id)
+
+        with pytest.raises(NotFoundError, match="no longer PENDING"):
+            await det.execute(plan, adapter)
+
+        # Both memories must be untouched
+        for mem_id in [m1.memory_id, m2.memory_id]:
+            mem = await adapter.fetch("agent-1", mem_id)
+            assert mem is not None
+            assert mem.status.value == "active"
+
+    async def test_dry_run_skips_preflight(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        conflict = make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        await adapter.store_conflict(conflict)
+
+        det = make_consolidator([])
+        plan = await det.plan("agent-1", adapter, dry_run=True)
+        assert plan is not None
+
+        # Delete resources that would fail preflight in a live run
+        await adapter.delete("agent-1", m1.memory_id)
+        await adapter.delete_conflict("agent-1", conflict.conflict_id)
+
+        # Dry run should still complete without raising
+        executed = await det.execute(plan, adapter)
         assert executed.executed_at is not None
-        m1_after = await adapter.fetch("agent-1", m1.memory_id)
-        assert m1_after is not None
-        assert m1_after.status.value == "superseded"

@@ -855,3 +855,170 @@ class TestEngramPendingReview:
         eng = Engram(adapter)
         result = await eng.pending_review("agent-1")
         assert isinstance(result, list)
+
+
+# ---------------------------------------------------------------------------
+# Engram.provenance_for() + Engram.lineage() — step 7.2
+# ---------------------------------------------------------------------------
+
+from engram.core.models import ProvenanceRecord  # noqa: E402
+from engram.core.constants import SourceType     # noqa: E402
+
+
+def _attach_prov(mem: Memory, *, source_type: SourceType = SourceType.DOCUMENT) -> Memory:
+    prov = ProvenanceRecord(memory_id=mem.memory_id, source_type=source_type)
+    mem.attach_provenance(prov)
+    return mem
+
+
+class TestEngramProvenanceFor:
+    async def test_returns_none_for_missing_memory(self) -> None:
+        eng = Engram(InMemoryAdapter())
+        result = await eng.provenance_for("agent-1", "nonexistent")
+        assert result is None
+
+    async def test_returns_none_when_no_provenance_attached(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = Memory(agent_id="agent-1", text="no provenance")
+        await adapter.store(mem)
+        eng = Engram(adapter)
+        result = await eng.provenance_for("agent-1", mem.memory_id)
+        assert result is None
+
+    async def test_returns_provenance_record(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = Memory(agent_id="agent-1", text="has provenance")
+        _attach_prov(mem)
+        await adapter.store(mem)
+        eng = Engram(adapter)
+        result = await eng.provenance_for("agent-1", mem.memory_id)
+        assert result is not None
+        assert result.memory_id == mem.memory_id
+        assert result.source_type == SourceType.DOCUMENT
+
+    async def test_returns_correct_provenance_among_many(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = _attach_prov(Memory(agent_id="agent-1", text="fact A"))
+        m2 = _attach_prov(Memory(agent_id="agent-1", text="fact B"), source_type=SourceType.API)
+        await adapter.store(m1)
+        await adapter.store(m2)
+        eng = Engram(adapter)
+        result = await eng.provenance_for("agent-1", m2.memory_id)
+        assert result is not None
+        assert result.source_type == SourceType.API
+
+
+class TestEngramLineage:
+    async def test_returns_empty_for_missing_memory(self) -> None:
+        eng = Engram(InMemoryAdapter())
+        result = await eng.lineage("agent-1", "nonexistent")
+        assert result == []
+
+    async def test_single_memory_no_chain(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = Memory(agent_id="agent-1", text="standalone")
+        await adapter.store(mem)
+        eng = Engram(adapter)
+        result = await eng.lineage("agent-1", mem.memory_id)
+        assert len(result) == 1
+        assert result[0].memory_id == mem.memory_id
+
+    async def test_two_link_chain_from_older(self) -> None:
+        adapter = InMemoryAdapter()
+        old = Memory(agent_id="agent-1", text="old fact")
+        await adapter.store(old)
+        new = Memory(agent_id="agent-1", text="new fact", supersedes=[old.memory_id])
+        old.superseded_by = new.memory_id
+        await adapter.store(new)
+        await adapter.update(old)
+
+        eng = Engram(adapter)
+        chain = await eng.lineage("agent-1", old.memory_id)
+        assert [m.memory_id for m in chain] == [old.memory_id, new.memory_id]
+
+    async def test_two_link_chain_from_newer(self) -> None:
+        adapter = InMemoryAdapter()
+        old = Memory(agent_id="agent-1", text="old fact")
+        await adapter.store(old)
+        new = Memory(agent_id="agent-1", text="new fact", supersedes=[old.memory_id])
+        old.superseded_by = new.memory_id
+        await adapter.store(new)
+        await adapter.update(old)
+
+        eng = Engram(adapter)
+        chain = await eng.lineage("agent-1", new.memory_id)
+        assert [m.memory_id for m in chain] == [old.memory_id, new.memory_id]
+
+    async def test_three_link_chain_from_middle(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="v1")
+        await adapter.store(m1)
+        m2 = Memory(agent_id="agent-1", text="v2", supersedes=[m1.memory_id])
+        m1.superseded_by = m2.memory_id
+        await adapter.store(m2)
+        await adapter.update(m1)
+        m3 = Memory(agent_id="agent-1", text="v3", supersedes=[m2.memory_id])
+        m2.superseded_by = m3.memory_id
+        await adapter.store(m3)
+        await adapter.update(m2)
+
+        eng = Engram(adapter)
+        chain = await eng.lineage("agent-1", m2.memory_id)
+        assert [m.memory_id for m in chain] == [m1.memory_id, m2.memory_id, m3.memory_id]
+
+    async def test_chain_oldest_to_newest(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="v1")
+        await adapter.store(m1)
+        m2 = Memory(agent_id="agent-1", text="v2", supersedes=[m1.memory_id])
+        m1.superseded_by = m2.memory_id
+        await adapter.store(m2)
+        await adapter.update(m1)
+
+        eng = Engram(adapter)
+        chain = await eng.lineage("agent-1", m2.memory_id)
+        assert chain[0].text == "v1"
+        assert chain[1].text == "v2"
+
+    async def test_stops_at_missing_link(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = Memory(agent_id="agent-1", text="orphan", supersedes=["ghost-id"])
+        await adapter.store(mem)
+        eng = Engram(adapter)
+        chain = await eng.lineage("agent-1", mem.memory_id)
+        assert len(chain) == 1
+        assert chain[0].memory_id == mem.memory_id
+
+    async def test_stops_at_cycle(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="cycle A")
+        m2 = Memory(agent_id="agent-1", text="cycle B")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        m1.superseded_by = m2.memory_id
+        m2.superseded_by = m1.memory_id  # artificial cycle
+        await adapter.update(m1)
+        await adapter.update(m2)
+        eng = Engram(adapter)
+        chain = await eng.lineage("agent-1", m1.memory_id)
+        assert len(chain) <= 3  # terminates, doesn't loop forever
+
+    async def test_merge_branch_picks_oldest_parent(self) -> None:
+        from datetime import UTC, datetime, timedelta
+        adapter = InMemoryAdapter()
+        older = Memory(agent_id="agent-1", text="older source")
+        newer = Memory(agent_id="agent-1", text="newer source")
+        await adapter.store(older)
+        await adapter.store(newer)
+        # Merged memory supersedes both; older has smaller created_at
+        merged = Memory(
+            agent_id="agent-1",
+            text="merged",
+            supersedes=[newer.memory_id, older.memory_id],
+        )
+        await adapter.store(merged)
+        eng = Engram(adapter)
+        chain = await eng.lineage("agent-1", merged.memory_id)
+        # Root should be the older memory (smallest created_at)
+        assert chain[0].memory_id == older.memory_id
+        assert chain[-1].memory_id == merged.memory_id

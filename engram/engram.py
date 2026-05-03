@@ -43,7 +43,7 @@ from typing import TYPE_CHECKING, Any
 from engram.adapters.base import AbstractAdapter
 from engram.core.constants import MemoryStatus, ResolutionStatus
 from engram.core.health import HealthScorer
-from engram.core.models import ConflictRecord, Memory, SearchResult
+from engram.core.models import ConflictRecord, Memory, ProvenanceRecord, SearchResult
 
 if TYPE_CHECKING:
     from engram.core.contradiction import ContradictionDetector
@@ -265,6 +265,72 @@ class Engram:
                 "Pass detector=ContradictionDetector() to Engram()."
             )
         return await self._detector.scan(agent_id, self._adapter)
+
+    async def provenance_for(self, agent_id: str, memory_id: str) -> ProvenanceRecord | None:
+        """Return the ProvenanceRecord attached to a specific memory, or None.
+
+        Returns None if the memory does not exist or was stored without provenance.
+        """
+        memory = await self._adapter.fetch(agent_id, memory_id)
+        if memory is None:
+            return None
+        return memory.provenance
+
+    async def lineage(self, agent_id: str, memory_id: str) -> list[Memory]:
+        """Traverse the full supersession chain containing the given memory.
+
+        Walks backward through Memory.supersedes to the oldest ancestor, then
+        forward through Memory.superseded_by to the newest descendant. Returns
+        the chain in oldest-to-newest order.
+
+        When a memory has multiple supersedes entries (produced by a MERGE action),
+        the parent with the oldest created_at is followed; other branches are
+        ignored. Traversal stops at cycles, missing links, or chain ends.
+
+        Returns an empty list if the memory does not exist.
+        """
+        start = await self._adapter.fetch(agent_id, memory_id)
+        if start is None:
+            return []
+
+        visited: set[str] = {start.memory_id}
+
+        # Walk backward to the oldest ancestor via Memory.supersedes.
+        # Each hop picks the parent with the lowest created_at when branched.
+        ancestors: list[Memory] = []
+        current = start
+        while current.supersedes:
+            candidates: list[Memory] = []
+            for pid in current.supersedes:
+                if pid in visited:
+                    continue
+                parent = await self._adapter.fetch(agent_id, pid)
+                if parent is not None:
+                    candidates.append(parent)
+            if not candidates:
+                break
+            oldest = min(candidates, key=lambda m: m.created_at)
+            visited.add(oldest.memory_id)
+            ancestors.append(oldest)
+            current = oldest
+
+        ancestors.reverse()  # oldest first
+        chain: list[Memory] = ancestors + [start]
+
+        # Walk forward to the newest descendant via Memory.superseded_by.
+        current = start
+        while current.superseded_by:
+            next_id = current.superseded_by
+            if next_id in visited:
+                break
+            child = await self._adapter.fetch(agent_id, next_id)
+            if child is None:
+                break
+            visited.add(child.memory_id)
+            chain.append(child)
+            current = child
+
+        return chain
 
     async def pending_review(self, agent_id: str) -> list[ConflictRecord]:
         """Return ConflictRecords that require human review.

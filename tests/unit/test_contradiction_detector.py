@@ -9,7 +9,7 @@ from engram.core.constants import (
     ConflictType,
     ResolutionStatus,
 )
-from engram.core.contradiction import ClassificationResult, ContradictionDetector
+from engram.core.contradiction import _DEFAULT_MODEL, ClassificationResult, ContradictionDetector
 from engram.core.models import ConflictRecord, Memory
 
 # ---------------------------------------------------------------------------
@@ -95,6 +95,13 @@ class TestClassificationResult:
 
 
 class TestContradictionDetectorInit:
+    def test_default_model_is_known_anthropic_model(self) -> None:
+        assert _DEFAULT_MODEL in {
+            "claude-sonnet-4-5",
+            "claude-haiku-4-5",
+            "claude-opus-4-5",
+        }
+
     def test_custom_llm_fn_accepted(self) -> None:
         async def fn(p: str) -> str:
             return "{}"

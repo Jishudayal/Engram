@@ -23,6 +23,7 @@ from engram.core.models import (
     SearchResult,
 )
 from engram.core.contradiction import ClassificationResult, ContradictionDetector, LLMClassifyFn
+from engram.core.consolidator import Consolidator, LLMConsolidateFn, PlanningResult
 from engram.core.health import HealthScorer
 from engram.engram import Engram
 
@@ -63,6 +64,9 @@ __all__ = [
     "ContradictionDetector",
     "ClassificationResult",
     "LLMClassifyFn",
+    "Consolidator",
+    "LLMConsolidateFn",
+    "PlanningResult",
     # Adapters
     "AbstractAdapter",
     "InMemoryAdapter",

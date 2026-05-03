@@ -81,7 +81,7 @@ logger = logging.getLogger(__name__)
 LLMClassifyFn = Callable[[str], Awaitable[str]]
 
 # Current Anthropic model IDs — override via model= or llm_fn= for other providers.
-_DEFAULT_MODEL = "claude-sonnet-4-6"
+_DEFAULT_MODEL = "claude-sonnet-4-5"
 
 _CLASSIFY_PROMPT = """\
 You are analyzing two memories stored by an AI agent for potential contradictions.

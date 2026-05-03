@@ -993,3 +993,142 @@ class TestExecutePreflight:
         # Dry run should still complete without raising
         executed = await det.execute(plan, adapter)
         assert executed.executed_at is not None
+
+
+# ---------------------------------------------------------------------------
+# ConsolidationPlan tier-based properties (6.5)
+# ---------------------------------------------------------------------------
+
+from engram.core.models import ConsolidationAction  # noqa: E402 (already imported at top)
+
+
+def make_action(
+    tier: ConsolidationTier,
+    action_type: ActionType = ActionType.FLAG,
+    agent_id: str = "agent-1",
+) -> ConsolidationAction:
+    return ConsolidationAction(
+        agent_id=agent_id,
+        action_type=action_type,
+        tier=tier,
+        confidence=0.5,
+        source_memory_ids=("mem-a", "mem-b"),
+    )
+
+
+class TestConsolidationPlanTierProperties:
+    def test_human_review_actions_filters_by_tier(self) -> None:
+        a1 = make_action(ConsolidationTier.HUMAN_REVIEW, ActionType.FLAG)
+        a2 = make_action(ConsolidationTier.AUTO_MERGE, ActionType.MERGE)
+        plan = ConsolidationPlan(agent_id="agent-1", actions=(a1, a2))
+        assert plan.human_review_actions == (a1,)
+
+    def test_auto_actions_filters_by_tier(self) -> None:
+        a1 = make_action(ConsolidationTier.HUMAN_REVIEW, ActionType.FLAG)
+        a2 = make_action(ConsolidationTier.AUTO_MERGE, ActionType.MERGE)
+        a3 = make_action(ConsolidationTier.AUTO_FLAG, ActionType.FLAG)
+        plan = ConsolidationPlan(agent_id="agent-1", actions=(a1, a2, a3))
+        auto_ids = {a.action_id for a in plan.auto_actions}
+        assert auto_ids == {a2.action_id, a3.action_id}
+
+    def test_human_review_actions_empty_when_all_auto(self) -> None:
+        a1 = make_action(ConsolidationTier.AUTO_MERGE, ActionType.MERGE)
+        plan = ConsolidationPlan(agent_id="agent-1", actions=(a1,))
+        assert plan.human_review_actions == ()
+
+    def test_auto_actions_empty_when_all_human_review(self) -> None:
+        a1 = make_action(ConsolidationTier.HUMAN_REVIEW, ActionType.FLAG)
+        plan = ConsolidationPlan(agent_id="agent-1", actions=(a1,))
+        assert plan.auto_actions == ()
+
+    def test_tier_counts_sum_to_total(self) -> None:
+        a1 = make_action(ConsolidationTier.HUMAN_REVIEW)
+        a2 = make_action(ConsolidationTier.AUTO_MERGE)
+        a3 = make_action(ConsolidationTier.AUTO_FLAG)
+        plan = ConsolidationPlan(agent_id="agent-1", actions=(a1, a2, a3))
+        assert len(plan.human_review_actions) + len(plan.auto_actions) == len(plan.actions)
+
+
+# ---------------------------------------------------------------------------
+# execute() — importance score updater (6.6)
+# ---------------------------------------------------------------------------
+
+
+class TestExecuteImportance:
+    async def test_supersede_keeper_importance_promoted_to_max(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="old fact", importance=0.3)
+        m2 = Memory(agent_id="agent-1", text="new fact", importance=0.7)
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        await _plan_and_execute(adapter, [])
+
+        keeper = await adapter.fetch("agent-1", m2.memory_id)
+        assert keeper is not None
+        assert keeper.importance == pytest.approx(0.7)
+
+    async def test_supersede_keeper_importance_promoted_when_superseded_higher(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="old fact", importance=0.9)
+        m2 = Memory(agent_id="agent-1", text="new fact", importance=0.2)
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        await _plan_and_execute(adapter, [])
+
+        keeper = await adapter.fetch("agent-1", m2.memory_id)
+        assert keeper is not None
+        assert keeper.importance == pytest.approx(0.9)
+
+    async def test_supersede_keeper_importance_not_reduced(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="old fact", importance=0.2)
+        m2 = Memory(agent_id="agent-1", text="new fact", importance=0.8)
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        await _plan_and_execute(adapter, [])
+
+        keeper = await adapter.fetch("agent-1", m2.memory_id)
+        assert keeper is not None
+        assert keeper.importance == pytest.approx(0.8)
+
+    async def test_merge_importance_set_to_max_of_sources(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="rate limit is 100", importance=0.4)
+        m2 = Memory(agent_id="agent-1", text="rate limit is 500", importance=0.9)
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        plan = await _plan_and_execute(adapter, [_MERGE_HIGH])
+
+        merged_id = plan.actions[0].result_memory_id
+        merged = await adapter.fetch("agent-1", merged_id)
+        assert merged is not None
+        assert merged.importance == pytest.approx(0.9)
+
+    async def test_merge_importance_uses_higher_source(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="rate limit is 100", importance=0.6)
+        m2 = Memory(agent_id="agent-1", text="rate limit is 500", importance=0.3)
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        plan = await _plan_and_execute(adapter, [_MERGE_HIGH])
+
+        merged_id = plan.actions[0].result_memory_id
+        merged = await adapter.fetch("agent-1", merged_id)
+        assert merged is not None
+        assert merged.importance == pytest.approx(0.6)

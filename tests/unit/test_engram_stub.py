@@ -778,3 +778,80 @@ class TestEngramConsolidate:
         older = await adapter.fetch("agent-1", m1.memory_id)
         assert older is not None
         assert older.status.value == "superseded"
+
+
+# ---------------------------------------------------------------------------
+# Engram.pending_review() — step 6.5
+# ---------------------------------------------------------------------------
+
+_FLAG_RESP = '{"action": "flag", "confidence": 0.50, "reasoning": "Ambiguous."}'
+
+
+class TestEngramPendingReview:
+    async def test_empty_when_no_conflicts(self) -> None:
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter)
+        result = await eng.pending_review("agent-1")
+        assert result == []
+
+    async def test_returns_pending_conflicts(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory(text="fact A")
+        m2 = make_memory(text="fact B")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        conflict = ConflictRecord(
+            agent_id="agent-1",
+            memory_a_id=m1.memory_id,
+            memory_b_id=m2.memory_id,
+            conflict_type=ConflictType.DIRECT_CONTRADICTION,
+            confidence=0.9,
+        )
+        await adapter.store_conflict(conflict)
+
+        eng = Engram(adapter)
+        result = await eng.pending_review("agent-1")
+        assert len(result) == 1
+        assert result[0].conflict_id == conflict.conflict_id
+
+    async def test_empty_after_full_auto_consolidation(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory(text="old fact")
+        m2 = make_memory(text="new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(_make_temporal_conflict(m1, m2))
+
+        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        await eng.consolidate("agent-1")
+
+        result = await eng.pending_review("agent-1")
+        assert result == []
+
+    async def test_non_empty_after_flag_action(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory(text="office in London")
+        m2 = make_memory(text="office in Berlin")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            ConflictRecord(
+                agent_id="agent-1",
+                memory_a_id=m1.memory_id,
+                memory_b_id=m2.memory_id,
+                conflict_type=ConflictType.DIRECT_CONTRADICTION,
+                confidence=0.9,
+            )
+        )
+
+        eng = Engram(adapter, consolidator=_make_consolidator([_FLAG_RESP]))
+        await eng.consolidate("agent-1")
+
+        result = await eng.pending_review("agent-1")
+        assert len(result) == 1
+
+    async def test_works_without_detector_or_consolidator(self) -> None:
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter)
+        result = await eng.pending_review("agent-1")
+        assert isinstance(result, list)

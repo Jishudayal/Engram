@@ -266,6 +266,17 @@ class Engram:
             )
         return await self._detector.scan(agent_id, self._adapter)
 
+    async def pending_review(self, agent_id: str) -> list[ConflictRecord]:
+        """Return ConflictRecords that require human review.
+
+        Returns all PENDING ConflictRecords for the agent. After a consolidation
+        run, this is the human review queue: conflicts that were flagged (HUMAN_REVIEW
+        tier) rather than auto-resolved appear here so a human can decide what to do.
+
+        Can be called without a ContradictionDetector or Consolidator configured.
+        """
+        return await self._adapter.list_conflicts(agent_id, status=ResolutionStatus.PENDING)
+
     async def consolidate(self, agent_id: str) -> ConsolidationPlan | None:
         """Plan and execute memory consolidation for an agent's PENDING conflicts.
 

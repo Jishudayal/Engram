@@ -630,6 +630,28 @@ class ConsolidationPlan(BaseModel):
         """Actions in this plan that flag memories for human review."""
         return tuple(a for a in self.actions if a.action_type == ActionType.FLAG)
 
+    @property
+    def human_review_actions(self) -> tuple[ConsolidationAction, ...]:
+        """Actions assigned to the HUMAN_REVIEW tier — require manual decision.
+
+        These are typically FLAG actions produced when confidence was below the
+        AUTO_FLAG threshold. After execute(), the corresponding ConflictRecords
+        remain PENDING and are surfaced by Engram.pending_review().
+        """
+        return tuple(a for a in self.actions if a.tier == ConsolidationTier.HUMAN_REVIEW)
+
+    @property
+    def auto_actions(self) -> tuple[ConsolidationAction, ...]:
+        """Actions assigned to AUTO_MERGE or AUTO_FLAG tier — safe to execute automatically.
+
+        These actions have sufficient confidence that no human decision is needed.
+        Complement of human_review_actions within the plan.
+        """
+        return tuple(
+            a for a in self.actions
+            if a.tier in (ConsolidationTier.AUTO_MERGE, ConsolidationTier.AUTO_FLAG)
+        )
+
 
 class SearchResult(BaseModel):
     """A single result from a memory search query.

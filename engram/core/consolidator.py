@@ -53,6 +53,7 @@ from engram.core.constants import (
     ConsolidationTier,
     MemoryStatus,
     ResolutionStatus,
+    DEFAULT_IMPORTANCE,
 )
 from engram.core.exceptions import NotFoundError
 from engram.core.models import ConsolidationAction, ConsolidationPlan, Memory
@@ -574,6 +575,14 @@ class Consolidator:
         superseded.superseded_by = keeper_id
         await adapter.update(superseded)
 
+        # The keeper inherits the importance of whichever memory was more important,
+        # since the superseded memory may have been high-importance for a reason.
+        keeper = memory_map[keeper_id]
+        promoted_importance = max(keeper.importance, superseded.importance)
+        if promoted_importance != keeper.importance:
+            keeper.importance = promoted_importance
+            await adapter.update(keeper)
+
         resolved = conflict.model_copy(
             update={
                 "resolved_at": datetime.now(UTC),
@@ -595,12 +604,20 @@ class Consolidator:
         The merged memory's text is action.reasoning (the LLM's reconciliation
         explanation). Both sources are archived with superseded_by pointing to
         the new merged memory. Preflight guarantees all sources exist and conflict
-        is non-None.
+        is non-None. The merged memory inherits the max importance of its sources.
         """
         assert conflict is not None, "preflight must have raised if conflict was missing"
         src_ids = list(action.source_memory_ids)
         merged_text = action.reasoning or "Merged memory synthesised from conflicting sources."
-        merged = Memory(agent_id=action.agent_id, text=merged_text, supersedes=src_ids)
+        merged_importance = max(
+            (memory_map[sid].importance for sid in src_ids), default=DEFAULT_IMPORTANCE
+        )
+        merged = Memory(
+            agent_id=action.agent_id,
+            text=merged_text,
+            supersedes=src_ids,
+            importance=merged_importance,
+        )
         await adapter.store(merged)
 
         for src_id in src_ids:

@@ -134,6 +134,132 @@ class TestProvenanceRecordSerialization:
         data = make_provenance(source_type=SourceType.API).model_dump()
         assert data["source_type"] == "api"
 
+    def test_derived_from_round_trips(self) -> None:
+        pr = make_provenance(derived_from=("mem-a", "mem-b"))
+        data = pr.model_dump()
+        restored = ProvenanceRecord(**data)
+        assert restored.derived_from == ("mem-a", "mem-b")
+
+
+class TestProvenanceRecordDerivedFrom:
+    def test_defaults_to_empty_tuple(self) -> None:
+        assert make_provenance().derived_from == ()
+
+    def test_single_source_accepted(self) -> None:
+        pr = make_provenance(derived_from=("mem-x",))
+        assert pr.derived_from == ("mem-x",)
+
+    def test_multiple_sources_accepted(self) -> None:
+        pr = make_provenance(derived_from=("mem-a", "mem-b", "mem-c"))
+        assert len(pr.derived_from) == 3
+
+    def test_blank_id_in_derived_from_raises(self) -> None:
+        with pytest.raises(ValidationError, match="must not contain blank"):
+            make_provenance(derived_from=("mem-a", "  "))
+
+    def test_derived_from_immutable(self) -> None:
+        pr = make_provenance(derived_from=("mem-a",))
+        with pytest.raises((ValidationError, TypeError)):
+            pr.derived_from = ("mem-b",)  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# ProvenanceManifest
+# ---------------------------------------------------------------------------
+
+from engram.core.provenance import ProvenanceManifest  # noqa: E402
+
+
+def make_memory_with_provenance(**mem_overrides: object) -> Memory:
+    mem = Memory(agent_id="agent-1", text="The refund policy is 30 days.", **mem_overrides)  # type: ignore[arg-type]
+    prov = ProvenanceRecord(
+        memory_id=mem.memory_id,
+        source_type=SourceType.DOCUMENT,
+        source_id="policy-v3.pdf",
+        ingested_by="agent-1",
+    )
+    mem.attach_provenance(prov)
+    return mem
+
+
+class TestProvenanceManifest:
+    def test_from_memory_with_provenance_returns_manifest(self) -> None:
+        mem = make_memory_with_provenance()
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+
+    def test_from_memory_without_provenance_returns_none(self) -> None:
+        mem = Memory(agent_id="agent-1", text="No provenance here.")
+        assert ProvenanceManifest.from_memory(mem) is None
+
+    def test_manifest_memory_fields(self) -> None:
+        mem = make_memory_with_provenance()
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        assert manifest.memory_id == mem.memory_id
+        assert manifest.agent_id == "agent-1"
+        assert manifest.text == "The refund policy is 30 days."
+
+    def test_manifest_provenance_fields(self) -> None:
+        mem = make_memory_with_provenance()
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        assert manifest.source_type == SourceType.DOCUMENT
+        assert manifest.source_id == "policy-v3.pdf"
+        assert manifest.ingested_by == "agent-1"
+        assert manifest.record_id == mem.provenance.record_id  # type: ignore[union-attr]
+
+    def test_manifest_lineage_defaults(self) -> None:
+        mem = make_memory_with_provenance()
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        assert manifest.supersedes == ()
+        assert manifest.superseded_by is None
+        assert manifest.derived_from == ()
+
+    def test_manifest_reflects_supersedes_chain(self) -> None:
+        mem = make_memory_with_provenance(supersedes=["mem-old-1", "mem-old-2"])
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        assert manifest.supersedes == ("mem-old-1", "mem-old-2")
+
+    def test_manifest_reflects_derived_from(self) -> None:
+        mem = Memory(agent_id="agent-1", text="Merged fact.")
+        prov = ProvenanceRecord(
+            memory_id=mem.memory_id,
+            source_type=SourceType.SYSTEM,
+            derived_from=("mem-a", "mem-b"),
+        )
+        mem.attach_provenance(prov)
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        assert manifest.derived_from == ("mem-a", "mem-b")
+
+    def test_manifest_is_frozen(self) -> None:
+        mem = make_memory_with_provenance()
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        with pytest.raises((ValidationError, TypeError)):
+            manifest.text = "tampered"  # type: ignore[misc]
+
+    def test_manifest_serializes_to_dict(self) -> None:
+        mem = make_memory_with_provenance()
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        data = manifest.model_dump()
+        assert "memory_id" in data
+        assert "source_type" in data
+        assert data["source_type"] == "document"
+
+    def test_manifest_round_trips_json(self) -> None:
+        mem = make_memory_with_provenance()
+        manifest = ProvenanceManifest.from_memory(mem)
+        assert manifest is not None
+        json_str = manifest.model_dump_json()
+        restored = ProvenanceManifest.model_validate_json(json_str)
+        assert restored.memory_id == manifest.memory_id
+        assert restored.source_type == manifest.source_type
+
 
 # ---------------------------------------------------------------------------
 # ConflictRecord

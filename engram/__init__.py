@@ -22,6 +22,7 @@ from engram.core.models import (
     ProvenanceRecord,
     SearchResult,
 )
+from engram.core.provenance import ProvenanceManifest
 from engram.core.contradiction import ClassificationResult, ContradictionDetector, LLMClassifyFn
 from engram.core.consolidator import Consolidator, LLMConsolidateFn, PlanningResult
 from engram.core.health import HealthScorer
@@ -79,6 +80,7 @@ __all__ = [
     # Models
     "Memory",
     "ProvenanceRecord",
+    "ProvenanceManifest",
     "ConflictRecord",
     "HealthScore",
     "ConsolidationAction",

@@ -103,6 +103,11 @@ class ProvenanceRecord(BaseModel):
     raw_content: str | None = None  # text before chunking/processing
     chunk_index: int | None = None  # position within a chunked document
 
+    # --- Lineage ---
+    # IDs of memories this record was derived from (set when the Consolidation
+    # Engine merges two conflicting memories into one synthesised fact).
+    derived_from: tuple[str, ...] = ()
+
     # --- Timing ---
     ingested_at: UTCDatetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -128,6 +133,14 @@ class ProvenanceRecord(BaseModel):
     def chunk_index_non_negative(cls, v: int | None) -> int | None:
         if v is not None and v < 0:
             raise ValueError("chunk_index must be non-negative")
+        return v
+
+    @field_validator("derived_from")
+    @classmethod
+    def derived_from_ids_not_blank(cls, v: tuple[str, ...]) -> tuple[str, ...]:
+        for mid in v:
+            if not mid.strip():
+                raise ValueError("derived_from must not contain blank IDs")
         return v
 
 
@@ -687,6 +700,8 @@ class SearchResult(BaseModel):
 
     # --- Context ---
     query_id: str | None = None
+
+
 
     # --- Validators ---
 

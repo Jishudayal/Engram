@@ -4,10 +4,13 @@ from typing import Any
 
 import pytest
 
+from datetime import UTC, datetime
+
 from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus
+from engram.adapters.memory import InMemoryAdapter
+from engram.core.constants import ConflictType, MemoryStatus, ResolutionStatus
 from engram.core.exceptions import AdapterError, EngramError, NotFoundError
-from engram.core.models import Memory, SearchResult
+from engram.core.models import ConflictRecord, Memory, SearchResult
 
 # ---------------------------------------------------------------------------
 # Minimal concrete adapter used across all tests
@@ -531,3 +534,108 @@ class TestSearchResultConflictDefaults:
         m = make_memory()
         sr = SearchResult(memory=m, score=0.9, rank=1)
         assert sr.recommended is True
+
+
+# ---------------------------------------------------------------------------
+# TestUpdateConflict — InMemoryAdapter.update_conflict (Step 6.2)
+# ---------------------------------------------------------------------------
+
+def _make_conflict(mem_a: Memory, mem_b: Memory, *, agent_id: str = "agent-1") -> ConflictRecord:
+    return ConflictRecord(
+        agent_id=agent_id,
+        memory_a_id=mem_a.memory_id,
+        memory_b_id=mem_b.memory_id,
+        conflict_type=ConflictType.DIRECT_CONTRADICTION,
+        confidence=0.92,
+    )
+
+
+class TestUpdateConflict:
+    async def test_update_replaces_existing_record(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory()
+        m2 = make_memory()
+        conflict = _make_conflict(m1, m2)
+        await adapter.store_conflict(conflict)
+
+        resolved = conflict.model_copy(
+            update={"resolution_status": ResolutionStatus.AUTO_RESOLVED, "resolved_at": datetime.now(UTC)}
+        )
+        await adapter.update_conflict(resolved)
+
+        fetched = await adapter.fetch_conflict("agent-1", conflict.conflict_id)
+        assert fetched is not None
+        assert fetched.resolution_status == ResolutionStatus.AUTO_RESOLVED
+
+    async def test_update_not_found_raises(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory()
+        m2 = make_memory()
+        conflict = _make_conflict(m1, m2)
+        # Never stored — should raise
+        with pytest.raises(NotFoundError):
+            await adapter.update_conflict(conflict)
+
+    async def test_update_wrong_agent_raises(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory()
+        m2 = make_memory()
+        conflict = _make_conflict(m1, m2, agent_id="agent-a")
+        await adapter.store_conflict(conflict)
+
+        # Build a copy scoped to a different agent — treated as absent
+        other = ConflictRecord(
+            conflict_id=conflict.conflict_id,
+            agent_id="agent-b",
+            memory_a_id=m1.memory_id,
+            memory_b_id=m2.memory_id,
+            conflict_type=ConflictType.DIRECT_CONTRADICTION,
+            confidence=0.92,
+        )
+        with pytest.raises(NotFoundError):
+            await adapter.update_conflict(other)
+
+    async def test_update_deep_copy_isolation(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory()
+        m2 = make_memory()
+        conflict = _make_conflict(m1, m2)
+        await adapter.store_conflict(conflict)
+
+        resolved = conflict.model_copy(
+            update={"resolution_status": ResolutionStatus.AUTO_RESOLVED, "resolved_at": datetime.now(UTC)}
+        )
+        await adapter.update_conflict(resolved)
+
+        # Mutate the instance that was passed to update_conflict — stored record must not change.
+        resolved.resolution_notes = "mutated after store"
+        fetched = await adapter.fetch_conflict("agent-1", conflict.conflict_id)
+        assert fetched is not None
+        assert fetched.resolution_notes is None
+
+    async def test_update_reflected_in_list_conflicts(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory()
+        m2 = make_memory()
+        conflict = _make_conflict(m1, m2)
+        await adapter.store_conflict(conflict)
+
+        resolved = conflict.model_copy(
+            update={"resolution_status": ResolutionStatus.AUTO_RESOLVED, "resolved_at": datetime.now(UTC)}
+        )
+        await adapter.update_conflict(resolved)
+
+        # PENDING list is now empty; AUTO_RESOLVED appears in unfiltered list
+        pending = await adapter.list_conflicts("agent-1", status=ResolutionStatus.PENDING)
+        assert pending == []
+        all_conflicts = await adapter.list_conflicts("agent-1")
+        assert len(all_conflicts) == 1
+        assert all_conflicts[0].resolution_status == ResolutionStatus.AUTO_RESOLVED
+
+    async def test_base_adapter_update_conflict_raises_not_implemented(self) -> None:
+        m1 = make_memory()
+        m2 = make_memory()
+        adapter = _MinimalAdapter()
+        conflict = _make_conflict(m1, m2)
+        with pytest.raises(NotImplementedError, match="update_conflict"):
+            await adapter.update_conflict(conflict)

@@ -244,8 +244,9 @@ class AbstractAdapter(ABC):
     # Conflict storage (concrete defaults — override to enable persistence)
     # ------------------------------------------------------------------
     # These methods are NOT abstract so existing adapters are not broken.
-    # Override all four in a concrete adapter to enable contradiction storage.
+    # Override all five in a concrete adapter to enable contradiction storage.
     # Step 5 wires these into ContradictionDetector.scan() and Engram.store().
+    # Step 6.2 adds update_conflict() for executor use in Consolidator.execute().
 
     async def store_conflict(self, conflict: ConflictRecord) -> None:
         """Persist a ConflictRecord (upsert semantics).
@@ -257,7 +258,7 @@ class AbstractAdapter(ABC):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement conflict storage. "
             "Override store_conflict(), fetch_conflict(), list_conflicts(), "
-            "and delete_conflict() to enable contradiction persistence."
+            "update_conflict(), and delete_conflict() to enable contradiction persistence."
         )
 
     async def fetch_conflict(
@@ -273,7 +274,7 @@ class AbstractAdapter(ABC):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement conflict storage. "
             "Override store_conflict(), fetch_conflict(), list_conflicts(), "
-            "and delete_conflict() to enable contradiction persistence."
+            "update_conflict(), and delete_conflict() to enable contradiction persistence."
         )
 
     async def list_conflicts(
@@ -292,7 +293,23 @@ class AbstractAdapter(ABC):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement conflict storage. "
             "Override store_conflict(), fetch_conflict(), list_conflicts(), "
-            "and delete_conflict() to enable contradiction persistence."
+            "update_conflict(), and delete_conflict() to enable contradiction persistence."
+        )
+
+    async def update_conflict(self, conflict: ConflictRecord) -> None:
+        """Fully replace an existing ConflictRecord.
+
+        Used by Consolidator.execute() to mark conflicts as resolved or superseded
+        after an action is applied. Raises NotFoundError if conflict_id does not
+        exist for the given agent. Scoped to conflict.agent_id: the same conflict_id
+        under a different agent_id is treated as absent.
+        Raises NotImplementedError until the adapter implements conflict storage.
+        Raises AdapterError on backend failure.
+        """
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement conflict storage. "
+            "Override store_conflict(), fetch_conflict(), list_conflicts(), "
+            "update_conflict(), and delete_conflict() to enable contradiction persistence."
         )
 
     async def delete_conflict(self, agent_id: str, conflict_id: str) -> bool:
@@ -305,7 +322,7 @@ class AbstractAdapter(ABC):
         raise NotImplementedError(
             f"{type(self).__name__} does not implement conflict storage. "
             "Override store_conflict(), fetch_conflict(), list_conflicts(), "
-            "and delete_conflict() to enable contradiction persistence."
+            "update_conflict(), and delete_conflict() to enable contradiction persistence."
         )
 
     # ------------------------------------------------------------------

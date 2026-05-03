@@ -205,6 +205,14 @@ class InMemoryAdapter(AbstractAdapter):
         records.sort(key=lambda r: r.detected_at)
         return [r.model_copy(deep=True) for r in records]
 
+    async def update_conflict(self, conflict: ConflictRecord) -> None:
+        bucket = self._conflicts.get(conflict.agent_id, {})
+        if conflict.conflict_id not in bucket:
+            raise NotFoundError(
+                f"conflict {conflict.conflict_id!r} not found for agent {conflict.agent_id!r}"
+            )
+        bucket[conflict.conflict_id] = conflict.model_copy(deep=True)
+
     async def delete_conflict(self, agent_id: str, conflict_id: str) -> bool:
         bucket = self._conflicts.get(agent_id, {})
         if conflict_id not in bucket:

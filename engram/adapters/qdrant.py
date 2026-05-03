@@ -571,6 +571,36 @@ class QdrantAdapter(AbstractAdapter):
         return records
 
     @map_adapter_errors(error=_QDRANT_ERRORS)
+    async def update_conflict(self, conflict: ConflictRecord) -> None:
+        name = self._conflicts_collection
+        pid = self._conflict_point_id(conflict.agent_id, conflict.conflict_id)
+        if await self._c.collection_exists(name):
+            existing = await self._c.retrieve(
+                name,
+                ids=[pid],
+                with_payload=[_AGENT_ID_KEY],
+                with_vectors=False,
+            )
+        else:
+            existing = []
+        if not existing or _payload(existing[0]).get(_AGENT_ID_KEY) != conflict.agent_id:
+            raise NotFoundError(
+                f"conflict {conflict.conflict_id!r} not found for agent {conflict.agent_id!r}"
+            )
+        payload = conflict.model_dump(mode="json")
+        await self._c.upsert(
+            name,
+            points=[
+                PointStruct(
+                    id=pid,
+                    vector=_CONFLICT_DUMMY_VECTOR,
+                    payload=payload,
+                )
+            ],
+            wait=True,
+        )
+
+    @map_adapter_errors(error=_QDRANT_ERRORS)
     async def delete_conflict(self, agent_id: str, conflict_id: str) -> bool:
         name = self._conflicts_collection
         if not await self._c.collection_exists(name):

@@ -19,12 +19,20 @@ After bulk ingestion, run a batch scan to detect conflicts across the batch:
     await eng.store_batch(memories)
     new_conflicts = await eng.scan_contradictions("agent-1")
 
+To plan and execute consolidation of detected conflicts:
+
+    from engram import Engram, ContradictionDetector, Consolidator
+    eng = Engram(adapter, detector=ContradictionDetector(), consolidator=Consolidator())
+    plan = await eng.consolidate("agent-1")  # None if no PENDING conflicts
+
 What's implemented in each step:
   1.8 — constructor, adapter delegation, NotImplementedError stubs
   4   — health() scoring
   5.1 — ContradictionDetector core + conflict storage contract
   5.2 — store-time detection, search-time enrichment, scan_contradictions()
-  6   — consolidate() planning and execution
+  6.1 — Consolidator.plan() — LLM-driven action planning
+  6.2 — update_conflict() adapter contract
+  6.3 — Consolidator.execute() + Engram.consolidate() wiring
 """
 
 from __future__ import annotations
@@ -39,6 +47,7 @@ from engram.core.models import ConflictRecord, Memory, SearchResult
 
 if TYPE_CHECKING:
     from engram.core.contradiction import ContradictionDetector
+    from engram.core.consolidator import Consolidator
     from engram.core.models import ConsolidationPlan, HealthScore
 
 __all__ = ["Engram"]
@@ -66,9 +75,12 @@ class Engram:
                            conflict_summary, and recommended fields.
                          - scan_contradictions() becomes available.
                        When None, store/search behave identically to a plain adapter call.
-        health_scorer: Optional HealthScorer instance. Supply a pre-configured scorer to
-                       override freshness half-life, weights, or risk thresholds. Defaults
-                       to a HealthScorer with library defaults.
+        health_scorer:  Optional HealthScorer instance. Supply a pre-configured scorer to
+                        override freshness half-life, weights, or risk thresholds. Defaults
+                        to a HealthScorer with library defaults.
+        consolidator:   Optional Consolidator instance. When provided, consolidate() plans
+                        and executes memory consolidation actions for PENDING conflicts.
+                        When None, consolidate() raises ValueError.
     """
 
     def __init__(
@@ -77,6 +89,7 @@ class Engram:
         *,
         detector: ContradictionDetector | None = None,
         health_scorer: HealthScorer | None = None,
+        consolidator: Consolidator | None = None,
     ) -> None:
         if not isinstance(adapter, AbstractAdapter):
             raise TypeError(
@@ -85,6 +98,7 @@ class Engram:
         self._adapter = adapter
         self._detector = detector
         self._health_scorer = health_scorer or HealthScorer()
+        self._consolidator = consolidator
 
     @property
     def adapter(self) -> AbstractAdapter:
@@ -252,9 +266,27 @@ class Engram:
             )
         return await self._detector.scan(agent_id, self._adapter)
 
-    async def consolidate(self, agent_id: str) -> ConsolidationPlan:
-        """Plan and execute memory consolidation. Not yet implemented (Step 6)."""
-        raise NotImplementedError("consolidate() is not yet implemented (Step 6)")
+    async def consolidate(self, agent_id: str) -> ConsolidationPlan | None:
+        """Plan and execute memory consolidation for an agent's PENDING conflicts.
+
+        Calls Consolidator.plan() to build a ConsolidationPlan from PENDING
+        ConflictRecords, then Consolidator.execute() to apply each action.
+
+        Returns the executed ConsolidationPlan, or None if there are no PENDING
+        conflicts to act on.
+
+        Raises ValueError if no Consolidator was provided at construction time.
+        Raises NotImplementedError if the adapter does not support conflict storage.
+        """
+        if self._consolidator is None:
+            raise ValueError(
+                "consolidate() requires a Consolidator. "
+                "Pass consolidator=Consolidator() to Engram()."
+            )
+        plan = await self._consolidator.plan(agent_id, self._adapter)
+        if plan is None:
+            return None
+        return await self._consolidator.execute(plan, self._adapter)
 
     # ------------------------------------------------------------------
     # Internal — store-time detection

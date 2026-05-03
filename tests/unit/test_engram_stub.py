@@ -463,8 +463,8 @@ class TestEngramExists:
 
 
 class TestEngramNotImplementedStubs:
-    async def test_consolidate_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="Step 6"):
+    async def test_consolidate_without_consolidator_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="consolidate\\(\\) requires a Consolidator"):
             await Engram(_StubAdapter()).consolidate("agent-1")
 
 
@@ -706,3 +706,75 @@ class TestEngramScanContradictions:
         assert len(result) == 1
         stored = await adapter.list_conflicts("agent-1")
         assert len(stored) == 1
+
+
+# ---------------------------------------------------------------------------
+# Engram.consolidate() — step 6.3
+# ---------------------------------------------------------------------------
+
+from engram.core.consolidator import Consolidator  # noqa: E402
+from engram.core.constants import ConflictType  # noqa: E402
+from engram.core.models import ConflictRecord  # noqa: E402
+
+
+def _make_consolidator(responses: list[str], **kwargs: object) -> Consolidator:
+    it = iter(responses)
+
+    async def mock_llm(prompt: str) -> str:
+        return next(it, '{"action": "flag", "confidence": 0.0, "reasoning": ""}')
+
+    return Consolidator(llm_fn=mock_llm, **kwargs)  # type: ignore[arg-type]
+
+
+def _make_temporal_conflict(mem_a: Memory, mem_b: Memory, agent_id: str = "agent-1") -> ConflictRecord:
+    return ConflictRecord(
+        agent_id=agent_id,
+        memory_a_id=mem_a.memory_id,
+        memory_b_id=mem_b.memory_id,
+        conflict_type=ConflictType.TEMPORAL_SUPERSESSION,
+        confidence=0.95,
+    )
+
+
+class TestEngramConsolidate:
+    async def test_without_consolidator_raises_value_error(self) -> None:
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter)
+        with pytest.raises(ValueError, match="consolidator"):
+            await eng.consolidate("agent-1")
+
+    async def test_no_pending_conflicts_returns_none(self) -> None:
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        result = await eng.consolidate("agent-1")
+        assert result is None
+
+    async def test_with_conflicts_returns_executed_plan(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory(text="old fact")
+        m2 = make_memory(text="new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(_make_temporal_conflict(m1, m2))
+
+        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        plan = await eng.consolidate("agent-1")
+
+        assert plan is not None
+        assert plan.executed_at is not None
+        assert len(plan.actions) == 1
+
+    async def test_consolidate_archives_superseded_memory(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory(text="old fact")
+        m2 = make_memory(text="new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(_make_temporal_conflict(m1, m2))
+
+        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        await eng.consolidate("agent-1")
+
+        older = await adapter.fetch("agent-1", m1.memory_id)
+        assert older is not None
+        assert older.status.value == "superseded"

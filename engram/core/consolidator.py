@@ -44,19 +44,21 @@ import logging
 from collections import Counter
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from engram.core.constants import (
     ActionType,
     ConflictType,
     ConsolidationTier,
+    MemoryStatus,
     ResolutionStatus,
 )
-from engram.core.models import ConsolidationAction, ConsolidationPlan
+from engram.core.models import ConsolidationAction, ConsolidationPlan, Memory
 
 if TYPE_CHECKING:
     from engram.adapters.base import AbstractAdapter
-    from engram.core.models import ConflictRecord, Memory
+    from engram.core.models import ConflictRecord
 
 __all__ = ["Consolidator", "LLMConsolidateFn", "PlanningResult"]
 
@@ -418,3 +420,222 @@ class Consolidator:
             source_memory_ids=(conflict.memory_a_id, conflict.memory_b_id),
             reasoning=result.reasoning or None,
         )
+
+    # ------------------------------------------------------------------
+    # Execute
+    # ------------------------------------------------------------------
+
+    async def execute(
+        self,
+        plan: ConsolidationPlan,
+        adapter: AbstractAdapter,
+    ) -> ConsolidationPlan:
+        """Apply every action in a ConsolidationPlan against the adapter.
+
+        For each ConsolidationAction:
+          SUPERSEDE — archive the older memory (status=SUPERSEDED, superseded_by=keeper),
+                      resolve the ConflictRecord (AUTO_RESOLVED).
+          MERGE     — store a new merged Memory (text from action.reasoning), archive both
+                      sources (status=ARCHIVED, superseded_by=merged_id), resolve the
+                      ConflictRecord (AUTO_RESOLVED).
+          FLAG      — update the ConflictRecord's resolution_notes and keep it PENDING
+                      so a human can act; no memory is modified.
+          ARCHIVE   — archive each memory in source_memory_ids; no conflict to resolve.
+
+        All actions are marked executed via action.mark_executed() as they complete.
+        plan.executed_at is set at the end.
+
+        When plan.is_dry_run is True, all adapter writes are skipped; actions are still
+        marked executed so callers can inspect the plan without mutating state.
+
+        Raises the first unhandled exception — there is no partial-execution recovery.
+        If a conflict record is not found (e.g. resolved between plan() and execute()),
+        memory operations still proceed; only the conflict update is skipped.
+        """
+        if plan.is_dry_run:
+            return self._execute_dry_run(plan)
+
+        # Build lookup keyed by the unordered memory pair so action dispatch
+        # can find the conflict regardless of which side is memory_a vs memory_b.
+        pending = await adapter.list_conflicts(plan.agent_id, status=ResolutionStatus.PENDING)
+        conflict_lookup: dict[frozenset[str], ConflictRecord] = {
+            frozenset({c.memory_a_id, c.memory_b_id}): c
+            for c in pending
+        }
+
+        for action in plan.actions:
+            await self._execute_action(action, adapter, conflict_lookup)
+
+        plan.executed_at = datetime.now(UTC)
+        action_counts = Counter(a.action_type.value for a in plan.actions)
+        logger.info(
+            "execute: agent=%s plan=%s actions=%d by_type=%s",
+            plan.agent_id,
+            plan.plan_id,
+            len(plan.actions),
+            dict(action_counts),
+        )
+        return plan
+
+    def _execute_dry_run(self, plan: ConsolidationPlan) -> ConsolidationPlan:
+        """Mark all actions executed without touching the adapter."""
+        for action in plan.actions:
+            action.mark_executed(action.source_memory_ids[0])
+        plan.executed_at = datetime.now(UTC)
+        logger.debug(
+            "execute: dry_run plan=%s — %d actions marked without adapter writes",
+            plan.plan_id,
+            len(plan.actions),
+        )
+        return plan
+
+    async def _execute_action(
+        self,
+        action: ConsolidationAction,
+        adapter: AbstractAdapter,
+        conflict_lookup: dict[frozenset[str], ConflictRecord],
+    ) -> None:
+        """Dispatch a single action to its type-specific handler."""
+        conflict = conflict_lookup.get(frozenset(action.source_memory_ids))
+
+        if action.action_type == ActionType.SUPERSEDE:
+            await self._execute_supersede(action, adapter, conflict)
+        elif action.action_type == ActionType.MERGE:
+            await self._execute_merge(action, adapter, conflict)
+        elif action.action_type == ActionType.FLAG:
+            await self._execute_flag(action, adapter, conflict)
+        elif action.action_type == ActionType.ARCHIVE:
+            await self._execute_archive(action, adapter)
+        else:
+            logger.warning(
+                "_execute_action: unknown action_type %r for action %s — skipping",
+                action.action_type,
+                action.action_id,
+            )
+
+    async def _execute_supersede(
+        self,
+        action: ConsolidationAction,
+        adapter: AbstractAdapter,
+        conflict: ConflictRecord | None,
+    ) -> None:
+        """Archive the superseded memory and resolve the conflict.
+
+        source_memory_ids convention (set by plan()): (superseded_id, keeper_id).
+        The superseded memory gets status=SUPERSEDED and superseded_by=keeper_id.
+        """
+        superseded_id, keeper_id = action.source_memory_ids[0], action.source_memory_ids[1]
+
+        superseded = await adapter.fetch(action.agent_id, superseded_id)
+        if superseded is not None:
+            superseded.status = MemoryStatus.SUPERSEDED
+            superseded.superseded_by = keeper_id
+            await adapter.update(superseded)
+        else:
+            logger.warning(
+                "_execute_supersede: memory %s not found — skipping archive", superseded_id
+            )
+
+        if conflict is not None:
+            resolved = conflict.model_copy(
+                update={
+                    "resolved_at": datetime.now(UTC),
+                    "resolution_status": ResolutionStatus.AUTO_RESOLVED,
+                }
+            )
+            await adapter.update_conflict(resolved)
+        else:
+            logger.debug(
+                "_execute_supersede: no PENDING conflict for pair (%s, %s)",
+                superseded_id,
+                keeper_id,
+            )
+
+        action.mark_executed(keeper_id)
+
+    async def _execute_merge(
+        self,
+        action: ConsolidationAction,
+        adapter: AbstractAdapter,
+        conflict: ConflictRecord | None,
+    ) -> None:
+        """Store a merged memory, archive both sources, resolve the conflict.
+
+        The merged memory's text is action.reasoning (the LLM's reconciliation
+        explanation). Both sources are archived with superseded_by pointing to
+        the new merged memory.
+        """
+        src_ids = list(action.source_memory_ids)
+        merged_text = action.reasoning or (
+            "Merged memory synthesised from conflicting sources."
+        )
+        merged = Memory(
+            agent_id=action.agent_id,
+            text=merged_text,
+            supersedes=src_ids,
+        )
+        await adapter.store(merged)
+
+        for src_id in src_ids:
+            src_mem = await adapter.fetch(action.agent_id, src_id)
+            if src_mem is not None:
+                src_mem.status = MemoryStatus.ARCHIVED
+                src_mem.superseded_by = merged.memory_id
+                await adapter.update(src_mem)
+            else:
+                logger.warning(
+                    "_execute_merge: source memory %s not found — skipping archive", src_id
+                )
+
+        if conflict is not None:
+            resolved = conflict.model_copy(
+                update={
+                    "resolved_at": datetime.now(UTC),
+                    "resolution_status": ResolutionStatus.AUTO_RESOLVED,
+                }
+            )
+            await adapter.update_conflict(resolved)
+
+        action.mark_executed(merged.memory_id)
+
+    async def _execute_flag(
+        self,
+        action: ConsolidationAction,
+        adapter: AbstractAdapter,
+        conflict: ConflictRecord | None,
+    ) -> None:
+        """Update the conflict's resolution_notes and keep it PENDING for human review.
+
+        No memory is modified. The conflict stays PENDING so list_conflicts()
+        continues to surface it; only resolution_notes is updated to explain
+        why it was flagged.
+        """
+        if conflict is not None:
+            conflict.resolution_notes = action.reasoning or "Flagged for human review."
+            await adapter.update_conflict(conflict)
+        else:
+            logger.debug(
+                "_execute_flag: no PENDING conflict for pair %s — nothing to update",
+                action.source_memory_ids,
+            )
+
+        # No memory is created; use first source as the result sentinel.
+        action.mark_executed(action.source_memory_ids[0])
+
+    async def _execute_archive(
+        self,
+        action: ConsolidationAction,
+        adapter: AbstractAdapter,
+    ) -> None:
+        """Archive each memory in source_memory_ids (no conflict to resolve)."""
+        for src_id in action.source_memory_ids:
+            src_mem = await adapter.fetch(action.agent_id, src_id)
+            if src_mem is not None:
+                src_mem.status = MemoryStatus.ARCHIVED
+                await adapter.update(src_mem)
+            else:
+                logger.warning(
+                    "_execute_archive: memory %s not found — skipping", src_id
+                )
+
+        action.mark_executed(action.source_memory_ids[0])

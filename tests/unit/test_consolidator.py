@@ -14,7 +14,7 @@ from engram.core.constants import (
     ResolutionStatus,
 )
 from engram.core.consolidator import _DEFAULT_MODEL, Consolidator, PlanningResult
-from engram.core.models import ConflictRecord, Memory
+from engram.core.models import ConflictRecord, ConsolidationPlan, Memory
 
 # ---------------------------------------------------------------------------
 # Factories
@@ -537,3 +537,316 @@ class TestPlan:
     async def test_importable_from_root(self) -> None:
         from engram import Consolidator as C
         assert C is not None
+
+
+# ---------------------------------------------------------------------------
+# execute()
+# ---------------------------------------------------------------------------
+
+
+async def _plan_and_execute(
+    adapter: InMemoryAdapter,
+    responses: list[str],
+    agent_id: str = "agent-1",
+    **kwargs: object,
+) -> ConsolidationPlan:
+    """Helper: plan then execute with a mock LLM."""
+    det = make_consolidator(responses, **kwargs)
+    plan = await det.plan(agent_id, adapter)
+    assert plan is not None
+    return await det.execute(plan, adapter)
+
+
+class TestExecuteSupersede:
+    async def test_superseded_memory_gets_status_superseded(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old rate limit is 100")
+        m2 = make_memory("new rate limit is 500")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        conflict = make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        await adapter.store_conflict(conflict)
+
+        await _plan_and_execute(adapter, [])
+
+        older = await adapter.fetch("agent-1", m1.memory_id)
+        assert older is not None
+        assert older.status.value == "superseded"
+
+    async def test_keeper_memory_stays_active(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old rate limit is 100")
+        m2 = make_memory("new rate limit is 500")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        await _plan_and_execute(adapter, [])
+
+        newer = await adapter.fetch("agent-1", m2.memory_id)
+        assert newer is not None
+        assert newer.status.value == "active"
+
+    async def test_superseded_by_set_to_keeper(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        await _plan_and_execute(adapter, [])
+
+        older = await adapter.fetch("agent-1", m1.memory_id)
+        assert older is not None
+        assert older.superseded_by == m2.memory_id
+
+    async def test_conflict_marked_auto_resolved(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        conflict = make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        await adapter.store_conflict(conflict)
+
+        await _plan_and_execute(adapter, [])
+
+        pending = await adapter.list_conflicts("agent-1", status=ResolutionStatus.PENDING)
+        assert pending == []
+        all_conflicts = await adapter.list_conflicts("agent-1")
+        assert all_conflicts[0].resolution_status == ResolutionStatus.AUTO_RESOLVED
+
+    async def test_action_marked_executed_with_keeper_id(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        plan = await _plan_and_execute(adapter, [])
+
+        assert plan.actions[0].executed_at is not None
+        assert plan.actions[0].result_memory_id == m2.memory_id
+
+
+class TestExecuteMerge:
+    async def test_merged_memory_stored(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("rate limit is 100")
+        m2 = make_memory("rate limit is 500")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        plan = await _plan_and_execute(adapter, [_MERGE_HIGH])
+
+        merged_id = plan.actions[0].result_memory_id
+        assert merged_id is not None
+        merged = await adapter.fetch("agent-1", merged_id)
+        assert merged is not None
+
+    async def test_merged_memory_text_from_reasoning(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("rate limit is 100")
+        m2 = make_memory("rate limit is 500")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        plan = await _plan_and_execute(adapter, [_MERGE_HIGH])
+
+        merged_id = plan.actions[0].result_memory_id
+        merged = await adapter.fetch("agent-1", merged_id)
+        assert merged is not None
+        assert merged.text == "Clear reconciliation possible."
+
+    async def test_both_sources_archived(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("rate limit is 100")
+        m2 = make_memory("rate limit is 500")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        await _plan_and_execute(adapter, [_MERGE_HIGH])
+
+        for mem_id in [m1.memory_id, m2.memory_id]:
+            mem = await adapter.fetch("agent-1", mem_id)
+            assert mem is not None
+            assert mem.status.value == "archived"
+
+    async def test_sources_superseded_by_merged(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("rate limit is 100")
+        m2 = make_memory("rate limit is 500")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        plan = await _plan_and_execute(adapter, [_MERGE_HIGH])
+        merged_id = plan.actions[0].result_memory_id
+
+        for mem_id in [m1.memory_id, m2.memory_id]:
+            mem = await adapter.fetch("agent-1", mem_id)
+            assert mem is not None
+            assert mem.superseded_by == merged_id
+
+    async def test_conflict_marked_auto_resolved(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("rate limit is 100")
+        m2 = make_memory("rate limit is 500")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        await _plan_and_execute(adapter, [_MERGE_HIGH])
+
+        pending = await adapter.list_conflicts("agent-1", status=ResolutionStatus.PENDING)
+        assert pending == []
+
+
+class TestExecuteFlag:
+    async def test_conflict_notes_updated(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("office in London")
+        m2 = make_memory("office in Berlin")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        await _plan_and_execute(adapter, [_FLAG_LOW])
+
+        all_conflicts = await adapter.list_conflicts("agent-1")
+        assert all_conflicts[0].resolution_notes == "Too ambiguous to auto-merge."
+
+    async def test_conflict_stays_pending(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("office in London")
+        m2 = make_memory("office in Berlin")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        await _plan_and_execute(adapter, [_FLAG_LOW])
+
+        pending = await adapter.list_conflicts("agent-1", status=ResolutionStatus.PENDING)
+        assert len(pending) == 1
+
+    async def test_memories_unchanged(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("office in London")
+        m2 = make_memory("office in Berlin")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(make_conflict(m1, m2))
+
+        await _plan_and_execute(adapter, [_FLAG_LOW])
+
+        for mem_id in [m1.memory_id, m2.memory_id]:
+            mem = await adapter.fetch("agent-1", mem_id)
+            assert mem is not None
+            assert mem.status.value == "active"
+
+
+class TestExecuteGeneral:
+    async def test_plan_executed_at_set(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        plan = await _plan_and_execute(adapter, [])
+
+        assert plan.executed_at is not None
+
+    async def test_all_actions_marked_executed(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("fact A")
+        m2 = make_memory("fact B")
+        m3 = make_memory("fact C")
+        m4 = make_memory("fact D")
+        for m in [m1, m2, m3, m4]:
+            await adapter.store(m)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+        await adapter.store_conflict(make_conflict(m3, m4))
+
+        plan = await _plan_and_execute(adapter, [_MERGE_HIGH])
+
+        assert all(a.executed_at is not None for a in plan.actions)
+        assert all(a.result_memory_id is not None for a in plan.actions)
+
+    async def test_dry_run_no_memory_mutations(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        det = make_consolidator([])
+        plan = await det.plan("agent-1", adapter, dry_run=True)
+        assert plan is not None
+        await det.execute(plan, adapter)
+
+        # Memory should be unchanged
+        m1_after = await adapter.fetch("agent-1", m1.memory_id)
+        assert m1_after is not None
+        assert m1_after.status.value == "active"
+
+    async def test_dry_run_marks_all_actions_executed(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        await adapter.store_conflict(
+            make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        )
+
+        det = make_consolidator([])
+        plan = await det.plan("agent-1", adapter, dry_run=True)
+        assert plan is not None
+        executed_plan = await det.execute(plan, adapter)
+
+        assert all(a.executed_at is not None for a in executed_plan.actions)
+        assert executed_plan.executed_at is not None
+
+    async def test_conflict_not_found_execute_still_completes(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = make_memory("old fact")
+        m2 = make_memory("new fact")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        conflict = make_conflict(m1, m2, conflict_type=ConflictType.TEMPORAL_SUPERSESSION)
+        await adapter.store_conflict(conflict)
+
+        det = make_consolidator([])
+        plan = await det.plan("agent-1", adapter)
+        assert plan is not None
+
+        # Remove the conflict before executing — simulates resolution between plan+execute
+        await adapter.delete_conflict("agent-1", conflict.conflict_id)
+
+        executed = await det.execute(plan, adapter)
+
+        # Memory should still be archived even without a conflict record to update
+        assert executed.executed_at is not None
+        m1_after = await adapter.fetch("agent-1", m1.memory_id)
+        assert m1_after is not None
+        assert m1_after.status.value == "superseded"

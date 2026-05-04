@@ -1022,3 +1022,23 @@ class TestEngramLineage:
         # Root should be the older memory (smallest created_at)
         assert chain[0].memory_id == older.memory_id
         assert chain[-1].memory_id == merged.memory_id
+
+    async def test_lineage_after_real_supersede_via_consolidate(self) -> None:
+        """lineage() must include the superseded ancestor after Consolidator.execute()."""
+        from datetime import UTC, datetime, timedelta
+        adapter = InMemoryAdapter()
+        t0 = datetime.now(UTC)
+        old = Memory(agent_id="agent-1", text="old fact", created_at=t0)
+        new = Memory(agent_id="agent-1", text="new fact", created_at=t0 + timedelta(seconds=1))
+        await adapter.store(old)
+        await adapter.store(new)
+        await adapter.store_conflict(_make_temporal_conflict(old, new))
+
+        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        await eng.consolidate("agent-1")
+
+        chain = await eng.lineage("agent-1", new.memory_id)
+        chain_ids = [m.memory_id for m in chain]
+        assert old.memory_id in chain_ids, "superseded ancestor must appear in lineage"
+        assert new.memory_id in chain_ids
+        assert chain_ids.index(old.memory_id) < chain_ids.index(new.memory_id)

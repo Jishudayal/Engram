@@ -575,12 +575,22 @@ class Consolidator:
         superseded.superseded_by = keeper_id
         await adapter.update(superseded)
 
+        keeper = memory_map[keeper_id]
+        keeper_changed = False
+
+        # Record backward pointer so lineage() can walk ancestors from the keeper.
+        if superseded_id not in keeper.supersedes:
+            keeper.supersedes.append(superseded_id)
+            keeper_changed = True
+
         # The keeper inherits the importance of whichever memory was more important,
         # since the superseded memory may have been high-importance for a reason.
-        keeper = memory_map[keeper_id]
         promoted_importance = max(keeper.importance, superseded.importance)
         if promoted_importance != keeper.importance:
             keeper.importance = promoted_importance
+            keeper_changed = True
+
+        if keeper_changed:
             await adapter.update(keeper)
 
         resolved = conflict.model_copy(

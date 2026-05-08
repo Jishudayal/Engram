@@ -44,6 +44,7 @@ from engram.adapters.base import AbstractAdapter
 from engram.core.constants import MemoryStatus, ResolutionStatus
 from engram.core.health import HealthScorer
 from engram.core.models import ConflictRecord, Memory, ProvenanceRecord, SearchResult
+from engram.core.provenance import ProvenanceManifest
 
 if TYPE_CHECKING:
     from engram.core.contradiction import ContradictionDetector
@@ -275,6 +276,33 @@ class Engram:
         if memory is None:
             return None
         return memory.provenance
+
+    async def export_provenance(
+        self, agent_id: str, memory_id: str
+    ) -> ProvenanceManifest | None:
+        """Return a compliance-ready ProvenanceManifest for a memory, or None.
+
+        Returns None if the memory does not exist or has no ProvenanceRecord attached.
+        Use export_provenance_json() to get a serialised JSON string for audit exports.
+        """
+        memory = await self._adapter.fetch(agent_id, memory_id)
+        if memory is None:
+            return None
+        return ProvenanceManifest.from_memory(memory)
+
+    async def export_provenance_json(
+        self, agent_id: str, memory_id: str
+    ) -> str | None:
+        """Return a JSON-serialised ProvenanceManifest, or None.
+
+        Convenience wrapper over export_provenance() for GDPR exports and audit trails.
+        The JSON is produced by Pydantic's model_dump_json() with UTC datetimes.
+        Returns None if the memory does not exist or has no ProvenanceRecord attached.
+        """
+        manifest = await self.export_provenance(agent_id, memory_id)
+        if manifest is None:
+            return None
+        return manifest.model_dump_json()
 
     async def lineage(self, agent_id: str, memory_id: str) -> list[Memory]:
         """Traverse the full supersession chain containing the given memory.

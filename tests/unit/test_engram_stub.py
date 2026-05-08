@@ -1042,3 +1042,203 @@ class TestEngramLineage:
         assert old.memory_id in chain_ids, "superseded ancestor must appear in lineage"
         assert new.memory_id in chain_ids
         assert chain_ids.index(old.memory_id) < chain_ids.index(new.memory_id)
+
+
+# ---------------------------------------------------------------------------
+# Engram.export_provenance() + Engram.export_provenance_json() — step 7.3
+# ---------------------------------------------------------------------------
+
+from engram.core.provenance import ProvenanceManifest  # noqa: E402
+
+
+class TestEngramExportProvenance:
+    async def test_returns_none_for_missing_memory(self) -> None:
+        eng = Engram(InMemoryAdapter())
+        result = await eng.export_provenance("agent-1", "nonexistent")
+        assert result is None
+
+    async def test_returns_none_when_no_provenance(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = Memory(agent_id="agent-1", text="no provenance")
+        await adapter.store(mem)
+        eng = Engram(adapter)
+        result = await eng.export_provenance("agent-1", mem.memory_id)
+        assert result is None
+
+    async def test_returns_provenance_manifest(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = _attach_prov(Memory(agent_id="agent-1", text="has provenance"))
+        await adapter.store(mem)
+        eng = Engram(adapter)
+        result = await eng.export_provenance("agent-1", mem.memory_id)
+        assert isinstance(result, ProvenanceManifest)
+        assert result.memory_id == mem.memory_id
+        assert result.source_type == SourceType.DOCUMENT
+
+    async def test_manifest_fields_match_memory(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = _attach_prov(Memory(agent_id="agent-1", text="check fields"), source_type=SourceType.API)
+        await adapter.store(mem)
+        eng = Engram(adapter)
+        manifest = await eng.export_provenance("agent-1", mem.memory_id)
+        assert manifest is not None
+        assert manifest.agent_id == "agent-1"
+        assert manifest.text == "check fields"
+        assert manifest.source_type == SourceType.API
+
+    async def test_manifest_is_frozen(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = _attach_prov(Memory(agent_id="agent-1", text="frozen"))
+        await adapter.store(mem)
+        eng = Engram(adapter)
+        manifest = await eng.export_provenance("agent-1", mem.memory_id)
+        assert manifest is not None
+        from pydantic import ValidationError
+        with pytest.raises((ValidationError, TypeError)):
+            manifest.text = "mutated"  # type: ignore[misc]
+
+
+class TestEngramExportProvenanceJson:
+    async def test_returns_none_for_missing_memory(self) -> None:
+        eng = Engram(InMemoryAdapter())
+        result = await eng.export_provenance_json("agent-1", "nonexistent")
+        assert result is None
+
+    async def test_returns_none_when_no_provenance(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = Memory(agent_id="agent-1", text="no prov")
+        await adapter.store(mem)
+        result = await Engram(adapter).export_provenance_json("agent-1", mem.memory_id)
+        assert result is None
+
+    async def test_returns_json_string(self) -> None:
+        adapter = InMemoryAdapter()
+        mem = _attach_prov(Memory(agent_id="agent-1", text="json export"))
+        await adapter.store(mem)
+        result = await Engram(adapter).export_provenance_json("agent-1", mem.memory_id)
+        assert isinstance(result, str)
+
+    async def test_json_is_valid_and_contains_memory_id(self) -> None:
+        import json
+        adapter = InMemoryAdapter()
+        mem = _attach_prov(Memory(agent_id="agent-1", text="json valid"))
+        await adapter.store(mem)
+        raw = await Engram(adapter).export_provenance_json("agent-1", mem.memory_id)
+        assert raw is not None
+        data = json.loads(raw)
+        assert data["memory_id"] == mem.memory_id
+        assert data["agent_id"] == "agent-1"
+        assert data["text"] == "json valid"
+
+    async def test_json_roundtrip_via_manifest(self) -> None:
+        import json
+        adapter = InMemoryAdapter()
+        mem = _attach_prov(Memory(agent_id="agent-1", text="roundtrip"), source_type=SourceType.API)
+        await adapter.store(mem)
+        raw = await Engram(adapter).export_provenance_json("agent-1", mem.memory_id)
+        assert raw is not None
+        data = json.loads(raw)
+        assert data["source_type"] == "api"
+
+
+# ---------------------------------------------------------------------------
+# Consolidation integration: merged memory gets ProvenanceRecord — step 7.4
+# ---------------------------------------------------------------------------
+
+class TestMergeAttachesProvenance:
+    async def test_merged_memory_has_provenance(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="office in London")
+        m2 = Memory(agent_id="agent-1", text="office in Berlin")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        _MERGE_RESP = '{"action": "merge", "confidence": 0.95, "reasoning": "Combined office fact."}'
+        await adapter.store_conflict(
+            ConflictRecord(
+                agent_id="agent-1",
+                memory_a_id=m1.memory_id,
+                memory_b_id=m2.memory_id,
+                conflict_type=ConflictType.DIRECT_CONTRADICTION,
+                confidence=0.9,
+            )
+        )
+        eng = Engram(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
+        plan = await eng.consolidate("agent-1")
+
+        assert plan is not None
+        merged_id = plan.actions[0].result_memory_id
+        assert merged_id is not None
+        merged = await adapter.fetch("agent-1", merged_id)
+        assert merged is not None
+        assert merged.provenance is not None
+
+    async def test_merged_provenance_source_type_is_system(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="fact A")
+        m2 = Memory(agent_id="agent-1", text="fact B")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        _MERGE_RESP = '{"action": "merge", "confidence": 0.95, "reasoning": "Merged."}'
+        await adapter.store_conflict(
+            ConflictRecord(
+                agent_id="agent-1",
+                memory_a_id=m1.memory_id,
+                memory_b_id=m2.memory_id,
+                conflict_type=ConflictType.DIRECT_CONTRADICTION,
+                confidence=0.9,
+            )
+        )
+        eng = Engram(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
+        plan = await eng.consolidate("agent-1")
+
+        merged_id = plan.actions[0].result_memory_id
+        merged = await adapter.fetch("agent-1", merged_id)
+        assert merged.provenance.source_type == SourceType.SYSTEM
+
+    async def test_merged_provenance_derived_from_contains_sources(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="fact A")
+        m2 = Memory(agent_id="agent-1", text="fact B")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        _MERGE_RESP = '{"action": "merge", "confidence": 0.95, "reasoning": "Merged."}'
+        await adapter.store_conflict(
+            ConflictRecord(
+                agent_id="agent-1",
+                memory_a_id=m1.memory_id,
+                memory_b_id=m2.memory_id,
+                conflict_type=ConflictType.DIRECT_CONTRADICTION,
+                confidence=0.9,
+            )
+        )
+        eng = Engram(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
+        plan = await eng.consolidate("agent-1")
+
+        merged_id = plan.actions[0].result_memory_id
+        merged = await adapter.fetch("agent-1", merged_id)
+        assert set(merged.provenance.derived_from) == {m1.memory_id, m2.memory_id}
+
+    async def test_export_provenance_after_merge(self) -> None:
+        adapter = InMemoryAdapter()
+        m1 = Memory(agent_id="agent-1", text="fact A")
+        m2 = Memory(agent_id="agent-1", text="fact B")
+        await adapter.store(m1)
+        await adapter.store(m2)
+        _MERGE_RESP = '{"action": "merge", "confidence": 0.95, "reasoning": "Merged fact."}'
+        await adapter.store_conflict(
+            ConflictRecord(
+                agent_id="agent-1",
+                memory_a_id=m1.memory_id,
+                memory_b_id=m2.memory_id,
+                conflict_type=ConflictType.DIRECT_CONTRADICTION,
+                confidence=0.9,
+            )
+        )
+        eng = Engram(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
+        plan = await eng.consolidate("agent-1")
+
+        merged_id = plan.actions[0].result_memory_id
+        manifest = await eng.export_provenance("agent-1", merged_id)
+        assert manifest is not None
+        assert set(manifest.derived_from) == {m1.memory_id, m2.memory_id}
+        assert manifest.source_type == SourceType.SYSTEM

@@ -53,10 +53,11 @@ from engram.core.constants import (
     ConsolidationTier,
     MemoryStatus,
     ResolutionStatus,
+    SourceType,
     DEFAULT_IMPORTANCE,
 )
 from engram.core.exceptions import NotFoundError
-from engram.core.models import ConsolidationAction, ConsolidationPlan, Memory
+from engram.core.models import ConsolidationAction, ConsolidationPlan, Memory, ProvenanceRecord
 
 if TYPE_CHECKING:
     from engram.adapters.base import AbstractAdapter
@@ -627,6 +628,13 @@ class Consolidator:
             text=merged_text,
             supersedes=src_ids,
             importance=merged_importance,
+        )
+        merged.attach_provenance(
+            ProvenanceRecord(
+                memory_id=merged.memory_id,
+                source_type=SourceType.SYSTEM,
+                derived_from=tuple(src_ids),
+            )
         )
         await adapter.store(merged)
 

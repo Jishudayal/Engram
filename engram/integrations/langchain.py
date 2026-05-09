@@ -1,43 +1,56 @@
 """LangChain integration for Engram.
 
-Exposes Engram as a LangChain VectorStore so it can be used anywhere
-LangChain expects a VectorStore — retrieval chains, as_retriever(),
-ConversationalRetrievalChain, etc.
+Provides two classes:
+
+  EngramVectorStore         — langchain_core VectorStore backed by any Engram adapter.
+  EngramChatMessageHistory  — BaseChatMessageHistory for per-session conversation storage.
 
 Engram reliability features apply transparently:
   - similarity_search returns conflict-enriched results when a detector is configured.
   - aadd_texts uses store_batch() semantics — per-document contradiction detection is
     skipped for bulk adds. Call engram.scan_contradictions(agent_id) after ingestion
     to detect conflicts across the batch in one pass.
+  - EngramChatMessageHistory.add_messages() uses store() per message, so contradiction
+    detection fires for each message when a detector is configured.
 
 Install:
     pip install "engram[langchain]"
 
-Sync methods (add_texts, similarity_search, …) work only outside a running
-event loop. In async applications use the async variants instead:
-aadd_texts, asimilarity_search, asimilarity_search_with_score.
+Sync methods work only outside a running event loop. In async applications use the
+async variants: aadd_texts, asimilarity_search, aget_messages, aadd_messages, etc.
 """
 
 from __future__ import annotations
 
 import asyncio
-from typing import Any, Iterable
+import json
+from typing import Any, Iterable, Sequence
 from uuid import uuid4
 
 try:
+    from langchain_core.chat_history import BaseChatMessageHistory
     from langchain_core.documents import Document
     from langchain_core.embeddings import Embeddings
+    from langchain_core.messages import (
+        AIMessage,
+        BaseMessage,
+        ChatMessage,
+        FunctionMessage,
+        HumanMessage,
+        SystemMessage,
+        ToolMessage,
+    )
     from langchain_core.vectorstores import VectorStore
 except ImportError as exc:
     raise ImportError(
-        "EngramVectorStore requires langchain-core. "
+        "EngramVectorStore and EngramChatMessageHistory require langchain-core. "
         'Install it with: pip install "engram[langchain]"'
     ) from exc
 
 from engram.core.models import Memory
 from engram.engram import Engram
 
-__all__ = ["EngramVectorStore"]
+__all__ = ["EngramVectorStore", "EngramChatMessageHistory"]
 
 
 def _run(coro: Any) -> Any:
@@ -257,3 +270,127 @@ class EngramVectorStore(VectorStore):
         store = cls(engram, embedding, agent_id)
         store.add_texts(texts, metadatas=metadatas, ids=ids)
         return store
+
+
+class EngramChatMessageHistory(BaseChatMessageHistory):
+    """LangChain BaseChatMessageHistory backed by an Engram adapter.
+
+    Stores each conversation message as a separate Memory under a session_id
+    (used as the Engram agent_id). Messages are retrieved in insertion order
+    (list_all returns oldest-first by created_at).
+
+    Contradiction detection fires on each add_messages() call when the Engram
+    instance has a detector configured — a new AI reply that contradicts an
+    earlier one will be flagged automatically.
+
+    Args:
+        engram:     An already-open Engram instance.
+        session_id: Conversation scope — all messages are stored under this ID.
+
+    Example (async)::
+
+        from engram import Engram, InMemoryAdapter
+        from engram.integrations.langchain import EngramChatMessageHistory
+        from langchain_core.messages import HumanMessage, AIMessage
+
+        async with Engram(InMemoryAdapter()) as eng:
+            history = EngramChatMessageHistory(eng, session_id="chat-42")
+            await history.aadd_messages([
+                HumanMessage(content="What is the capital of France?"),
+                AIMessage(content="Paris."),
+            ])
+            msgs = await history.aget_messages()
+    """
+
+    def __init__(self, engram: Engram, session_id: str) -> None:
+        self._engram = engram
+        self._session_id = session_id
+
+    # ------------------------------------------------------------------
+    # Internal mapping helpers
+    # ------------------------------------------------------------------
+
+    def _to_memory(self, message: BaseMessage) -> Memory:
+        content = message.content
+        if not isinstance(content, str):
+            # Multimodal or structured content — serialise to JSON string.
+            content = json.dumps(content)
+        meta: dict[str, Any] = {"lc_type": message.type}
+        if message.additional_kwargs:
+            meta["lc_kwargs"] = message.additional_kwargs
+        if isinstance(message, FunctionMessage):
+            meta["lc_name"] = message.name
+        if isinstance(message, ToolMessage):
+            meta["lc_tool_call_id"] = message.tool_call_id
+        return Memory(
+            agent_id=self._session_id,
+            text=content,
+            metadata=meta,
+        )
+
+    @staticmethod
+    def _to_message(memory: Memory) -> BaseMessage:
+        lc_type = memory.metadata.get("lc_type", "chat")
+        content = memory.text
+        additional_kwargs: dict[str, Any] = memory.metadata.get("lc_kwargs", {})
+        if lc_type == "human":
+            return HumanMessage(content=content, additional_kwargs=additional_kwargs)
+        if lc_type == "ai":
+            return AIMessage(content=content, additional_kwargs=additional_kwargs)
+        if lc_type == "system":
+            return SystemMessage(content=content, additional_kwargs=additional_kwargs)
+        if lc_type == "function":
+            return FunctionMessage(
+                content=content,
+                name=memory.metadata.get("lc_name", ""),
+                additional_kwargs=additional_kwargs,
+            )
+        if lc_type == "tool":
+            return ToolMessage(
+                content=content,
+                tool_call_id=memory.metadata.get("lc_tool_call_id", ""),
+                additional_kwargs=additional_kwargs,
+            )
+        return ChatMessage(content=content, role=lc_type, additional_kwargs=additional_kwargs)
+
+    # ------------------------------------------------------------------
+    # Async primary implementations
+    # ------------------------------------------------------------------
+
+    async def aget_messages(self) -> list[BaseMessage]:
+        """Return all messages for the session in insertion order."""
+        memories = await self._engram.list_all(self._session_id)
+        return [self._to_message(m) for m in memories]
+
+    async def aadd_messages(self, messages: Sequence[BaseMessage]) -> None:
+        """Store messages. Uses store() per message so detection fires when configured."""
+        for message in messages:
+            await self._engram.store(self._to_memory(message))
+
+    async def aclear(self) -> None:
+        """Delete all messages for the session."""
+        memories = await self._engram.list_all(self._session_id)
+        ids = [m.memory_id for m in memories]
+        if ids:
+            await self._engram.delete_batch(self._session_id, ids)
+
+    # ------------------------------------------------------------------
+    # Sync implementations (shim → async primary)
+    # ------------------------------------------------------------------
+
+    @property
+    def messages(self) -> list[BaseMessage]:
+        """Return all messages synchronously. Use aget_messages() in async contexts."""
+        return _run(self.aget_messages())
+
+    def add_message(self, message: BaseMessage) -> None:
+        """Store a single message synchronously. Use aadd_messages() in async contexts."""
+        _run(self.aadd_messages([message]))
+
+    def add_messages(self, messages: Sequence[BaseMessage]) -> None:
+        """Store multiple messages synchronously. Use aadd_messages() in async contexts."""
+        _run(self.aadd_messages(messages))
+
+    def clear(self) -> None:
+        """Delete all messages for the session synchronously. Use aclear() in async contexts."""
+        _run(self.aclear())

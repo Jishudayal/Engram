@@ -60,9 +60,9 @@ from engram.adapters._utils import (
     payload_to_memory,
 )
 from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus
+from engram.core.constants import MemoryStatus, ResolutionStatus
 from engram.core.exceptions import AdapterError, NotFoundError
-from engram.core.models import Memory, SearchResult
+from engram.core.models import ConflictRecord, Memory, SearchResult
 
 __all__ = ["PgVectorAdapter"]
 
@@ -85,6 +85,11 @@ def _validate_table(name: str) -> None:
 def _row_id(agent_id: str, memory_id: str) -> uuid.UUID:
     """Deterministic primary key from (agent_id, memory_id) — shared UUID5 namespace."""
     return uuid.uuid5(POINT_NAMESPACE, f"{agent_id}\x00{memory_id}")
+
+
+def _conflict_row_id(agent_id: str, conflict_id: str) -> uuid.UUID:
+    """Deterministic PK for ConflictRecords — namespaced separately from memory rows."""
+    return uuid.uuid5(POINT_NAMESPACE, f"conflict\x00{agent_id}\x00{conflict_id}")
 
 
 def _to_float_list(v: Any) -> list[float] | None:
@@ -236,6 +241,21 @@ class PgVectorAdapter(AbstractAdapter):
                     f"  ON {self._table} USING hnsw (embedding vector_cosine_ops)"
                     f"  WHERE embedding IS NOT NULL"
                 )
+
+            # Conflicts sidecar table — always created alongside the memory table.
+            await conn.execute(
+                f"CREATE TABLE IF NOT EXISTS {self._conflicts_table} ("
+                f"  id           UUID         PRIMARY KEY,"
+                f"  agent_id     TEXT         NOT NULL,"
+                f"  conflict_id  TEXT         NOT NULL,"
+                f"  payload      JSONB        NOT NULL,"
+                f"  detected_at  TIMESTAMPTZ  NOT NULL"
+                f")"
+            )
+            await conn.execute(
+                f"CREATE INDEX IF NOT EXISTS {self._conflicts_table}_agent_status_idx"
+                f"  ON {self._conflicts_table} (agent_id, detected_at)"
+            )
 
     # ------------------------------------------------------------------
     # Write
@@ -470,3 +490,86 @@ class PgVectorAdapter(AbstractAdapter):
             agent_id,
         )
         return bool(result)
+
+    # ------------------------------------------------------------------
+    # Conflict storage — sidecar table "{table}_conflicts"
+    # ------------------------------------------------------------------
+
+    @property
+    def _conflicts_table(self) -> str:
+        return f"{self._table}_conflicts"
+
+    @map_adapter_errors(error=_PG_ERRORS)
+    async def store_conflict(self, conflict: ConflictRecord) -> None:
+        await self._p.execute(
+            f"INSERT INTO {self._conflicts_table}"
+            f"  (id, agent_id, conflict_id, payload, detected_at)"
+            f"  VALUES ($1, $2, $3, $4, $5)"
+            f"  ON CONFLICT (id) DO UPDATE SET payload = EXCLUDED.payload",
+            _conflict_row_id(conflict.agent_id, conflict.conflict_id),
+            conflict.agent_id,
+            conflict.conflict_id,
+            conflict.model_dump(mode="json"),
+            conflict.detected_at,
+        )
+
+    @map_adapter_errors(error=_PG_ERRORS)
+    async def fetch_conflict(
+        self, agent_id: str, conflict_id: str
+    ) -> ConflictRecord | None:
+        row = await self._p.fetchrow(
+            f"SELECT payload FROM {self._conflicts_table}"
+            f"  WHERE id = $1 AND agent_id = $2",
+            _conflict_row_id(agent_id, conflict_id),
+            agent_id,
+        )
+        if row is None:
+            return None
+        return ConflictRecord.model_validate(row["payload"])
+
+    @map_adapter_errors(error=_PG_ERRORS)
+    async def list_conflicts(
+        self,
+        agent_id: str,
+        *,
+        status: ResolutionStatus | None = None,
+    ) -> list[ConflictRecord]:
+        where = "agent_id = $1"
+        params: list[Any] = [agent_id]
+
+        if status is not None:
+            params.append(status.value)
+            where += f" AND payload->>'resolution_status' = ${len(params)}"
+
+        rows = await self._p.fetch(
+            f"SELECT payload FROM {self._conflicts_table}"
+            f"  WHERE {where}"
+            f"  ORDER BY detected_at",
+            *params,
+        )
+        return [ConflictRecord.model_validate(r["payload"]) for r in rows]
+
+    @map_adapter_errors(error=_PG_ERRORS)
+    async def update_conflict(self, conflict: ConflictRecord) -> None:
+        tag = await self._p.execute(
+            f"UPDATE {self._conflicts_table}"
+            f"  SET payload = $3"
+            f"  WHERE id = $1 AND agent_id = $2",
+            _conflict_row_id(conflict.agent_id, conflict.conflict_id),
+            conflict.agent_id,
+            conflict.model_dump(mode="json"),
+        )
+        if tag == "UPDATE 0":
+            raise NotFoundError(
+                f"conflict {conflict.conflict_id!r} not found for agent {conflict.agent_id!r}"
+            )
+
+    @map_adapter_errors(error=_PG_ERRORS)
+    async def delete_conflict(self, agent_id: str, conflict_id: str) -> bool:
+        tag = await self._p.execute(
+            f"DELETE FROM {self._conflicts_table}"
+            f"  WHERE id = $1 AND agent_id = $2",
+            _conflict_row_id(agent_id, conflict_id),
+            agent_id,
+        )
+        return tag != "DELETE 0"

@@ -15,6 +15,7 @@ import pytest
 from engram.adapters._utils import POINT_NAMESPACE
 from engram.adapters.pgvector import (
     PgVectorAdapter,
+    _conflict_row_id,
     _row_id,
     _to_float_list,
     _validate_table,
@@ -151,3 +152,38 @@ class TestPgVectorAdapterInit:
         adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=4)
         with pytest.raises(RuntimeError, match="not open"):
             _ = adapter._p
+
+    def test_conflicts_table_is_sidecar(self) -> None:
+        adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=4)
+        assert adapter._conflicts_table == "engram_memories_conflicts"
+
+    def test_conflicts_table_follows_custom_table(self) -> None:
+        adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=4, table="agent_mem")
+        assert adapter._conflicts_table == "agent_mem_conflicts"
+
+    def test_conflicts_table_lowercased_with_table(self) -> None:
+        adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=4, table="MyMem")
+        assert adapter._conflicts_table == "mymem_conflicts"
+
+
+# ---------------------------------------------------------------------------
+# _conflict_row_id
+# ---------------------------------------------------------------------------
+
+
+class TestConflictRowId:
+    def test_returns_uuid(self) -> None:
+        result = _conflict_row_id("agent-1", "conflict-1")
+        assert isinstance(result, uuid.UUID)
+
+    def test_deterministic(self) -> None:
+        assert _conflict_row_id("agent-1", "c1") == _conflict_row_id("agent-1", "c1")
+
+    def test_differs_from_memory_row_id(self) -> None:
+        assert _conflict_row_id("agent-1", "x") != _row_id("agent-1", "x")
+
+    def test_different_agents_differ(self) -> None:
+        assert _conflict_row_id("agent-1", "c1") != _conflict_row_id("agent-2", "c1")
+
+    def test_different_conflicts_differ(self) -> None:
+        assert _conflict_row_id("agent-1", "c1") != _conflict_row_id("agent-1", "c2")

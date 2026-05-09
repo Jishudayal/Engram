@@ -1,58 +1,99 @@
 # Engram
 
-**Memory traces you can trust.**
+Memory your AI agents can actually trust.
 
-Engram is the open-source memory reliability layer for production AI agents. It wraps your existing vector memory backend and adds contradiction detection, temporal health scoring, self-healing consolidation, and provenance tracking — without replacing anything you already have.
+---
 
-> **Note:** The API below reflects the target interface being built. See [Status](#status) for what's available today.
+AI agents accumulate memories over time. The problem is some of those memories will eventually contradict each other — your agent stored "our refund policy is 30 days" in January, then "the refund policy changed to 14 days" in March. Both facts sit in your vector store. When your agent retrieves them together, it either picks one at random or hallucinates a reconciliation.
+
+Engram wraps your existing vector backend and adds what's missing: contradiction detection, memory health scoring, automatic consolidation, and an audit trail. You don't replace anything. You just stop trusting your memory blindly.
 
 ```python
-from engram import Engram
-from engram.adapters import QdrantAdapter
-from qdrant_client import QdrantClient
+from engram import Engram, ContradictionDetector, Consolidator, Memory, InMemoryAdapter
 
-client = QdrantClient(url="http://localhost:6333")
-memory = Engram(
-    backend=QdrantAdapter(client, collection="agent_memories"),
-    agent_id="my-agent",
+# embed() is whatever embedding function you already use
+eng = Engram(
+    InMemoryAdapter(),
+    detector=ContradictionDetector(llm_fn=your_llm),
+    consolidator=Consolidator(llm_fn=your_llm),
 )
 
-memory.add("Our refund policy is 30 days")
-results = memory.search("refund policy")
+async with eng:
+    await eng.store(Memory(agent_id="bot", text="Refund policy is 30 days", embedding=embed("...")))
+    await eng.store(Memory(agent_id="bot", text="Refund policy changed to 14 days", embedding=embed("...")))
+    # ↑ Conflict detected on the second store. Engram saved a ConflictRecord.
 
-health = memory.health()
-# contradiction_score: 0.31 — you have a problem
-# confidence_accuracy_gap: 0.28 — your system is confident and wrong
+    results = await eng.search("bot", embed("refund policy"), top_k=5)
+    results[0].conflict_flag   # True
+    results[0].recommended     # False — Engram is telling you not to surface this one
 
-plan = memory.consolidate(dry_run=True)
-# would_merge: 12, would_supersede: 8, estimated_improvement: +23%
+    await eng.consolidate("bot")
+    # The older memory is superseded. Conflict resolved.
 ```
 
-> Engram exposes a sync API by default. Every method has an async counterpart (`add_async`, `search_async`, etc.) for use inside async frameworks.
+`your_llm` is any `async (prompt: str) -> str`. OpenAI, Anthropic, a local model — whatever you already have.
 
-## Why Engram
+## What it does
 
-Most memory systems tell you *what* is stored. Engram tells you whether you can *trust* it.
+**Contradiction detection.** Every `store()` call runs a similarity search against existing memories. If potential conflicts are found, your LLM classifies them. Confirmed contradictions become `ConflictRecord` objects you can inspect, act on, or queue for review.
 
-| What exists today | What Engram adds |
+**Health scoring.** `await eng.health(agent_id)` returns a snapshot with signals like `contradiction_score`, `freshness_score`, and `confidence_accuracy_gap`. Useful for dashboards or for deciding when to run consolidation.
+
+**Consolidation.** `await eng.consolidate(agent_id)` reads all pending conflicts and plans a batch of actions: supersede the outdated memory, merge duplicates, or flag uncertain cases for a human. Then it executes them.
+
+**Provenance.** Memories can carry a `ProvenanceRecord` — where it came from, who ingested it, what it was derived from. `await eng.export_provenance_json(agent_id, memory_id)` gives you a compliance-ready audit trail.
+
+**LangChain bridge.** If you're already using LangChain, you get a drop-in `VectorStore` and a `BaseChatMessageHistory` backed by Engram.
+
+```python
+from engram.integrations.langchain import EngramVectorStore, EngramChatMessageHistory
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.messages import HumanMessage, AIMessage
+
+store = EngramVectorStore(eng, embeddings=OpenAIEmbeddings(), agent_id="bot")
+await store.aadd_texts(["Refund policy is 30 days", "Refund policy changed to 14 days"])
+docs = await store.asimilarity_search("what is the refund policy", k=3)
+# docs[0].metadata["_memory_id"] lets you trace back to the original Memory
+
+history = EngramChatMessageHistory(eng, session_id="conv-42")
+await history.aadd_messages([
+    HumanMessage(content="What's the refund policy?"),
+    AIMessage(content="It's 14 days."),
+])
+msgs = await history.aget_messages()
+```
+
+## Backends
+
+| Backend | Install |
 |---|---|
-| Memory storage + retrieval | Contradiction detection before the LLM sees it |
-| Agent observability (traces, latency) | Memory health scoring (freshness, accuracy gap) |
-| RAG evaluation (answer quality) | Infrastructure-level memory evaluation |
-| Manual memory management | Self-healing consolidation engine |
+| In-memory (built-in, good for tests) | — |
+| Qdrant | `pip install "engram[qdrant]"` |
+| Chroma | `pip install "engram[chroma]"` |
+| pgvector | `pip install "engram[pgvector]"` |
+
+Every backend is a subclass of `AbstractAdapter`. Adding your own takes one file.
 
 ## Installation
 
 ```bash
-pip install engram                    # core
-pip install "engram[qdrant]"          # with Qdrant adapter
-pip install "engram[chroma]"          # with Chroma adapter
-pip install memoryeval                # standalone benchmark suite
+pip install engram                   # core + in-memory adapter
+pip install "engram[qdrant]"         # + Qdrant
+pip install "engram[chroma]"         # + Chroma
+pip install "engram[pgvector]"       # + pgvector (requires asyncpg)
+pip install "engram[langchain]"      # + LangChain bridge
+pip install "engram[all]"            # everything
 ```
+
+Requires Python 3.11+. Engram is fully async.
 
 ## Status
 
-`0.1.0-alpha` — under active development. Not production-ready yet.
+`0.1.0-alpha` — the core reliability loop (store → detect → score → consolidate → provenance) is complete and covered by 880+ unit tests. The pgvector adapter and LangChain bridge are included.
+
+Not production-tested yet. The API is stable but may have breaking changes before 1.0.
+
+What's planned for 0.2: LlamaIndex bridge, a sync facade for non-async code, and OpenTelemetry instrumentation.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) if you want to help build it.
 

@@ -8,6 +8,31 @@ AI agents accumulate memories over time. The problem is some of those memories w
 
 Engram wraps your existing vector backend and adds what's missing: contradiction detection, memory health scoring, automatic consolidation, and an audit trail. You don't replace anything. You just stop trusting your memory blindly.
 
+## What Engram is not
+
+Engram is not a vector database and does not replace Qdrant, Chroma, or Postgres. It is the reliability layer on top: health checks, conflict detection, consolidation, and provenance. Your existing storage stays exactly where it is.
+
+## When to use Engram
+
+Use Engram if your agent stores long-lived memories and you need to know:
+
+- whether two memories contradict each other
+- whether old facts are still being retrieved when they shouldn't be
+- whether memory quality is getting worse over time
+- why a memory exists and where it came from
+- what would happen before automatic consolidation mutates state
+
+## 30-second example
+
+Engram is provider-agnostic. `your_llm` is any async function that takes a prompt string and returns the model's reply:
+
+```python
+async def your_llm(prompt: str) -> str:
+    # OpenAI, Anthropic, a local model — anything works
+    response = await client.chat.completions.create(...)
+    return response.choices[0].message.content
+```
+
 ```python
 from engram import Engram, ContradictionDetector, Consolidator, Memory, InMemoryAdapter
 
@@ -24,14 +49,14 @@ async with eng:
     # ↑ Conflict detected on the second store. Engram saved a ConflictRecord.
 
     results = await eng.search("bot", embed("refund policy"), top_k=5)
-    results[0].conflict_flag   # True
-    results[0].recommended     # False — Engram is telling you not to surface this one
+    for result in results:
+        if result.conflict_flag:
+            print(result.conflict_summary)  # one-sentence explanation of the conflict
+            print(result.recommended)       # False if a higher-ranked result already covers this
 
     await eng.consolidate("bot")
-    # The older memory is superseded. Conflict resolved.
+    # Engram supersedes, merges, or flags the conflict depending on type and confidence.
 ```
-
-`your_llm` is any `async (prompt: str) -> str`. OpenAI, Anthropic, a local model — whatever you already have.
 
 ## What it does
 
@@ -43,7 +68,9 @@ async with eng:
 
 **Provenance.** Memories can carry a `ProvenanceRecord` — where it came from, who ingested it, what it was derived from. `await eng.export_provenance_json(agent_id, memory_id)` gives you a compliance-ready audit trail.
 
-**LangChain bridge.** If you're already using LangChain, you get a drop-in `VectorStore` and a `BaseChatMessageHistory` backed by Engram.
+## LangChain bridge
+
+Drop-in `VectorStore` and `BaseChatMessageHistory` backed by Engram. Bulk adds skip per-document detection — call `scan_contradictions()` after loading to catch conflicts across the batch.
 
 ```python
 from engram.integrations.langchain import EngramVectorStore, EngramChatMessageHistory
@@ -52,6 +79,7 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 store = EngramVectorStore(eng, embeddings=OpenAIEmbeddings(), agent_id="bot")
 await store.aadd_texts(["Refund policy is 30 days", "Refund policy changed to 14 days"])
+await eng.scan_contradictions("bot")  # detect conflicts across the batch
 docs = await store.asimilarity_search("what is the refund policy", k=3)
 # docs[0].metadata["_memory_id"] lets you trace back to the original Memory
 

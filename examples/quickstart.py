@@ -104,8 +104,8 @@ async def main() -> None:
             flag = "⚠  conflict" if r.conflict_flag else "✓  ok      "
             print(f"  [{flag}]  {r.memory.text}")
         print()
-        # Both are flagged. In production, Engram also sets recommended=False on the
-        # lower-ranked conflicting result so you know which one not to surface to users.
+        # Both are flagged. When conflicting results are returned together, Engram also
+        # sets recommended=False on the lower-ranked result so you know which to suppress.
 
         # --- 3. Fix it ---
 

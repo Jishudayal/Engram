@@ -147,7 +147,7 @@ async def main() -> None:
             print(f"  [{flag}]  {r.memory.text}")
         print()
         print("  The bot has three different prices in memory.")
-        print("  Without Engram, it picks one at random.\n")
+        print("  Without Engram, retrieval can surface any of these as the answer.\n")
 
         # --- Consolidate ---
 

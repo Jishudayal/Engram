@@ -176,9 +176,9 @@ async def main() -> None:
         print()
         print("  One answer. Consistent. Correct.")
         print()
-        print("  Note: asimilarity_search() from LangChain works the same way —")
-        print("  the Documents returned include a '_memory_id' metadata key so")
-        print("  you can always trace a result back to its Engram Memory object.")
+        print("  Note: store.asimilarity_search() returns LangChain Documents with")
+        print("  a '_memory_id' metadata key, so you can fetch the full Engram")
+        print("  Memory or SearchResult when you need conflict metadata.")
 
 
 if __name__ == "__main__":

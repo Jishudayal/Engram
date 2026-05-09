@@ -10,8 +10,9 @@ Engram reliability features apply transparently:
   - aadd_texts uses store_batch() semantics — per-document contradiction detection is
     skipped for bulk adds. Call engram.scan_contradictions(agent_id) after ingestion
     to detect conflicts across the batch in one pass.
-  - EngramChatMessageHistory.add_messages() uses store() per message, so contradiction
-    detection fires for each message when a detector is configured.
+  - EngramChatMessageHistory stores messages without embeddings; vector contradiction
+    detection does not fire. Call engram.scan_contradictions(session_id) explicitly
+    if you embed messages separately and want conflict detection over chat history.
 
 Install:
     pip install "engram[langchain]"
@@ -152,6 +153,15 @@ class EngramVectorStore(VectorStore):
         meta_list = metadatas if metadatas is not None else [{} for _ in text_list]
         id_list = ids if ids is not None else [str(uuid4()) for _ in text_list]
 
+        if len(meta_list) != len(text_list):
+            raise ValueError(
+                f"metadatas length ({len(meta_list)}) must match texts length ({len(text_list)})"
+            )
+        if len(id_list) != len(text_list):
+            raise ValueError(
+                f"ids length ({len(id_list)}) must match texts length ({len(text_list)})"
+            )
+
         vectors = await self._embeddings.aembed_documents(text_list)
         memories = [
             self._to_memory(t, v, m, did)
@@ -279,9 +289,10 @@ class EngramChatMessageHistory(BaseChatMessageHistory):
     (used as the Engram agent_id). Messages are retrieved in insertion order
     (list_all returns oldest-first by created_at).
 
-    Contradiction detection fires on each add_messages() call when the Engram
-    instance has a detector configured — a new AI reply that contradicts an
-    earlier one will be flagged automatically.
+    Chat-history memories are stored without an embedding, so Engram's
+    store-time vector contradiction detection does not fire. To detect conflicts
+    across a conversation, embed the memories separately and call
+    engram.scan_contradictions(session_id) explicitly.
 
     Args:
         engram:     An already-open Engram instance.
@@ -312,12 +323,20 @@ class EngramChatMessageHistory(BaseChatMessageHistory):
 
     def _to_memory(self, message: BaseMessage) -> Memory:
         content = message.content
-        if not isinstance(content, str):
-            # Multimodal or structured content — serialise to JSON string.
-            content = json.dumps(content)
         meta: dict[str, Any] = {"lc_type": message.type}
+        if not isinstance(content, str):
+            # Multimodal/structured content — serialise and mark so _to_message can restore it.
+            content = json.dumps(content)
+            meta["lc_content_json"] = True
         if message.additional_kwargs:
-            meta["lc_kwargs"] = message.additional_kwargs
+            # Round-trip through JSON to drop any non-serializable provider objects
+            # before they hit Memory.metadata validation.
+            try:
+                safe_kwargs = json.loads(json.dumps(message.additional_kwargs))
+            except (TypeError, ValueError):
+                safe_kwargs = {}
+            if safe_kwargs:
+                meta["lc_kwargs"] = safe_kwargs
         if isinstance(message, FunctionMessage):
             meta["lc_name"] = message.name
         if isinstance(message, ToolMessage):
@@ -331,7 +350,9 @@ class EngramChatMessageHistory(BaseChatMessageHistory):
     @staticmethod
     def _to_message(memory: Memory) -> BaseMessage:
         lc_type = memory.metadata.get("lc_type", "chat")
-        content = memory.text
+        content: str | list[Any] = memory.text
+        if memory.metadata.get("lc_content_json"):
+            content = json.loads(memory.text)
         additional_kwargs: dict[str, Any] = memory.metadata.get("lc_kwargs", {})
         if lc_type == "human":
             return HumanMessage(content=content, additional_kwargs=additional_kwargs)
@@ -363,7 +384,7 @@ class EngramChatMessageHistory(BaseChatMessageHistory):
         return [self._to_message(m) for m in memories]
 
     async def aadd_messages(self, messages: Sequence[BaseMessage]) -> None:
-        """Store messages. Uses store() per message so detection fires when configured."""
+        """Store messages as Engram Memories (no embedding — vector detection does not fire)."""
         for message in messages:
             await self._engram.store(self._to_memory(message))
 

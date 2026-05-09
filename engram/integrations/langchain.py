@@ -68,6 +68,8 @@ def _run(coro: Any) -> Any:
     except RuntimeError:
         pass
     else:
+        # Close the coroutine before raising so it is never left unawaited.
+        coro.close()
         raise RuntimeError(
             "Cannot call synchronous VectorStore methods from a running event loop. "
             "Use the async variants (aadd_texts, asimilarity_search, etc.) instead."
@@ -329,12 +331,15 @@ class EngramChatMessageHistory(BaseChatMessageHistory):
             content = json.dumps(content)
             meta["lc_content_json"] = True
         if message.additional_kwargs:
-            # Round-trip through JSON to drop any non-serializable provider objects
-            # before they hit Memory.metadata validation.
-            try:
-                safe_kwargs = json.loads(json.dumps(message.additional_kwargs))
-            except (TypeError, ValueError):
-                safe_kwargs = {}
+            # Keep each key independently so a single non-serializable value
+            # (e.g. a raw provider object) does not drop useful keys like tool_calls.
+            safe_kwargs = {}
+            for k, v in message.additional_kwargs.items():
+                try:
+                    json.dumps(v)
+                    safe_kwargs[k] = v
+                except (TypeError, ValueError):
+                    pass
             if safe_kwargs:
                 meta["lc_kwargs"] = safe_kwargs
         if isinstance(message, FunctionMessage):

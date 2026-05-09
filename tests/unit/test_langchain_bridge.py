@@ -467,6 +467,22 @@ class TestEngramChatMessageHistoryContentHandling:
         stored: Memory = eng.store.call_args[0][0]
         assert stored.metadata["lc_kwargs"] == safe_kwargs
 
+    async def test_mixed_kwargs_preserves_serializable_keys(self) -> None:
+        import datetime
+        eng = _make_engram()
+        history = _make_history(eng)
+        await history.aadd_messages([
+            AIMessage(
+                content="hi",
+                additional_kwargs={
+                    "tool_calls": [{"id": "c1"}],  # serializable — must be kept
+                    "raw": datetime.datetime.now(),  # non-serializable — must be dropped
+                },
+            )
+        ])
+        stored: Memory = eng.store.call_args[0][0]
+        assert stored.metadata["lc_kwargs"] == {"tool_calls": [{"id": "c1"}]}
+
 
 # ===========================================================================
 # EngramChatMessageHistory — clear

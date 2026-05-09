@@ -139,6 +139,10 @@ class TestPgVectorAdapterInit:
         adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=4)
         assert adapter._table == "engram_memories"
 
+    def test_table_name_lowercased(self) -> None:
+        adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=4, table="MyMemories")
+        assert adapter._table == "mymemories"
+
     def test_pool_is_none_before_open(self) -> None:
         adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=4)
         assert adapter._pool is None

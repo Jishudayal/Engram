@@ -123,7 +123,7 @@ class PgVectorAdapter(AbstractAdapter):
             raise ValueError(f"vector_size must be > 0, got {vector_size}")
         _validate_table(table)
         self._dsn = dsn
-        self._table = table
+        self._table = table.lower()  # PostgreSQL folds unquoted identifiers to lowercase
         self._vector_size = vector_size
         self._min_pool_size = min_pool_size
         self._max_pool_size = max_pool_size
@@ -161,7 +161,12 @@ class PgVectorAdapter(AbstractAdapter):
         except (asyncpg.PostgresError, OSError) as exc:
             raise AdapterError(f"PgVectorAdapter.open: {exc}") from exc
 
-        await self._setup()
+        try:
+            await self._setup()
+        except BaseException:
+            await self._pool.close()
+            self._pool = None
+            raise
 
     async def close(self) -> None:
         """Close the connection pool. Idempotent."""
@@ -310,24 +315,30 @@ class PgVectorAdapter(AbstractAdapter):
         if top_k == 0:
             return []
 
+        # Push score_threshold into SQL as a distance bound so LIMIT top_k
+        # applies after threshold filtering — avoids returning fewer results
+        # than exist when filtering is done post-LIMIT in Python.
+        sql_params: list[Any] = [query_embedding, agent_id]
+        extra_where = ""
+        if score_threshold is not None:
+            sql_params.append(1.0 - score_threshold)  # score ≥ threshold ↔ distance ≤ 1-threshold
+            extra_where = f" AND embedding <=> $1 <= ${len(sql_params)}"
+        sql_params.append(top_k)
+
         rows = await self._p.fetch(
             f"SELECT payload, embedding,"
             f"       1.0 - (embedding <=> $1) AS score"
             f"  FROM {self._table}"
-            f"  WHERE agent_id = $2 AND embedding IS NOT NULL"
+            f"  WHERE agent_id = $2 AND embedding IS NOT NULL{extra_where}"
             f"  ORDER BY embedding <=> $1"
-            f"  LIMIT $3",
-            query_embedding,
-            agent_id,
-            top_k,
+            f"  LIMIT ${len(sql_params)}",
+            *sql_params,
         )
 
         results: list[SearchResult] = []
         rank = 1
         for row in rows:
-            score = max(0.0, float(row["score"]))
-            if score_threshold is not None and score < score_threshold:
-                continue
+            score = min(1.0, max(0.0, float(row["score"])))
             memory = payload_to_memory(
                 row["payload"], embedding=_to_float_list(row["embedding"])
             )

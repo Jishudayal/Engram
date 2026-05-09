@@ -34,6 +34,7 @@ _OPTIONAL_ADAPTERS: dict[str, tuple[str, str, str]] = {
     # name: (module_path, dep_module_prefix, install_hint)
     "QdrantAdapter": ("engram.adapters.qdrant", "qdrant_client", "engram[qdrant]"),
     "ChromaAdapter": ("engram.adapters.chroma", "chromadb", "engram[chroma]"),
+    "PgVectorAdapter": ("engram.adapters.pgvector", "pgvector", "engram[pgvector]"),
 }
 
 
@@ -73,6 +74,7 @@ __all__ = [
     "InMemoryAdapter",
     "QdrantAdapter",
     "ChromaAdapter",
+    "PgVectorAdapter",
     # Exceptions
     "EngramError",
     "AdapterError",

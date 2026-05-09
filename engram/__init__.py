@@ -35,6 +35,8 @@ _OPTIONAL_ADAPTERS: dict[str, tuple[str, str, str]] = {
     "QdrantAdapter": ("engram.adapters.qdrant", "qdrant_client", "engram[qdrant]"),
     "ChromaAdapter": ("engram.adapters.chroma", "chromadb", "engram[chroma]"),
     "PgVectorAdapter": ("engram.adapters.pgvector", "pgvector", "engram[pgvector]"),
+    "EngramVectorStore": ("engram.integrations.langchain", "langchain_core", "engram[langchain]"),
+    "EngramChatMessageHistory": ("engram.integrations.langchain", "langchain_core", "engram[langchain]"),
 }
 
 
@@ -75,6 +77,8 @@ __all__ = [
     "QdrantAdapter",
     "ChromaAdapter",
     "PgVectorAdapter",
+    "EngramVectorStore",
+    "EngramChatMessageHistory",
     # Exceptions
     "EngramError",
     "AdapterError",

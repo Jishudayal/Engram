@@ -32,6 +32,7 @@ qdrant = ["qdrant-client>=1.9"]
 chroma = ["chromadb>=0.5"]
 weaviate = ["weaviate-client>=4.0"]
 pgvector = ["asyncpg>=0.29", "pgvector>=0.3"]
+langchain = ["langchain-core>=0.2"]
 llm = ["anthropic>=0.30"]
 dev = [
     "pytest>=8.0",
@@ -42,7 +43,7 @@ dev = [
     "anthropic>=0.30",
 ]
 all = [
-    "engram[qdrant,chroma,weaviate,pgvector,llm]",
+    "engram[qdrant,chroma,weaviate,pgvector,langchain,llm]",
 ]
 
 [project.urls]

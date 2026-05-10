@@ -115,6 +115,31 @@ pip install "engram[all]"            # everything
 
 Requires Python 3.11+. Engram is fully async.
 
+## Benchmark
+
+We ran MemoryEval's 50 deterministic test cases across five backends — four Engram-backed adapters and one raw Qdrant wrapper with no data model.
+
+| Backend | Score | Risk | Pass |
+|---|---|---|---|
+| engram-inmemory-adapter | 0.88 | LOW | 44/50 |
+| engram-qdrant-adapter | 0.88 | LOW | 44/50 |
+| engram-chroma-adapter | 0.88 | LOW | 44/50 |
+| engram-pgvector-adapter | 0.88 | LOW | 44/50 |
+| naive-qdrant (no data model) | 0.42 | CRITICAL | 20/50 |
+
+**+46 percentage points** overall reliability gap. Score is identical across all four Engram backends — reliability comes from the data model, not the choice of vector backend.
+
+The largest single contributor is temporal reliability: Engram scores **1.00**, naive Qdrant scores **0.05**. Without lifecycle tracking, superseded facts stay active, update history is lost, and access patterns are invisible to the retriever.
+
+To reproduce:
+
+```bash
+python benchmark/run_track1.py   # runs all 5 adapters (~2 min, no API key needed)
+python benchmark/report.py       # prints the table above
+```
+
+See [`benchmark/README.md`](benchmark/README.md) for full setup and Docker requirements.
+
 ## Status
 
 `0.1.0-alpha` — the core reliability loop (store → detect → score → consolidate → provenance) is complete and covered by 880+ unit tests. The pgvector adapter and LangChain bridge are included.

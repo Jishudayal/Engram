@@ -40,25 +40,25 @@ VECTOR_SIZE: int = 16
 # adjacent dimensions and produce naturally high cosine similarity.
 _VOCAB: dict[str, int] = {
     # Refund / return policy cluster
-    "refund":       0,
-    "policy":       1,
-    "return":       2,
-    "window":       3,
+    "refund": 0,
+    "policy": 1,
+    "return": 2,
+    "window": 3,
     # API / rate limiting cluster
-    "api":          4,
-    "rate":         5,
-    "limit":        6,
-    "request":      7,
+    "api": 4,
+    "rate": 5,
+    "limit": 6,
+    "request": 7,
     # Security / password cluster
-    "password":     8,
-    "security":     9,
-    "requirement":  10,
-    "expire":       11,
+    "password": 8,
+    "security": 9,
+    "requirement": 10,
+    "expire": 11,
     # Pricing / subscription cluster
-    "price":        12,
-    "plan":         13,
+    "price": 12,
+    "plan": 13,
     "subscription": 14,
-    "days":         15,
+    "days": 15,
 }
 
 

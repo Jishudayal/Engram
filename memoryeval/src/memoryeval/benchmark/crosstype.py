@@ -27,9 +27,10 @@ from memoryeval.types import BenchmarkCategory
 # X1 — After supersession, status counts are exactly correct
 # ---------------------------------------------------------------------------
 
+
 class ActiveAndSupersededCountCorrect(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "active_and_superseded_count_correct"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "active_and_superseded_count_correct"
     description = "After supersession, count(ACTIVE)=1 and count(SUPERSEDED)=1 must both hold"
 
     async def setup(self, adapter) -> None:
@@ -51,13 +52,13 @@ class ActiveAndSupersededCountCorrect(TestCase):
         await adapter.store(v2)
 
     async def run(self, adapter) -> tuple[int, int]:
-        active     = await adapter.count(self.agent_id, status=MemoryStatus.ACTIVE)
+        active = await adapter.count(self.agent_id, status=MemoryStatus.ACTIVE)
         superseded = await adapter.count(self.agent_id, status=MemoryStatus.SUPERSEDED)
         return active, superseded
 
     def score(self, result: tuple[int, int]) -> float:
         active, superseded = result
-        active_ok     = active     == 1
+        active_ok = active == 1
         superseded_ok = superseded == 1
         if active_ok and superseded_ok:
             return 1.0
@@ -68,9 +69,10 @@ class ActiveAndSupersededCountCorrect(TestCase):
 # X2 — All four MemoryStatus values are independently storable and filterable
 # ---------------------------------------------------------------------------
 
+
 class AllFourStatusesStorable(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "all_four_statuses_storable"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "all_four_statuses_storable"
     description = "One memory of each status must be independently storable and filterable"
 
     async def setup(self, adapter) -> None:
@@ -81,12 +83,14 @@ class AllFourStatusesStorable(TestCase):
             MemoryStatus.FLAGGED,
             MemoryStatus.PENDING_REVIEW,
         ):
-            await adapter.store(Memory(
-                agent_id=self.agent_id,
-                text=f"Policy claim with status {status}.",
-                embedding=embedding,
-                status=status,
-            ))
+            await adapter.store(
+                Memory(
+                    agent_id=self.agent_id,
+                    text=f"Policy claim with status {status}.",
+                    embedding=embedding,
+                    status=status,
+                )
+            )
 
     async def run(self, adapter) -> dict[str, int]:
         return {
@@ -108,10 +112,13 @@ class AllFourStatusesStorable(TestCase):
 # X3 — Provenance and supersession links coexist on the same memory
 # ---------------------------------------------------------------------------
 
+
 class ProvenanceAndSupersessionCombined(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "provenance_and_supersession_combined"
-    description = "A memory with both provenance and supersedes[] set must preserve both after round-trip"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "provenance_and_supersession_combined"
+    description = (
+        "A memory with both provenance and supersedes[] set must preserve both after round-trip"
+    )
 
     _memory_id: str
     _old_id: str
@@ -164,10 +171,13 @@ class ProvenanceAndSupersessionCombined(TestCase):
 # X4 — expires_at and importance coexist on the same memory
 # ---------------------------------------------------------------------------
 
+
 class ExpiryAndImportanceBothPreserved(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "expiry_and_importance_both_preserved"
-    description = "A memory with both expires_at and importance must preserve both fields after round-trip"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "expiry_and_importance_both_preserved"
+    description = (
+        "A memory with both expires_at and importance must preserve both fields after round-trip"
+    )
 
     _memory_id: str
     _expected_importance: float = 0.82
@@ -192,7 +202,7 @@ class ExpiryAndImportanceBothPreserved(TestCase):
         if result is None:
             return 0.0
         importance_ok = abs(result.importance - self._expected_importance) < 1e-6
-        expiry_ok     = result.expires_at == self._expires_at
+        expiry_ok = result.expires_at == self._expires_at
         if importance_ok and expiry_ok:
             return 1.0
         return 0.5 if importance_ok or expiry_ok else 0.0
@@ -202,9 +212,10 @@ class ExpiryAndImportanceBothPreserved(TestCase):
 # X5 — Supersession chain where both ends have provenance
 # ---------------------------------------------------------------------------
 
+
 class SupersessionChainWithProvenance(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "supersession_chain_with_provenance"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "supersession_chain_with_provenance"
     description = "A v1→v2 chain where both memories have provenance must fully preserve all fields"
 
     _v1_id: str
@@ -214,7 +225,9 @@ class SupersessionChainWithProvenance(TestCase):
         embedding = vec("policy", "security")
         v2_id = str(uuid4())
 
-        v1 = Memory(agent_id=self.agent_id, text="Password policy v1: 8 chars.", embedding=embedding)
+        v1 = Memory(
+            agent_id=self.agent_id, text="Password policy v1: 8 chars.", embedding=embedding
+        )
         prov1 = ProvenanceRecord(
             memory_id=v1.memory_id,
             source_type=SourceType.DOCUMENT,
@@ -256,7 +269,7 @@ class SupersessionChainWithProvenance(TestCase):
             return 0.0
         v1_prov_ok = v1.provenance is not None and v1.provenance.source_id == "policy_v1.pdf"
         v2_prov_ok = v2.provenance is not None and v2.provenance.source_id == "policy_v2.pdf"
-        chain_ok   = v1.superseded_by == self._v2_id and self._v1_id in v2.supersedes
+        chain_ok = v1.superseded_by == self._v2_id and self._v1_id in v2.supersedes
         checks = [v1_prov_ok, v2_prov_ok, chain_ok]
         passed = sum(checks)
         if passed == 3:
@@ -268,9 +281,10 @@ class SupersessionChainWithProvenance(TestCase):
 # X6 — Search surfaces memories of all statuses (no implicit status filter)
 # ---------------------------------------------------------------------------
 
+
 class SearchReturnsAllStatusesByDefault(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "search_returns_all_statuses_by_default"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "search_returns_all_statuses_by_default"
     description = "Search without a status filter must return memories of any status"
 
     _ids: dict[str, str]  # status → memory_id
@@ -294,7 +308,7 @@ class SearchReturnsAllStatusesByDefault(TestCase):
     def score(self, result: list[SearchResult]) -> float:
         if not result:
             return 0.0
-        found   = {r.memory.memory_id for r in result}
+        found = {r.memory.memory_id for r in result}
         matched = sum(1 for mid in self._ids.values() if mid in found)
         return matched / len(self._ids)
 
@@ -307,9 +321,10 @@ class SearchReturnsAllStatusesByDefault(TestCase):
 # Expiry is informational metadata — adapters must not silently filter it.
 # ---------------------------------------------------------------------------
 
+
 class ExpiredMemoryStillSearchable(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "expired_memory_still_searchable"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "expired_memory_still_searchable"
     description = "A memory with expires_at in the past must still appear in search results (expiry is metadata, not a filter)"
 
     _expired_id: str
@@ -331,15 +346,15 @@ class ExpiredMemoryStillSearchable(TestCase):
         await adapter.store(expired)
         await adapter.store(fresh)
         self._expired_id = expired.memory_id
-        self._fresh_id   = fresh.memory_id
+        self._fresh_id = fresh.memory_id
 
     async def run(self, adapter) -> list[SearchResult]:
         return await adapter.search(self.agent_id, vec("refund", "policy"), top_k=5)
 
     def score(self, result: list[SearchResult]) -> float:
-        found        = {r.memory.memory_id for r in result}
-        expired_ok   = self._expired_id in found
-        fresh_ok     = self._fresh_id   in found
+        found = {r.memory.memory_id for r in result}
+        expired_ok = self._expired_id in found
+        fresh_ok = self._fresh_id in found
         if expired_ok and fresh_ok:
             return 1.0
         return 0.5 if expired_ok or fresh_ok else 0.0
@@ -349,10 +364,13 @@ class ExpiredMemoryStillSearchable(TestCase):
 # X8 — touch() only changes access fields; all other fields are stable
 # ---------------------------------------------------------------------------
 
+
 class TouchOnlyChangesAccessFields(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "touch_only_changes_access_fields"
-    description = "touch() must only increment access_count and set last_accessed; no other fields change"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "touch_only_changes_access_fields"
+    description = (
+        "touch() must only increment access_count and set last_accessed; no other fields change"
+    )
 
     _memory_id: str
     _expected_importance: float = 0.77
@@ -381,8 +399,8 @@ class TouchOnlyChangesAccessFields(TestCase):
         if result is None:
             return 0.0
         importance_ok = abs(result.importance - self._expected_importance) < 1e-6
-        status_ok     = result.status == self._expected_status
-        access_ok     = result.access_count == 1 and result.last_accessed is not None
+        status_ok = result.status == self._expected_status
+        access_ok = result.access_count == 1 and result.last_accessed is not None
         checks = [importance_ok, status_ok, access_ok]
         return sum(checks) / 3
 
@@ -395,10 +413,13 @@ class TouchOnlyChangesAccessFields(TestCase):
 # anywhere in the benchmark; this case closes that gap.
 # ---------------------------------------------------------------------------
 
+
 class MemoryTypeCoexistAllSearchable(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "memory_type_coexist_all_searchable"
-    description = "Memories of CONVERSATION, SKILL, and CUSTOM type must all appear in a single search result"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "memory_type_coexist_all_searchable"
+    description = (
+        "Memories of CONVERSATION, SKILL, and CUSTOM type must all appear in a single search result"
+    )
 
     _type_to_id: dict[str, str]
 
@@ -421,7 +442,7 @@ class MemoryTypeCoexistAllSearchable(TestCase):
     def score(self, result: list[SearchResult]) -> float:
         if not result:
             return 0.0
-        found   = {r.memory.memory_id for r in result}
+        found = {r.memory.memory_id for r in result}
         matched = sum(1 for mid in self._type_to_id.values() if mid in found)
         return matched / len(self._type_to_id)
 
@@ -430,9 +451,10 @@ class MemoryTypeCoexistAllSearchable(TestCase):
 # X10 — Memory with every optional field populated survives full round-trip
 # ---------------------------------------------------------------------------
 
+
 class AllOptionalFieldsRoundtrip(TestCase):
-    category    = BenchmarkCategory.CROSS_TYPE
-    name        = "all_optional_fields_roundtrip"
+    category = BenchmarkCategory.CROSS_TYPE
+    name = "all_optional_fields_roundtrip"
     description = "A memory with importance, expires_at, provenance, and supersedes all set must preserve every field"
 
     _memory_id: str
@@ -442,7 +464,7 @@ class AllOptionalFieldsRoundtrip(TestCase):
     _ingested_at: datetime
 
     async def setup(self, adapter) -> None:
-        self._expires_at  = datetime(2027, 6, 30, 0, 0, 0, tzinfo=UTC)
+        self._expires_at = datetime(2027, 6, 30, 0, 0, 0, tzinfo=UTC)
         self._ingested_at = datetime(2025, 6, 1, 12, 0, 0, tzinfo=UTC)
 
         old = Memory(

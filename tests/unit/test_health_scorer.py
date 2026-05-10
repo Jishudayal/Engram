@@ -320,9 +320,7 @@ class TestProvenanceCompletenessScoring:
 
     def test_superseded_not_counted_in_denominator(self) -> None:
         active_with = make_memory(with_provenance=True)
-        superseded_without = make_memory(
-            with_provenance=False, status=MemoryStatus.SUPERSEDED
-        )
+        superseded_without = make_memory(with_provenance=False, status=MemoryStatus.SUPERSEDED)
         score = HealthScorer().provenance_completeness([active_with, superseded_without])
         # Only active counted: 1 with provenance / 1 active = 1.0
         assert score == pytest.approx(1.0)
@@ -330,9 +328,7 @@ class TestProvenanceCompletenessScoring:
     def test_flagged_memory_excluded_from_denominator(self) -> None:
         # FLAGGED is not ACTIVE → is_usable() returns False → excluded
         active_with = make_memory(with_provenance=True)
-        flagged_without = make_memory(
-            with_provenance=False, status=MemoryStatus.FLAGGED
-        )
+        flagged_without = make_memory(with_provenance=False, status=MemoryStatus.FLAGGED)
         score = HealthScorer().provenance_completeness([active_with, flagged_without])
         assert score == pytest.approx(1.0)
 
@@ -401,7 +397,7 @@ class TestContradictionScoreValidation:
             assert isinstance(score, float)
 
     def test_mixed_dimensions_raise(self) -> None:
-        m1 = make_embedded_memory([1.0, 0.0])       # 2D
+        m1 = make_embedded_memory([1.0, 0.0])  # 2D
         m2 = make_embedded_memory([1.0, 0.0, 0.0])  # 3D
         with pytest.raises(ValueError, match="same dimension"):
             HealthScorer().contradiction_score([m1, m2])
@@ -433,9 +429,7 @@ class TestContradictionScoreEdgeCases:
         assert coverage == 0.0  # 0 embedded / 3 active
 
     def test_single_embedded_memory_returns_zero(self) -> None:
-        score, pairs, coverage = HealthScorer().contradiction_score(
-            [make_embedded_memory(V_X)]
-        )
+        score, pairs, coverage = HealthScorer().contradiction_score([make_embedded_memory(V_X)])
         assert score == 0.0
         assert pairs == []
 
@@ -456,9 +450,7 @@ class TestContradictionScoreEdgeCases:
     def test_mixed_embedded_and_no_embedding(self) -> None:
         with_emb = make_embedded_memory(V_X)
         without_emb = make_memory()  # embedding=None
-        score, pairs, coverage = HealthScorer().contradiction_score(
-            [with_emb, without_emb]
-        )
+        score, pairs, coverage = HealthScorer().contradiction_score([with_emb, without_emb])
         assert score == 0.0
         assert pairs == []
 
@@ -506,9 +498,7 @@ class TestContradictionScoreEmbeddingCoverage:
         # Superseded memories are not ACTIVE, so they don't appear in active_all.
         active_with = make_embedded_memory(V_X)
         superseded_with = make_embedded_memory(V_X_NEAR, status=MemoryStatus.SUPERSEDED)
-        _, _, coverage = HealthScorer().contradiction_score(
-            [active_with, superseded_with]
-        )
+        _, _, coverage = HealthScorer().contradiction_score([active_with, superseded_with])
         # Only 1 active memory (with valid embedding) → coverage = 1/1 = 1.0
         assert coverage == pytest.approx(1.0)
 
@@ -655,6 +645,7 @@ class TestContradictionScoreCustomThreshold:
 
     def test_default_threshold_matches_constant(self) -> None:
         from engram.core.constants import CLUSTER_SIMILARITY_THRESHOLD
+
         assert HealthScorer().CONTRADICTION_CLUSTER_THRESHOLD == CLUSTER_SIMILARITY_THRESHOLD
 
 
@@ -680,18 +671,14 @@ class TestConfidenceAccuracyGapValidation:
 
         adapter = InMemoryAdapter()
         with pytest.raises(ValueError, match="probe_count must be >= 1"):
-            await HealthScorer().confidence_accuracy_gap(
-                "agent-1", adapter, probe_count=0
-            )
+            await HealthScorer().confidence_accuracy_gap("agent-1", adapter, probe_count=0)
 
     async def test_probe_count_negative_raises(self) -> None:
         from engram.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         with pytest.raises(ValueError, match="probe_count must be >= 1"):
-            await HealthScorer().confidence_accuracy_gap(
-                "agent-1", adapter, probe_count=-1
-            )
+            await HealthScorer().confidence_accuracy_gap("agent-1", adapter, probe_count=-1)
 
     async def test_top_k_zero_raises(self) -> None:
         from engram.adapters.memory import InMemoryAdapter
@@ -850,10 +837,7 @@ class TestConfidenceAccuracyGapScoreFormula:
 
         adapter = InMemoryAdapter()
         # Store SUPERSEDED first — they appear first in equal-score results.
-        superseded = [
-            make_embedded_memory(V_X, status=MemoryStatus.SUPERSEDED)
-            for _ in range(5)
-        ]
+        superseded = [make_embedded_memory(V_X, status=MemoryStatus.SUPERSEDED) for _ in range(5)]
         active = [make_embedded_memory(V_X) for _ in range(2)]
         await _store_memories(adapter, superseded + active)
 
@@ -896,9 +880,7 @@ class TestConfidenceAccuracyGapScoreFormula:
             adapter,
             [make_embedded_memory(V_X), make_embedded_memory(V_Y)],
         )
-        gap, n = await HealthScorer().confidence_accuracy_gap(
-            "agent-1", adapter, top_k=1
-        )
+        gap, n = await HealthScorer().confidence_accuracy_gap("agent-1", adapter, top_k=1)
         # Both ACTIVE, score = 0.0 → retrieval_confidence = 0.0, precision = 1.0
         # gap = |0.0 - 1.0| = 1.0. This shows low score ≠ small gap.
         assert gap == pytest.approx(1.0, abs=1e-9)

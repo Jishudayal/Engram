@@ -49,12 +49,8 @@ _CONTRADICTION = (
 _SUPERSESSION = (
     '{"verdict": "temporal_supersession", "confidence": 0.88, "summary": "Old value superseded"}'
 )
-_PARTIAL = (
-    '{"verdict": "partial_conflict", "confidence": 0.84, "summary": "Partial overlap"}'
-)
-_UNRELATED = (
-    '{"verdict": "unrelated", "confidence": 0.91, "summary": "Different topics"}'
-)
+_PARTIAL = '{"verdict": "partial_conflict", "confidence": 0.84, "summary": "Partial overlap"}'
+_UNRELATED = '{"verdict": "unrelated", "confidence": 0.91, "summary": "Different topics"}'
 
 
 # ---------------------------------------------------------------------------
@@ -233,27 +229,21 @@ class TestToConflictRecord:
         assert record.conflict_type == ConflictType.TEMPORAL_SUPERSESSION
 
     def test_partial_conflict(self) -> None:
-        record = self._det()._to_conflict_record(
-            self._result("partial_conflict", 0.85), "agent-1"
-        )
+        record = self._det()._to_conflict_record(self._result("partial_conflict", 0.85), "agent-1")
         assert record is not None
         assert record.conflict_type == ConflictType.PARTIAL_CONFLICT
 
     def test_unrelated_returns_none(self) -> None:
-        assert (
-            self._det()._to_conflict_record(self._result("unrelated", 0.99), "agent-1")
-            is None
-        )
+        assert self._det()._to_conflict_record(self._result("unrelated", 0.99), "agent-1") is None
 
     def test_unknown_verdict_returns_none(self) -> None:
-        assert (
-            self._det()._to_conflict_record(self._result("foo_bar", 0.99), "agent-1")
-            is None
-        )
+        assert self._det()._to_conflict_record(self._result("foo_bar", 0.99), "agent-1") is None
 
     def test_below_threshold_returns_none(self) -> None:
         det = self._det(threshold=0.80)
-        assert det._to_conflict_record(self._result("direct_contradiction", 0.79), "agent-1") is None
+        assert (
+            det._to_conflict_record(self._result("direct_contradiction", 0.79), "agent-1") is None
+        )
 
     def test_at_threshold_emits_record(self) -> None:
         det = self._det(threshold=0.80)

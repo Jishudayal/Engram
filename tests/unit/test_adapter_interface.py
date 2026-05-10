@@ -539,6 +539,7 @@ class TestSearchResultConflictDefaults:
 # TestUpdateConflict — InMemoryAdapter.update_conflict (Step 6.2)
 # ---------------------------------------------------------------------------
 
+
 def _make_conflict(mem_a: Memory, mem_b: Memory, *, agent_id: str = "agent-1") -> ConflictRecord:
     return ConflictRecord(
         agent_id=agent_id,
@@ -558,7 +559,10 @@ class TestUpdateConflict:
         await adapter.store_conflict(conflict)
 
         resolved = conflict.model_copy(
-            update={"resolution_status": ResolutionStatus.AUTO_RESOLVED, "resolved_at": datetime.now(UTC)}
+            update={
+                "resolution_status": ResolutionStatus.AUTO_RESOLVED,
+                "resolved_at": datetime.now(UTC),
+            }
         )
         await adapter.update_conflict(resolved)
 
@@ -602,7 +606,10 @@ class TestUpdateConflict:
         await adapter.store_conflict(conflict)
 
         resolved = conflict.model_copy(
-            update={"resolution_status": ResolutionStatus.AUTO_RESOLVED, "resolved_at": datetime.now(UTC)}
+            update={
+                "resolution_status": ResolutionStatus.AUTO_RESOLVED,
+                "resolved_at": datetime.now(UTC),
+            }
         )
         await adapter.update_conflict(resolved)
 
@@ -620,7 +627,10 @@ class TestUpdateConflict:
         await adapter.store_conflict(conflict)
 
         resolved = conflict.model_copy(
-            update={"resolution_status": ResolutionStatus.AUTO_RESOLVED, "resolved_at": datetime.now(UTC)}
+            update={
+                "resolution_status": ResolutionStatus.AUTO_RESOLVED,
+                "resolved_at": datetime.now(UTC),
+            }
         )
         await adapter.update_conflict(resolved)
 

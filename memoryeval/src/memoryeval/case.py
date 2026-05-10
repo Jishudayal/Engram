@@ -65,9 +65,7 @@ class TestCase(abc.ABC):
             return
         for attr in ("category", "name", "description"):
             if not hasattr(cls, attr):
-                raise TypeError(
-                    f"{cls.__name__} must define class attribute '{attr}'"
-                )
+                raise TypeError(f"{cls.__name__} must define class attribute '{attr}'")
 
     @property
     def agent_id(self) -> str:

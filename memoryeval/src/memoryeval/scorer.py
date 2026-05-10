@@ -100,42 +100,34 @@ class BenchmarkScorer:
            warnings and do not affect the returned CaseResult.
         """
         try:
-            await asyncio.wait_for(
-                case.setup(self._adapter), timeout=self._case_timeout
-            )
+            await asyncio.wait_for(case.setup(self._adapter), timeout=self._case_timeout)
         except TimeoutError:
-            return CaseResult.from_case(
-                case, error=f"setup: timed out after {self._case_timeout}s"
-            )
+            return CaseResult.from_case(case, error=f"setup: timed out after {self._case_timeout}s")
         except Exception as exc:
             return CaseResult.from_case(case, error=f"setup: {exc}")
 
         try:
-            raw = await asyncio.wait_for(
-                case.run(self._adapter), timeout=self._case_timeout
-            )
+            raw = await asyncio.wait_for(case.run(self._adapter), timeout=self._case_timeout)
             score = case.score(raw)
             return CaseResult.from_case(case, score=score)
         except TimeoutError:
-            return CaseResult.from_case(
-                case, error=f"run: timed out after {self._case_timeout}s"
-            )
+            return CaseResult.from_case(case, error=f"run: timed out after {self._case_timeout}s")
         except Exception as exc:
             return CaseResult.from_case(case, error=str(exc))
         finally:
             try:
-                await asyncio.wait_for(
-                    case.teardown(self._adapter), timeout=self._case_timeout
-                )
+                await asyncio.wait_for(case.teardown(self._adapter), timeout=self._case_timeout)
             except TimeoutError:
                 logger.warning(
                     "teardown timed out for case %s after %.1fs",
-                    case.name, self._case_timeout,
+                    case.name,
+                    self._case_timeout,
                 )
             except Exception as teardown_exc:
                 logger.warning(
                     "teardown failed for case %s: %s",
-                    case.name, teardown_exc,
+                    case.name,
+                    teardown_exc,
                     exc_info=True,
                 )
 
@@ -172,10 +164,7 @@ class BenchmarkScorer:
                         no active cases — prevents a silent CRITICAL report from
                         a typo'd category name or an empty custom case list.
         """
-        active = [
-            cls for cls in self._cases
-            if categories is None or cls.category in categories
-        ]
+        active = [cls for cls in self._cases if categories is None or cls.category in categories]
 
         if not active:
             raise ValueError(

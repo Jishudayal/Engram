@@ -523,9 +523,7 @@ class QdrantAdapter(AbstractAdapter):
         )
 
     @map_adapter_errors(error=_QDRANT_ERRORS)
-    async def fetch_conflict(
-        self, agent_id: str, conflict_id: str
-    ) -> ConflictRecord | None:
+    async def fetch_conflict(self, agent_id: str, conflict_id: str) -> ConflictRecord | None:
         name = self._conflicts_collection
         if not await self._c.collection_exists(name):
             return None

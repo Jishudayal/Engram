@@ -107,9 +107,9 @@ class PlanningResult:
     """
 
     conflict_id: str
-    action_type: str   # "merge" | "flag"
+    action_type: str  # "merge" | "flag"
     confidence: float  # 0.0–1.0; higher = more certain of the chosen action
-    reasoning: str     # ≤20-word explanation; may be empty on parse failure
+    reasoning: str  # ≤20-word explanation; may be empty on parse failure
 
 
 def _build_anthropic_fn(model: str) -> LLMConsolidateFn:
@@ -123,7 +123,7 @@ def _build_anthropic_fn(model: str) -> LLMConsolidateFn:
     except ImportError as exc:
         raise ImportError(
             "Consolidator requires the 'anthropic' package when no "
-            "llm_fn is provided. Install it with: pip install \"engram[llm]\" "
+            'llm_fn is provided. Install it with: pip install "engram[llm]" '
             "or supply your own: Consolidator(llm_fn=my_async_fn)"
         ) from exc
 
@@ -215,9 +215,7 @@ class Consolidator:
             return None
 
         # Bulk-fetch all memories referenced by the conflict records.
-        all_memory_ids = list(
-            {mid for c in pending for mid in (c.memory_a_id, c.memory_b_id)}
-        )
+        all_memory_ids = list({mid for c in pending for mid in (c.memory_a_id, c.memory_b_id)})
         memory_index = await adapter.fetch_batch(agent_id, all_memory_ids)
 
         sem = asyncio.Semaphore(self._max_concurrency)

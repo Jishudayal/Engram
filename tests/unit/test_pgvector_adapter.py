@@ -246,10 +246,13 @@ class TestConflictRowId:
 
 class TestOpen:
     async def test_pool_creation_failure_raises_adapter_error(self) -> None:
-        with patch(
-            "asyncpg.create_pool",
-            side_effect=asyncpg.PostgresError("connection refused"),
-        ), patch("engram.adapters.pgvector.register_vector"):
+        with (
+            patch(
+                "asyncpg.create_pool",
+                side_effect=asyncpg.PostgresError("connection refused"),
+            ),
+            patch("engram.adapters.pgvector.register_vector"),
+        ):
             adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=3)
             with pytest.raises(AdapterError, match="connection refused"):
                 await adapter.open()
@@ -264,18 +267,21 @@ class TestOpen:
         ctx.__aexit__ = AsyncMock(return_value=False)
 
         from unittest.mock import MagicMock
+
         mock_pool = AsyncMock()
         mock_pool.acquire = MagicMock(return_value=ctx)  # sync call → CM object
 
         # CREATE EXTENSION succeeds, EXISTS returns False, CREATE TABLE raises.
         mock_conn.fetchval.return_value = False
         mock_conn.execute.side_effect = [
-            None,                                   # CREATE EXTENSION
-            asyncpg.PostgresError("disk full"),     # CREATE TABLE
+            None,  # CREATE EXTENSION
+            asyncpg.PostgresError("disk full"),  # CREATE TABLE
         ]
 
-        with patch("asyncpg.create_pool", new=AsyncMock(return_value=mock_pool)), \
-             patch("engram.adapters.pgvector.register_vector"):
+        with (
+            patch("asyncpg.create_pool", new=AsyncMock(return_value=mock_pool)),
+            patch("engram.adapters.pgvector.register_vector"),
+        ):
             adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=3)
             with pytest.raises(asyncpg.PostgresError):
                 await adapter.open()
@@ -617,6 +623,7 @@ class TestDeleteConflict:
 class TestPyprojectWiring:
     def test_importable_from_engram_root(self) -> None:
         from engram import PgVectorAdapter as PVA
+
         assert PVA is PgVectorAdapter
 
     def test_lazy_import_error_has_install_hint(self) -> None:
@@ -630,6 +637,7 @@ class TestPyprojectWiring:
             sys.modules["pgvector"] = None  # type: ignore[assignment]
             sys.modules["pgvector.asyncpg"] = None  # type: ignore[assignment]
             import engram
+
             with pytest.raises(ImportError, match="engram\\[pgvector\\]"):
                 engram.__getattr__("PgVectorAdapter")
         finally:

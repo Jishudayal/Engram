@@ -46,9 +46,7 @@ def memory_to_payload(memory: Memory) -> dict[str, Any]:
     return memory.model_dump(mode="json", exclude={"embedding"})
 
 
-def payload_to_memory(
-    payload: dict[str, Any], *, embedding: list[float] | None = None
-) -> Memory:
+def payload_to_memory(payload: dict[str, Any], *, embedding: list[float] | None = None) -> Memory:
     """Reconstruct a Memory from a serialized payload dict.
 
     Pass the embedding separately — it is not stored in the payload.
@@ -62,9 +60,7 @@ def map_adapter_errors(
     *,
     not_found: tuple[type[Exception], ...] = (),
     error: tuple[type[Exception], ...] = (),
-) -> Callable[
-    [Callable[_P, Coroutine[Any, Any, _T]]], Callable[_P, Coroutine[Any, Any, _T]]
-]:
+) -> Callable[[Callable[_P, Coroutine[Any, Any, _T]]], Callable[_P, Coroutine[Any, Any, _T]]]:
     """Decorator factory: map backend exceptions to Engram's exception hierarchy.
 
     not_found   — re-raise matching exceptions as NotFoundError

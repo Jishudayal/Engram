@@ -30,9 +30,10 @@ from memoryeval.types import BenchmarkCategory
 # C1 — Both conflicting claims ACTIVE is a contradiction (bad baseline)
 # ---------------------------------------------------------------------------
 
+
 class BothClaimsActiveIsContradiction(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "both_claims_active_is_contradiction"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "both_claims_active_is_contradiction"
     description = "Two conflicting facts both ACTIVE is the unresolved-contradiction baseline"
     pass_threshold = 0.5  # easier bar — this case is designed to expose raw systems
 
@@ -41,16 +42,20 @@ class BothClaimsActiveIsContradiction(TestCase):
 
     async def setup(self, adapter) -> None:
         embedding = vec("api", "rate", "limit")
-        await adapter.store(Memory(
-            agent_id=self.agent_id,
-            text="API rate limit is 100 requests/min.",
-            embedding=embedding,
-        ))
-        await adapter.store(Memory(
-            agent_id=self.agent_id,
-            text="API rate limit is 500 requests/min.",
-            embedding=embedding,
-        ))
+        await adapter.store(
+            Memory(
+                agent_id=self.agent_id,
+                text="API rate limit is 100 requests/min.",
+                embedding=embedding,
+            )
+        )
+        await adapter.store(
+            Memory(
+                agent_id=self.agent_id,
+                text="API rate limit is 500 requests/min.",
+                embedding=embedding,
+            )
+        )
 
     async def run(self, adapter) -> list[Memory]:
         return await adapter.list_all(self.agent_id, status=MemoryStatus.ACTIVE)
@@ -64,9 +69,10 @@ class BothClaimsActiveIsContradiction(TestCase):
 # C2 — After resolving, only one ACTIVE version remains
 # ---------------------------------------------------------------------------
 
+
 class ResolvedContradictionHasOneActive(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "resolved_contradiction_has_one_active"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "resolved_contradiction_has_one_active"
     description = "After marking the old claim SUPERSEDED, exactly one ACTIVE version should remain"
 
     _new_id: str
@@ -105,10 +111,13 @@ class ResolvedContradictionHasOneActive(TestCase):
 # C3 — Stored embeddings survive write-read with near-perfect cosine fidelity
 # ---------------------------------------------------------------------------
 
+
 class EmbeddingFidelityHighPrecision(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "embedding_fidelity_high_precision"
-    description = "Stored embeddings must survive write-read with near-perfect cosine fidelity (> 0.9999)"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "embedding_fidelity_high_precision"
+    description = (
+        "Stored embeddings must survive write-read with near-perfect cosine fidelity (> 0.9999)"
+    )
 
     _memory_id: str
     _original_embedding: list[float]
@@ -139,9 +148,10 @@ class EmbeddingFidelityHighPrecision(TestCase):
 # C4 — Three claims resolved to one ACTIVE
 # ---------------------------------------------------------------------------
 
+
 class ThreeClaimsOneActive(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "three_claims_one_active"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "three_claims_one_active"
     description = "After superseding two of three competing claims, exactly one should be ACTIVE"
 
     _final_id: str
@@ -180,9 +190,10 @@ class ThreeClaimsOneActive(TestCase):
 # C5 — FLAGGED status persists and is filterable
 # ---------------------------------------------------------------------------
 
+
 class FlaggedStatusPersistable(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "flagged_status_persistable"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "flagged_status_persistable"
     description = "A memory stored with status=FLAGGED must appear in list_all(status=FLAGGED)"
 
     _flagged_id: str
@@ -208,10 +219,13 @@ class FlaggedStatusPersistable(TestCase):
 # C6 — Both conflicting claims must be co-retrievable via search
 # ---------------------------------------------------------------------------
 
+
 class ContradictionDetectableViaSearch(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "contradiction_detectable_via_search"
-    description = "Both conflicting claims must be co-retrievable via search for detection to be possible"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "contradiction_detectable_via_search"
+    description = (
+        "Both conflicting claims must be co-retrievable via search for detection to be possible"
+    )
 
     _claim_ids: set[str]
 
@@ -238,9 +252,10 @@ class ContradictionDetectableViaSearch(TestCase):
 # C7 — supersedes / superseded_by links are both intact after resolution
 # ---------------------------------------------------------------------------
 
+
 class SupersessionLinksIntact(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "supersession_links_intact"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "supersession_links_intact"
     description = "Both supersedes[] on the new memory and superseded_by on the old must be correct"
 
     _old_id: str
@@ -293,10 +308,13 @@ class SupersessionLinksIntact(TestCase):
 # C8 — Distinct embeddings remain distinguishable after adapter round-trip
 # ---------------------------------------------------------------------------
 
+
 class EmbeddingFidelityDistinct(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "embedding_fidelity_distinct"
-    description = "Orthogonal embeddings must remain distinct (cosine < 0.05) after adapter round-trip"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "embedding_fidelity_distinct"
+    description = (
+        "Orthogonal embeddings must remain distinct (cosine < 0.05) after adapter round-trip"
+    )
 
     _m1_id: str
     _m2_id: str
@@ -307,8 +325,12 @@ class EmbeddingFidelityDistinct(TestCase):
         # Completely different topic clusters → orthogonal in 16D (zero shared dimensions)
         emb_api = vec("api", "rate", "limit")
         emb_pass = vec("password", "security", "requirement")
-        m1 = Memory(agent_id=self.agent_id, text="API rate limit is 100 req/min.", embedding=emb_api)
-        m2 = Memory(agent_id=self.agent_id, text="Password requirement: 12+ chars.", embedding=emb_pass)
+        m1 = Memory(
+            agent_id=self.agent_id, text="API rate limit is 100 req/min.", embedding=emb_api
+        )
+        m2 = Memory(
+            agent_id=self.agent_id, text="Password requirement: 12+ chars.", embedding=emb_pass
+        )
         await adapter.store(m1)
         await adapter.store(m2)
         self._m1_id = m1.memory_id
@@ -336,9 +358,10 @@ class EmbeddingFidelityDistinct(TestCase):
 # C9 — Resolving conflicts reduces the ACTIVE count
 # ---------------------------------------------------------------------------
 
+
 class ResolutionReducesActiveCount(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "resolution_reduces_active_count"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "resolution_reduces_active_count"
     description = "Resolving two of three conflicting claims must reduce active count to one"
 
     async def setup(self, adapter) -> None:
@@ -370,9 +393,10 @@ class ResolutionReducesActiveCount(TestCase):
 # C10 — All contradicting claims are searchable (detectable by retrieval)
 # ---------------------------------------------------------------------------
 
+
 class AllConflictingClaimsSearchable(TestCase):
-    category    = BenchmarkCategory.CONTRADICTION
-    name        = "all_conflicting_claims_searchable"
+    category = BenchmarkCategory.CONTRADICTION
+    name = "all_conflicting_claims_searchable"
     description = "All versions of a contradicting fact must be retrievable via search"
 
     _claim_ids: list[str]

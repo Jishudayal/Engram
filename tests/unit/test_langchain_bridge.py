@@ -244,9 +244,7 @@ class TestEngramVectorStoreFromTexts:
         eng = _make_engram()
         emb = _make_embeddings()
         with patch.object(EngramVectorStore, "add_texts", return_value=["id-1"]) as mock_add:
-            store = EngramVectorStore.from_texts(
-                ["hello"], emb, engram=eng, agent_id="agent-1"
-            )
+            store = EngramVectorStore.from_texts(["hello"], emb, engram=eng, agent_id="agent-1")
         mock_add.assert_called_once_with(["hello"], metadatas=None, ids=None)
         assert isinstance(store, EngramVectorStore)
         assert store._agent_id == "agent-1"
@@ -275,6 +273,7 @@ class TestEngramVectorStoreSyncShims:
 
     def test_similarity_search_delegates(self) -> None:
         from langchain_core.documents import Document
+
         store = _make_store()
         doc = Document(page_content="hi", metadata={})
         with patch.object(store, "asimilarity_search", new=AsyncMock(return_value=[doc])) as mock:
@@ -400,9 +399,7 @@ class TestEngramChatMessageHistoryGetMessages:
 
     async def test_tool_message_tool_call_id_restored(self) -> None:
         eng = _make_engram()
-        eng.list_all.return_value = [
-            _mem_with_meta("tool", "output", lc_tool_call_id="call_xyz")
-        ]
+        eng.list_all.return_value = [_mem_with_meta("tool", "output", lc_tool_call_id="call_xyz")]
         history = _make_history(eng)
         msgs = await history.aget_messages()
         assert isinstance(msgs[0], ToolMessage)
@@ -450,11 +447,12 @@ class TestEngramChatMessageHistoryContentHandling:
 
     async def test_non_serializable_additional_kwargs_dropped(self) -> None:
         import datetime
+
         eng = _make_engram()
         history = _make_history(eng)
-        await history.aadd_messages([
-            AIMessage(content="hi", additional_kwargs={"ts": datetime.datetime.now()})
-        ])
+        await history.aadd_messages(
+            [AIMessage(content="hi", additional_kwargs={"ts": datetime.datetime.now()})]
+        )
         stored: Memory = eng.store.call_args[0][0]
         assert "lc_kwargs" not in stored.metadata
 
@@ -468,17 +466,20 @@ class TestEngramChatMessageHistoryContentHandling:
 
     async def test_mixed_kwargs_preserves_serializable_keys(self) -> None:
         import datetime
+
         eng = _make_engram()
         history = _make_history(eng)
-        await history.aadd_messages([
-            AIMessage(
-                content="hi",
-                additional_kwargs={
-                    "tool_calls": [{"id": "c1"}],  # serializable — must be kept
-                    "raw": datetime.datetime.now(),  # non-serializable — must be dropped
-                },
-            )
-        ])
+        await history.aadd_messages(
+            [
+                AIMessage(
+                    content="hi",
+                    additional_kwargs={
+                        "tool_calls": [{"id": "c1"}],  # serializable — must be kept
+                        "raw": datetime.datetime.now(),  # non-serializable — must be dropped
+                    },
+                )
+            ]
+        )
         stored: Memory = eng.store.call_args[0][0]
         assert stored.metadata["lc_kwargs"] == {"tool_calls": [{"id": "c1"}]}
 
@@ -562,12 +563,14 @@ class TestEngramChatMessageHistoryContract:
 class TestPyprojectWiring:
     def test_both_classes_in_root_all(self) -> None:
         import engram
+
         assert "EngramVectorStore" in engram.__all__
         assert "EngramChatMessageHistory" in engram.__all__
 
     def test_root_import_resolves_both_classes(self) -> None:
         from engram import EngramChatMessageHistory as ECMH
         from engram import EngramVectorStore as EVS
+
         assert issubclass(EVS, VectorStore)
         assert issubclass(ECMH, BaseChatMessageHistory)
 

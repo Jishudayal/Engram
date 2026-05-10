@@ -74,9 +74,7 @@ class InMemoryAdapter(AbstractAdapter):
     # ------------------------------------------------------------------
 
     async def store(self, memory: Memory) -> None:
-        self._store.setdefault(memory.agent_id, {})[memory.memory_id] = memory.model_copy(
-            deep=True
-        )
+        self._store.setdefault(memory.agent_id, {})[memory.memory_id] = memory.model_copy(deep=True)
 
     async def update(self, memory: Memory) -> None:
         bucket = self._store.get(memory.agent_id, {})
@@ -183,13 +181,11 @@ class InMemoryAdapter(AbstractAdapter):
     # ------------------------------------------------------------------
 
     async def store_conflict(self, conflict: ConflictRecord) -> None:
-        self._conflicts.setdefault(conflict.agent_id, {})[
-            conflict.conflict_id
-        ] = conflict.model_copy(deep=True)
+        self._conflicts.setdefault(conflict.agent_id, {})[conflict.conflict_id] = (
+            conflict.model_copy(deep=True)
+        )
 
-    async def fetch_conflict(
-        self, agent_id: str, conflict_id: str
-    ) -> ConflictRecord | None:
+    async def fetch_conflict(self, agent_id: str, conflict_id: str) -> ConflictRecord | None:
         record = self._conflicts.get(agent_id, {}).get(conflict_id)
         return record.model_copy(deep=True) if record is not None else None
 

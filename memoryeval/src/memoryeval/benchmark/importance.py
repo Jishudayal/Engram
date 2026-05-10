@@ -42,9 +42,10 @@ from memoryeval.types import BenchmarkCategory
 # I1 — Importance value survives write-read roundtrip
 # ---------------------------------------------------------------------------
 
+
 class ImportanceRoundtrip(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "importance_roundtrip"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "importance_roundtrip"
     description = "A custom importance score must survive write-read roundtrip unchanged"
 
     _memory_id: str
@@ -73,9 +74,10 @@ class ImportanceRoundtrip(TestCase):
 # I2 — Default importance is in the valid range [0.0, 1.0]
 # ---------------------------------------------------------------------------
 
+
 class ImportanceDefaultInRange(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "importance_default_in_range"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "importance_default_in_range"
     description = "A memory stored without explicit importance must have importance in [0.0, 1.0]"
 
     _memory_id: str
@@ -102,9 +104,10 @@ class ImportanceDefaultInRange(TestCase):
 # I3 — Updated importance persists after adapter.update()
 # ---------------------------------------------------------------------------
 
+
 class ImportanceUpdatePersists(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "importance_update_persists"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "importance_update_persists"
     description = "Updating importance via update_fields must persist after adapter.update()"
 
     _memory_id: str
@@ -138,10 +141,13 @@ class ImportanceUpdatePersists(TestCase):
 # I4 — Search does not implicitly filter by importance
 # ---------------------------------------------------------------------------
 
+
 class ImportanceNotUsedInSearchFilter(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "importance_not_used_in_search_filter"
-    description = "Search must return both high and low importance memories without implicit filtering"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "importance_not_used_in_search_filter"
+    description = (
+        "Search must return both high and low importance memories without implicit filtering"
+    )
 
     _high_id: str
     _low_id: str
@@ -181,9 +187,10 @@ class ImportanceNotUsedInSearchFilter(TestCase):
 # I5 — All importance levels in a mixed store are preserved independently
 # ---------------------------------------------------------------------------
 
+
 class MultipleImportanceLevelsAllPreserved(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "multiple_importance_levels_all_preserved"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "multiple_importance_levels_all_preserved"
     description = "Memories at five different importance levels must each retain their exact value"
 
     _importance_map: dict[str, float]
@@ -207,7 +214,8 @@ class MultipleImportanceLevelsAllPreserved(TestCase):
         if not result:
             return 0.0
         correct = sum(
-            1 for m in result
+            1
+            for m in result
             if (expected := self._importance_map.get(m.memory_id)) is not None
             and abs(m.importance - expected) < 1e-6
         )
@@ -228,9 +236,10 @@ class MultipleImportanceLevelsAllPreserved(TestCase):
 #      is equal (importance breaks the tie that cosine-only search cannot)
 # ---------------------------------------------------------------------------
 
+
 class HighImportanceRanksAboveLow(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "high_importance_ranks_above_low"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "high_importance_ranks_above_low"
     description = "With equal cosine scores, the high-importance memory must rank first"
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters — importance is ignored.
@@ -274,10 +283,13 @@ class HighImportanceRanksAboveLow(TestCase):
 #      insertion-order subset, when all cosine scores are equal
 # ---------------------------------------------------------------------------
 
+
 class TopKSortedByImportance(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "top_k_sorted_by_importance"
-    description = "top_k=2 must return the two highest-importance memories, not the first two inserted"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "top_k_sorted_by_importance"
+    description = (
+        "top_k=2 must return the two highest-importance memories, not the first two inserted"
+    )
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters.
 
@@ -293,7 +305,9 @@ class TopKSortedByImportance(TestCase):
             (0.2, "Minor API note B."),
             (0.15, "Minor API note C."),
         ):
-            await adapter.store(Memory(agent_id=self.agent_id, text=text, embedding=embedding, importance=level))
+            await adapter.store(
+                Memory(agent_id=self.agent_id, text=text, embedding=embedding, importance=level)
+            )
 
         for level, text in (
             (0.9, "Critical API rate limit policy."),
@@ -319,10 +333,13 @@ class TopKSortedByImportance(TestCase):
 # I8 — Frequently accessed memory must rank above an untouched one
 # ---------------------------------------------------------------------------
 
+
 class AccessCountBoostedRetrieval(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "access_count_boosted_retrieval"
-    description = "A memory touched 5 times must rank above an untouched one with the same embedding"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "access_count_boosted_retrieval"
+    description = (
+        "A memory touched 5 times must rank above an untouched one with the same embedding"
+    )
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters — access_count is ignored.
 
@@ -332,11 +349,15 @@ class AccessCountBoostedRetrieval(TestCase):
     async def setup(self, adapter) -> None:
         embedding = vec("refund", "policy")
         # Store UNTOUCHED FIRST (so insertion-order tie-break returns it first)
-        untouched = Memory(agent_id=self.agent_id, text="Untouched refund policy.", embedding=embedding)
+        untouched = Memory(
+            agent_id=self.agent_id, text="Untouched refund policy.", embedding=embedding
+        )
         await adapter.store(untouched)
         self._untouched_id = untouched.memory_id
 
-        frequent = Memory(agent_id=self.agent_id, text="Frequently accessed refund policy.", embedding=embedding)
+        frequent = Memory(
+            agent_id=self.agent_id, text="Frequently accessed refund policy.", embedding=embedding
+        )
         await adapter.store(frequent)
         # Simulate 5 accesses without redundant round-trips
         for _ in range(5):
@@ -357,10 +378,13 @@ class AccessCountBoostedRetrieval(TestCase):
 # I9 — Recently accessed memory must rank above a never-accessed one
 # ---------------------------------------------------------------------------
 
+
 class RecentlyAccessedSurfaces(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "recently_accessed_surfaces"
-    description = "A memory touched recently must rank above a never-accessed one with the same embedding"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "recently_accessed_surfaces"
+    description = (
+        "A memory touched recently must rank above a never-accessed one with the same embedding"
+    )
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters — last_accessed is ignored.
 
@@ -370,11 +394,17 @@ class RecentlyAccessedSurfaces(TestCase):
     async def setup(self, adapter) -> None:
         embedding = vec("password", "security")
         # Store STALE (never accessed) FIRST so insertion-order tie-break returns it first
-        stale = Memory(agent_id=self.agent_id, text="Old security policy (never accessed).", embedding=embedding)
+        stale = Memory(
+            agent_id=self.agent_id,
+            text="Old security policy (never accessed).",
+            embedding=embedding,
+        )
         await adapter.store(stale)
         self._stale_id = stale.memory_id
 
-        recent = Memory(agent_id=self.agent_id, text="Security policy (recently reviewed).", embedding=embedding)
+        recent = Memory(
+            agent_id=self.agent_id, text="Security policy (recently reviewed).", embedding=embedding
+        )
         await adapter.store(recent)
         recent.touch()
         await adapter.update(recent)
@@ -393,9 +423,10 @@ class RecentlyAccessedSurfaces(TestCase):
 # I10 — When importance is tied, recency (last_accessed) breaks the tie
 # ---------------------------------------------------------------------------
 
+
 class RecencyBreaksImportanceTie(TestCase):
-    category    = BenchmarkCategory.IMPORTANCE
-    name        = "recency_breaks_importance_tie"
+    category = BenchmarkCategory.IMPORTANCE
+    name = "recency_breaks_importance_tie"
     description = "With equal importance scores, the recently-accessed memory must rank first"
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters — last_accessed is ignored.

@@ -64,7 +64,9 @@ def make_consolidator(responses: list[str], **kwargs: object) -> Consolidator:
 
 
 # Reusable LLM response strings
-_MERGE_HIGH = '{"action": "merge", "confidence": 0.95, "reasoning": "Clear reconciliation possible."}'
+_MERGE_HIGH = (
+    '{"action": "merge", "confidence": 0.95, "reasoning": "Clear reconciliation possible."}'
+)
 _MERGE_MED = '{"action": "merge", "confidence": 0.85, "reasoning": "Likely reconcilable."}'
 _FLAG_LOW = '{"action": "flag", "confidence": 0.60, "reasoning": "Too ambiguous to auto-merge."}'
 _FLAG_ZERO = '{"action": "flag", "confidence": 0.0, "reasoning": ""}'
@@ -229,9 +231,7 @@ class TestToAction:
         assert action.tier == ConsolidationTier.AUTO_FLAG
 
     def test_tier_human_review_for_low_confidence(self) -> None:
-        action = self._det()._to_action(
-            self._conflict(), self._result("flag", 0.50), "agent-1"
-        )
+        action = self._det()._to_action(self._conflict(), self._result("flag", 0.50), "agent-1")
         assert action is not None
         assert action.tier == ConsolidationTier.HUMAN_REVIEW
 
@@ -260,9 +260,7 @@ class TestToAction:
         assert set(action.source_memory_ids) == {m1.memory_id, m2.memory_id}
 
     def test_agent_id_preserved(self) -> None:
-        action = self._det()._to_action(
-            self._conflict(), self._result("merge", 0.95), "my-agent"
-        )
+        action = self._det()._to_action(self._conflict(), self._result("merge", 0.95), "my-agent")
         assert action is not None
         assert action.agent_id == "my-agent"
 
@@ -297,7 +295,8 @@ class TestTemporalSupersessionAction:
         m1 = make_memory("old fact")
         m2 = make_memory("new fact")
         conflict = make_conflict(
-            m1, m2,
+            m1,
+            m2,
             conflict_type=ConflictType.TEMPORAL_SUPERSESSION,
             description="Rate limit changed from 100 to 500.",
         )
@@ -308,7 +307,8 @@ class TestTemporalSupersessionAction:
         m1 = make_memory("old fact")
         m2 = make_memory("new fact")
         conflict = make_conflict(
-            m1, m2,
+            m1,
+            m2,
             conflict_type=ConflictType.TEMPORAL_SUPERSESSION,
             description=None,
         )
@@ -320,7 +320,8 @@ class TestTemporalSupersessionAction:
         m1 = make_memory("old")
         m2 = make_memory("new")
         conflict = make_conflict(
-            m1, m2,
+            m1,
+            m2,
             conflict_type=ConflictType.TEMPORAL_SUPERSESSION,
             confidence=AUTO_MERGE_THRESHOLD,
         )
@@ -537,6 +538,7 @@ class TestPlan:
 
     async def test_importable_from_root(self) -> None:
         from engram import Consolidator as C
+
         assert C is not None
 
 
@@ -998,7 +1000,6 @@ class TestExecutePreflight:
 # ---------------------------------------------------------------------------
 # ConsolidationPlan tier-based properties (6.5)
 # ---------------------------------------------------------------------------
-
 
 
 def make_action(

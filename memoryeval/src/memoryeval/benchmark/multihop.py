@@ -34,9 +34,10 @@ from memoryeval.types import BenchmarkCategory
 # M1 — All same-topic memories are co-retrievable in a single search
 # ---------------------------------------------------------------------------
 
+
 class RelatedFactsAllRetrievable(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "related_facts_all_retrievable"
+    category = BenchmarkCategory.MULTIHOP
+    name = "related_facts_all_retrievable"
     description = "All same-topic memories must appear together in a single search result set"
 
     _claim_ids: list[str]
@@ -44,9 +45,21 @@ class RelatedFactsAllRetrievable(TestCase):
     async def setup(self, adapter) -> None:
         embedding = vec("refund", "policy", "days")
         claims = [
-            Memory(agent_id=self.agent_id, text="Return window is 30 days for all items.", embedding=embedding),
-            Memory(agent_id=self.agent_id, text="Electronics have a 15-day return window.", embedding=embedding),
-            Memory(agent_id=self.agent_id, text="Software is non-refundable after download.", embedding=embedding),
+            Memory(
+                agent_id=self.agent_id,
+                text="Return window is 30 days for all items.",
+                embedding=embedding,
+            ),
+            Memory(
+                agent_id=self.agent_id,
+                text="Electronics have a 15-day return window.",
+                embedding=embedding,
+            ),
+            Memory(
+                agent_id=self.agent_id,
+                text="Software is non-refundable after download.",
+                embedding=embedding,
+            ),
         ]
         for m in claims:
             await adapter.store(m)
@@ -66,10 +79,13 @@ class RelatedFactsAllRetrievable(TestCase):
 # M2 — A partial keyword query still surfaces the full-keyword memory
 # ---------------------------------------------------------------------------
 
+
 class PartialQuerySurfacesRelated(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "partial_query_surfaces_related"
-    description = "A 2-keyword query must surface a memory that matches 4 keywords (partial overlap)"
+    category = BenchmarkCategory.MULTIHOP
+    name = "partial_query_surfaces_related"
+    description = (
+        "A 2-keyword query must surface a memory that matches 4 keywords (partial overlap)"
+    )
 
     _memory_id: str
 
@@ -95,9 +111,10 @@ class PartialQuerySurfacesRelated(TestCase):
 # M3 — More relevant memory ranks above less relevant in cosine order
 # ---------------------------------------------------------------------------
 
+
 class RelevanceRankingCorrect(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "relevance_ranking_correct"
+    category = BenchmarkCategory.MULTIHOP
+    name = "relevance_ranking_correct"
     description = "A memory with higher keyword overlap must rank above one with lower overlap"
 
     _high_id: str
@@ -135,9 +152,10 @@ class RelevanceRankingCorrect(TestCase):
 # M4 — Score threshold isolates on-topic memories from off-topic ones
 # ---------------------------------------------------------------------------
 
+
 class TopicIsolationByThreshold(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "topic_isolation_by_threshold"
+    category = BenchmarkCategory.MULTIHOP
+    name = "topic_isolation_by_threshold"
     description = "A score threshold must exclude off-topic memories while retaining on-topic ones"
 
     _api_ids: set[str]
@@ -145,7 +163,11 @@ class TopicIsolationByThreshold(TestCase):
     async def setup(self, adapter) -> None:
         api_emb = vec("api", "rate", "limit")
         api_ids: list[str] = []
-        for text in ("Rate limit: 100 req/min.", "Rate limit: 500 req/min.", "Rate limit: 1000 req/min."):
+        for text in (
+            "Rate limit: 100 req/min.",
+            "Rate limit: 500 req/min.",
+            "Rate limit: 1000 req/min.",
+        ):
             m = Memory(agent_id=self.agent_id, text=text, embedding=api_emb)
             await adapter.store(m)
             api_ids.append(m.memory_id)
@@ -181,9 +203,10 @@ class TopicIsolationByThreshold(TestCase):
 # hop1 finds Start+Bridge; hop2 finds Bridge+End.
 # ---------------------------------------------------------------------------
 
+
 class TwoHopBridgeReachable(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "two_hop_bridge_reachable"
+    category = BenchmarkCategory.MULTIHOP
+    name = "two_hop_bridge_reachable"
     description = "All three memories in a Start→Bridge→End chain must be reachable across two hops"
 
     _start_id: str
@@ -193,27 +216,41 @@ class TwoHopBridgeReachable(TestCase):
     async def setup(self, adapter) -> None:
         # refund+policy cluster → policy+security bridge → security+password cluster
         # cosine(Start, Bridge) = 0.5; cosine(Bridge, End) = 0.5; cosine(Start, End) = 0
-        start  = Memory(agent_id=self.agent_id, text="Refund policy updated.", embedding=vec("refund", "policy"))
-        bridge = Memory(agent_id=self.agent_id, text="Policy and security review.", embedding=vec("policy", "security"))
-        end    = Memory(agent_id=self.agent_id, text="Security password requirements.", embedding=vec("security", "password"))
+        start = Memory(
+            agent_id=self.agent_id, text="Refund policy updated.", embedding=vec("refund", "policy")
+        )
+        bridge = Memory(
+            agent_id=self.agent_id,
+            text="Policy and security review.",
+            embedding=vec("policy", "security"),
+        )
+        end = Memory(
+            agent_id=self.agent_id,
+            text="Security password requirements.",
+            embedding=vec("security", "password"),
+        )
         for m in (start, bridge, end):
             await adapter.store(m)
-        self._start_id  = start.memory_id
+        self._start_id = start.memory_id
         self._bridge_id = bridge.memory_id
-        self._end_id    = end.memory_id
+        self._end_id = end.memory_id
 
     async def run(self, adapter) -> tuple[list[SearchResult], list[SearchResult]]:
-        hop1 = await adapter.search(self.agent_id, vec("refund", "policy"),    top_k=5, score_threshold=0.3)
-        hop2 = await adapter.search(self.agent_id, vec("security", "password"), top_k=5, score_threshold=0.3)
+        hop1 = await adapter.search(
+            self.agent_id, vec("refund", "policy"), top_k=5, score_threshold=0.3
+        )
+        hop2 = await adapter.search(
+            self.agent_id, vec("security", "password"), top_k=5, score_threshold=0.3
+        )
         return hop1, hop2
 
     def score(self, result: tuple[list[SearchResult], list[SearchResult]]) -> float:
         hop1, hop2 = result
         hop1_ids = {r.memory.memory_id for r in hop1}
         hop2_ids = {r.memory.memory_id for r in hop2}
-        start_found  = self._start_id  in hop1_ids
+        start_found = self._start_id in hop1_ids
         bridge_found = self._bridge_id in hop1_ids and self._bridge_id in hop2_ids
-        end_found    = self._end_id    in hop2_ids
+        end_found = self._end_id in hop2_ids
         return sum([start_found, bridge_found, end_found]) / 3
 
 
@@ -221,10 +258,13 @@ class TwoHopBridgeReachable(TestCase):
 # M6 — Search surfaces both ACTIVE and SUPERSEDED versions (no implicit filter)
 # ---------------------------------------------------------------------------
 
+
 class AllVersionsSurfacedBySearch(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "all_versions_surfaced_by_search"
-    description = "Search must return ACTIVE and SUPERSEDED versions when no status filter is applied"
+    category = BenchmarkCategory.MULTIHOP
+    name = "all_versions_surfaced_by_search"
+    description = (
+        "Search must return ACTIVE and SUPERSEDED versions when no status filter is applied"
+    )
 
     _v1_id: str
     _v2_id: str
@@ -270,9 +310,10 @@ class AllVersionsSurfacedBySearch(TestCase):
 # hop2 (query: window+days) surfaces C (1.0) + D (0.5)
 # ---------------------------------------------------------------------------
 
+
 class ChainedFactsThreeHopSurface(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "chained_facts_three_hop_surface"
+    category = BenchmarkCategory.MULTIHOP
+    name = "chained_facts_three_hop_surface"
     description = "All 4 memories in a 3-hop chain must surface across two targeted searches"
 
     _a_id: str
@@ -282,10 +323,20 @@ class ChainedFactsThreeHopSurface(TestCase):
 
     async def setup(self, adapter) -> None:
         # Each adjacent pair shares one keyword → cosine = 0.5 between neighbours
-        a = Memory(agent_id=self.agent_id, text="Refund return notice.",      embedding=vec("refund", "return"))
-        b = Memory(agent_id=self.agent_id, text="Return window policy.",       embedding=vec("return", "window"))
-        c = Memory(agent_id=self.agent_id, text="Window days calculation.",    embedding=vec("window", "days"))
-        d = Memory(agent_id=self.agent_id, text="Days until expiry notice.",   embedding=vec("days",   "expire"))
+        a = Memory(
+            agent_id=self.agent_id, text="Refund return notice.", embedding=vec("refund", "return")
+        )
+        b = Memory(
+            agent_id=self.agent_id, text="Return window policy.", embedding=vec("return", "window")
+        )
+        c = Memory(
+            agent_id=self.agent_id, text="Window days calculation.", embedding=vec("window", "days")
+        )
+        d = Memory(
+            agent_id=self.agent_id,
+            text="Days until expiry notice.",
+            embedding=vec("days", "expire"),
+        )
         for m in (a, b, c, d):
             await adapter.store(m)
         self._a_id = a.memory_id
@@ -294,8 +345,12 @@ class ChainedFactsThreeHopSurface(TestCase):
         self._d_id = d.memory_id
 
     async def run(self, adapter) -> tuple[list[SearchResult], list[SearchResult]]:
-        hop1 = await adapter.search(self.agent_id, vec("refund", "return"), top_k=5, score_threshold=0.3)
-        hop2 = await adapter.search(self.agent_id, vec("window", "days"),   top_k=5, score_threshold=0.3)
+        hop1 = await adapter.search(
+            self.agent_id, vec("refund", "return"), top_k=5, score_threshold=0.3
+        )
+        hop2 = await adapter.search(
+            self.agent_id, vec("window", "days"), top_k=5, score_threshold=0.3
+        )
         return hop1, hop2
 
     def score(self, result: tuple[list[SearchResult], list[SearchResult]]) -> float:
@@ -313,9 +368,10 @@ class ChainedFactsThreeHopSurface(TestCase):
 # M8 — A high score threshold still captures exact-match memories
 # ---------------------------------------------------------------------------
 
+
 class HighThresholdCapturesExactMatches(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "high_threshold_captures_exact_matches"
+    category = BenchmarkCategory.MULTIHOP
+    name = "high_threshold_captures_exact_matches"
     description = "score_threshold=0.99 must still return memories whose cosine similarity is ≈ 1.0"
 
     _ids: list[str]
@@ -345,9 +401,10 @@ class HighThresholdCapturesExactMatches(TestCase):
 # M9 — Orthogonal query with high threshold returns no results
 # ---------------------------------------------------------------------------
 
+
 class OrthogonalQueryReturnsEmpty(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "orthogonal_query_returns_empty"
+    category = BenchmarkCategory.MULTIHOP
+    name = "orthogonal_query_returns_empty"
     description = "A query on an unrelated topic with score_threshold=0.99 must return no results"
 
     async def setup(self, adapter) -> None:
@@ -375,10 +432,13 @@ class OrthogonalQueryReturnsEmpty(TestCase):
 # Without the bridge memory, there is no path from api→price in one hop.
 # ---------------------------------------------------------------------------
 
+
 class CrossClusterBridgedRetrieval(TestCase):
-    category    = BenchmarkCategory.MULTIHOP
-    name        = "cross_cluster_bridged_retrieval"
-    description = "A bridge memory must make an otherwise-unreachable cluster discoverable in a 2-hop chain"
+    category = BenchmarkCategory.MULTIHOP
+    name = "cross_cluster_bridged_retrieval"
+    description = (
+        "A bridge memory must make an otherwise-unreachable cluster discoverable in a 2-hop chain"
+    )
 
     _api_id: str
     _bridge_id: str
@@ -403,23 +463,27 @@ class CrossClusterBridgedRetrieval(TestCase):
         )
         for m in (api_mem, bridge, price_mem):
             await adapter.store(m)
-        self._api_id    = api_mem.memory_id
+        self._api_id = api_mem.memory_id
         self._bridge_id = bridge.memory_id
-        self._price_id  = price_mem.memory_id
+        self._price_id = price_mem.memory_id
 
     async def run(self, adapter) -> tuple[list[SearchResult], list[SearchResult]]:
-        hop1 = await adapter.search(self.agent_id, vec("api", "rate", "limit"),        top_k=5, score_threshold=0.2)
-        hop2 = await adapter.search(self.agent_id, vec("price", "plan", "subscription"), top_k=5, score_threshold=0.2)
+        hop1 = await adapter.search(
+            self.agent_id, vec("api", "rate", "limit"), top_k=5, score_threshold=0.2
+        )
+        hop2 = await adapter.search(
+            self.agent_id, vec("price", "plan", "subscription"), top_k=5, score_threshold=0.2
+        )
         return hop1, hop2
 
     def score(self, result: tuple[list[SearchResult], list[SearchResult]]) -> float:
         hop1, hop2 = result
         hop1_ids = {r.memory.memory_id for r in hop1}
         hop2_ids = {r.memory.memory_id for r in hop2}
-        api_found       = self._api_id    in hop1_ids
-        bridge_in_hop1  = self._bridge_id in hop1_ids
-        bridge_in_hop2  = self._bridge_id in hop2_ids
-        price_found     = self._price_id  in hop2_ids
+        api_found = self._api_id in hop1_ids
+        bridge_in_hop1 = self._bridge_id in hop1_ids
+        bridge_in_hop2 = self._bridge_id in hop2_ids
+        price_found = self._price_id in hop2_ids
         return sum([api_found, bridge_in_hop1, bridge_in_hop2, price_found]) / 4
 
 

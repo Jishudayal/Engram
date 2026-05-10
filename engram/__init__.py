@@ -36,7 +36,11 @@ _OPTIONAL_ADAPTERS: dict[str, tuple[str, str, str]] = {
     "ChromaAdapter": ("engram.adapters.chroma", "chromadb", "engram[chroma]"),
     "PgVectorAdapter": ("engram.adapters.pgvector", "pgvector", "engram[pgvector]"),
     "EngramVectorStore": ("engram.integrations.langchain", "langchain_core", "engram[langchain]"),
-    "EngramChatMessageHistory": ("engram.integrations.langchain", "langchain_core", "engram[langchain]"),
+    "EngramChatMessageHistory": (
+        "engram.integrations.langchain",
+        "langchain_core",
+        "engram[langchain]",
+    ),
 }
 
 
@@ -55,10 +59,11 @@ def __getattr__(name: str) -> object:
             if (exc.name or "").startswith(dep_module):
                 raise ImportError(
                     f"{name} requires an optional dependency. "
-                    f"Install it with: pip install \"{install_hint}\""
+                    f'Install it with: pip install "{install_hint}"'
                 ) from exc
             raise
     raise AttributeError(f"module 'engram' has no attribute {name!r}")
+
 
 __all__ = [
     "__version__",

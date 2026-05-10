@@ -79,6 +79,7 @@ class TestQdrantSpecific:
         m = _m("a1")
         await self.adapter.store(m)
         from engram.core.models import Memory
+
         m_other = Memory(memory_id=m.memory_id, agent_id="a2", text="wrong tenant")
         with pytest.raises(NotFoundError):
             await self.adapter.update(m_other)
@@ -99,4 +100,5 @@ class TestQdrantSpecific:
 
     async def test_importable_from_root(self) -> None:
         from engram import QdrantAdapter as QA
+
         assert QA is QdrantAdapter

@@ -296,10 +296,12 @@ class TestProvenanceManifest:
 
     def test_importable_from_engram_core(self) -> None:
         from engram.core import ProvenanceManifest as PM
+
         assert PM is ProvenanceManifest
 
     def test_importable_from_engram_root(self) -> None:
         from engram import ProvenanceManifest as PM
+
         assert PM is ProvenanceManifest
 
 

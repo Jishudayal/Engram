@@ -35,20 +35,24 @@ async def my_llm(prompt: str) -> str:
     In production: call OpenAI, Anthropic, Gemini, Ollama — anything.
     The signature is just: async (prompt: str) -> str.
     """
-    return json.dumps({
-        "verdict": "temporal_supersession",
-        "confidence": 0.93,
-        "summary": "Newer 14-day policy supersedes the outdated 30-day policy.",
-    })
+    return json.dumps(
+        {
+            "verdict": "temporal_supersession",
+            "confidence": 0.93,
+            "summary": "Newer 14-day policy supersedes the outdated 30-day policy.",
+        }
+    )
 
 
 async def my_consolidate_llm(prompt: str) -> str:
     """Only called for DIRECT_CONTRADICTION / PARTIAL_CONFLICT. Not needed here."""
-    return json.dumps({
-        "action": "flag",
-        "confidence": 0.85,
-        "reasoning": "Ambiguous conflict — flag for human review.",
-    })
+    return json.dumps(
+        {
+            "action": "flag",
+            "confidence": 0.85,
+            "reasoning": "Ambiguous conflict — flag for human review.",
+        }
+    )
 
 
 def embed(text: str) -> list[float]:
@@ -74,23 +78,26 @@ async def main() -> None:
     )
 
     async with eng:
-
         # --- 1. Store what the bot learned over time ---
 
         print("Storing what the bot learned...\n")
 
-        await eng.store(Memory(
-            agent_id="support-bot",
-            text="Our refund policy is 30 days from the date of purchase.",
-            embedding=embed("refund policy 30 days"),
-        ))
+        await eng.store(
+            Memory(
+                agent_id="support-bot",
+                text="Our refund policy is 30 days from the date of purchase.",
+                embedding=embed("refund policy 30 days"),
+            )
+        )
         print("  [Jan]  Stored: 'Our refund policy is 30 days from the date of purchase.'")
 
-        await eng.store(Memory(
-            agent_id="support-bot",
-            text="As of March 1st, the refund window is now 14 days.",
-            embedding=embed("refund policy 14 days"),
-        ))
+        await eng.store(
+            Memory(
+                agent_id="support-bot",
+                text="As of March 1st, the refund window is now 14 days.",
+                embedding=embed("refund policy 14 days"),
+            )
+        )
         print("  [Mar]  Stored: 'As of March 1st, the refund window is now 14 days.'")
         print("         └─ Engram detected a conflict on this store.\n")
 
@@ -112,8 +119,10 @@ async def main() -> None:
         plan = await eng.consolidate("support-bot")
         if plan:
             for action in plan.actions:
-                print(f"  {action.action_type.value.upper()}: older memory superseded by "
-                      f"{action.result_memory_id[:8]}…")
+                print(
+                    f"  {action.action_type.value.upper()}: older memory superseded by "
+                    f"{action.result_memory_id[:8]}…"
+                )
         print()
 
         # --- 4. Check the health score ---

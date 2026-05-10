@@ -277,9 +277,7 @@ class Engram:
             return None
         return memory.provenance
 
-    async def export_provenance(
-        self, agent_id: str, memory_id: str
-    ) -> ProvenanceManifest | None:
+    async def export_provenance(self, agent_id: str, memory_id: str) -> ProvenanceManifest | None:
         """Return a compliance-ready ProvenanceManifest for a memory, or None.
 
         Returns None if the memory does not exist or has no ProvenanceRecord attached.
@@ -290,9 +288,7 @@ class Engram:
             return None
         return ProvenanceManifest.from_memory(memory)
 
-    async def export_provenance_json(
-        self, agent_id: str, memory_id: str
-    ) -> str | None:
+    async def export_provenance_json(self, agent_id: str, memory_id: str) -> str | None:
         """Return a JSON-serialised ProvenanceManifest, or None.
 
         Convenience wrapper over export_provenance() for GDPR exports and audit trails.
@@ -413,11 +409,7 @@ class Engram:
             top_k=_STORE_TIME_CANDIDATE_LIMIT,
             score_threshold=self._detector.cluster_threshold,
         )
-        candidates = [
-            r.memory
-            for r in candidate_results
-            if r.memory.memory_id != memory.memory_id
-        ]
+        candidates = [r.memory for r in candidate_results if r.memory.memory_id != memory.memory_id]
         if not candidates:
             logger.debug(
                 "_detect_and_store_conflicts: no candidates above threshold "
@@ -479,16 +471,17 @@ class Engram:
                 continue
 
             other_ids = tuple(
-                c.memory_b_id if c.memory_a_id == mid else c.memory_a_id
-                for c in relevant
+                c.memory_b_id if c.memory_a_id == mid else c.memory_a_id for c in relevant
             )
             # Surface summary from highest-confidence conflict
             best = max(relevant, key=lambda c: c.confidence)
-            conflict_data.append({
-                "conflict_flag": True,
-                "conflicts_with": other_ids,
-                "conflict_summary": best.description,
-            })
+            conflict_data.append(
+                {
+                    "conflict_flag": True,
+                    "conflicts_with": other_ids,
+                    "conflict_summary": best.description,
+                }
+            )
 
         # Second pass — determine recommended flag
         # If two results conflict with each other, mark the lower-ranked one

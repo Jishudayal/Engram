@@ -30,6 +30,7 @@ from memoryeval.types import BenchmarkCategory, BenchmarkReport, CaseResult
 # Adapter factory
 # ---------------------------------------------------------------------------
 
+
 def _build_adapter(cfg: MemoryEvalConfig) -> Any:
     """Instantiate the correct adapter from config.
 
@@ -46,6 +47,7 @@ def _build_adapter(cfg: MemoryEvalConfig) -> Any:
 
     if name == "memory":
         from engram.adapters.memory import InMemoryAdapter
+
         return InMemoryAdapter()
 
     if name == "qdrant":
@@ -57,9 +59,7 @@ def _build_adapter(cfg: MemoryEvalConfig) -> Any:
             ) from exc
         url = bc.connection.get("url")
         if not url:
-            raise click.UsageError(
-                "qdrant backend requires connection.url in the config file"
-            )
+            raise click.UsageError("qdrant backend requires connection.url in the config file")
         return QdrantAdapter(
             location=url,
             collection=bc.collection,
@@ -85,14 +85,13 @@ def _build_adapter(cfg: MemoryEvalConfig) -> Any:
             vector_size=bc.vector_size,
         )
 
-    raise click.UsageError(
-        f"Unknown backend {bc.name!r}. Supported: memory, qdrant, chroma"
-    )
+    raise click.UsageError(f"Unknown backend {bc.name!r}. Supported: memory, qdrant, chroma")
 
 
 # ---------------------------------------------------------------------------
 # Async runner helper
 # ---------------------------------------------------------------------------
+
 
 async def _run_benchmark(
     cfg: MemoryEvalConfig,
@@ -147,8 +146,7 @@ async def _run_with_progress(
     ) as progress:
         # We can't know total upfront without filtering — run a dry-count first
         active_count = sum(
-            1 for cls in scorer._cases
-            if categories is None or cls.category in categories
+            1 for cls in scorer._cases if categories is None or cls.category in categories
         )
         task = progress.add_task(
             "Running benchmark…",
@@ -174,6 +172,7 @@ async def _run_with_progress(
 # CLI root
 # ---------------------------------------------------------------------------
 
+
 @click.group()
 @click.version_option(version=__version__, prog_name="memoryeval")
 def main() -> None:
@@ -183,6 +182,7 @@ def main() -> None:
 # ---------------------------------------------------------------------------
 # `memoryeval run`
 # ---------------------------------------------------------------------------
+
 
 @main.command()
 @click.option(
@@ -305,6 +305,7 @@ def run(
 # `memoryeval show-config`
 # ---------------------------------------------------------------------------
 
+
 @main.command("show-config")
 @click.argument(
     "config_path",
@@ -330,16 +331,10 @@ def show_config(config_path: Path) -> None:
 
     if cfg.backend.connection:
         _SECRET_KEYS = {"api_key", "password", "token", "secret"}
-        redacted = {
-            k: "***" if k in _SECRET_KEYS else v
-            for k, v in cfg.backend.connection.items()
-        }
+        redacted = {k: "***" if k in _SECRET_KEYS else v for k, v in cfg.backend.connection.items()}
         console.print(f"  [bold]Connection:[/bold]  {redacted}")
 
-    cats = (
-        ", ".join(c.value for c in cfg.categories)
-        if cfg.categories else "all"
-    )
+    cats = ", ".join(c.value for c in cfg.categories) if cfg.categories else "all"
     console.print(f"  [bold]Categories:[/bold]  {cats}")
     console.print()
     console.print("  [green]Config is valid.[/green]")

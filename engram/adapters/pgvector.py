@@ -310,9 +310,7 @@ class PgVectorAdapter(AbstractAdapter):
     @map_adapter_errors(error=_PG_ERRORS)
     async def fetch(self, agent_id: str, memory_id: str) -> Memory | None:
         row = await self._p.fetchrow(
-            f"SELECT payload, embedding"
-            f"  FROM {self._table}"
-            f"  WHERE id = $1 AND agent_id = $2",
+            f"SELECT payload, embedding  FROM {self._table}  WHERE id = $1 AND agent_id = $2",
             _row_id(agent_id, memory_id),
             agent_id,
         )
@@ -359,9 +357,7 @@ class PgVectorAdapter(AbstractAdapter):
         rank = 1
         for row in rows:
             score = min(1.0, max(0.0, float(row["score"])))
-            memory = payload_to_memory(
-                row["payload"], embedding=_to_float_list(row["embedding"])
-            )
+            memory = payload_to_memory(row["payload"], embedding=_to_float_list(row["embedding"]))
             if filters:
                 meta = memory.metadata or {}
                 if not all(meta.get(k) == v for k, v in filters.items()):
@@ -386,12 +382,7 @@ class PgVectorAdapter(AbstractAdapter):
             params.append(status.value)
             where += f" AND payload->>'status' = ${len(params)}"
 
-        sql = (
-            f"SELECT payload, embedding"
-            f"  FROM {self._table}"
-            f"  WHERE {where}"
-            f"  ORDER BY created_at"
-        )
+        sql = f"SELECT payload, embedding  FROM {self._table}  WHERE {where}  ORDER BY created_at"
         if limit is not None:
             params.append(limit)
             sql += f" LIMIT ${len(params)}"
@@ -401,8 +392,7 @@ class PgVectorAdapter(AbstractAdapter):
 
         rows = await self._p.fetch(sql, *params)
         return [
-            payload_to_memory(r["payload"], embedding=_to_float_list(r["embedding"]))
-            for r in rows
+            payload_to_memory(r["payload"], embedding=_to_float_list(r["embedding"])) for r in rows
         ]
 
     # ------------------------------------------------------------------
@@ -459,8 +449,7 @@ class PgVectorAdapter(AbstractAdapter):
             return 0
         row_ids = [_row_id(agent_id, mid) for mid in memory_ids]
         tag = await self._p.execute(
-            f"DELETE FROM {self._table}"
-            f"  WHERE id = ANY($1::uuid[]) AND agent_id = $2",
+            f"DELETE FROM {self._table}  WHERE id = ANY($1::uuid[]) AND agent_id = $2",
             row_ids,
             agent_id,
         )
@@ -475,8 +464,7 @@ class PgVectorAdapter(AbstractAdapter):
             )
             return int(count or 0)
         count = await self._p.fetchval(
-            f"SELECT COUNT(*) FROM {self._table}"
-            f"  WHERE agent_id = $1 AND payload->>'status' = $2",
+            f"SELECT COUNT(*) FROM {self._table}  WHERE agent_id = $1 AND payload->>'status' = $2",
             agent_id,
             status.value,
         )
@@ -485,9 +473,7 @@ class PgVectorAdapter(AbstractAdapter):
     @map_adapter_errors(error=_PG_ERRORS)
     async def exists(self, agent_id: str, memory_id: str) -> bool:
         result = await self._p.fetchval(
-            f"SELECT EXISTS("
-            f"  SELECT 1 FROM {self._table} WHERE id = $1 AND agent_id = $2"
-            f")",
+            f"SELECT EXISTS(  SELECT 1 FROM {self._table} WHERE id = $1 AND agent_id = $2)",
             _row_id(agent_id, memory_id),
             agent_id,
         )
@@ -516,12 +502,9 @@ class PgVectorAdapter(AbstractAdapter):
         )
 
     @map_adapter_errors(error=_PG_ERRORS)
-    async def fetch_conflict(
-        self, agent_id: str, conflict_id: str
-    ) -> ConflictRecord | None:
+    async def fetch_conflict(self, agent_id: str, conflict_id: str) -> ConflictRecord | None:
         row = await self._p.fetchrow(
-            f"SELECT payload FROM {self._conflicts_table}"
-            f"  WHERE id = $1 AND agent_id = $2",
+            f"SELECT payload FROM {self._conflicts_table}  WHERE id = $1 AND agent_id = $2",
             _conflict_row_id(agent_id, conflict_id),
             agent_id,
         )
@@ -544,9 +527,7 @@ class PgVectorAdapter(AbstractAdapter):
             where += f" AND payload->>'resolution_status' = ${len(params)}"
 
         rows = await self._p.fetch(
-            f"SELECT payload FROM {self._conflicts_table}"
-            f"  WHERE {where}"
-            f"  ORDER BY detected_at",
+            f"SELECT payload FROM {self._conflicts_table}  WHERE {where}  ORDER BY detected_at",
             *params,
         )
         return [ConflictRecord.model_validate(r["payload"]) for r in rows]
@@ -554,9 +535,7 @@ class PgVectorAdapter(AbstractAdapter):
     @map_adapter_errors(error=_PG_ERRORS)
     async def update_conflict(self, conflict: ConflictRecord) -> None:
         tag = await self._p.execute(
-            f"UPDATE {self._conflicts_table}"
-            f"  SET payload = $3"
-            f"  WHERE id = $1 AND agent_id = $2",
+            f"UPDATE {self._conflicts_table}  SET payload = $3  WHERE id = $1 AND agent_id = $2",
             _conflict_row_id(conflict.agent_id, conflict.conflict_id),
             conflict.agent_id,
             conflict.model_dump(mode="json"),
@@ -569,8 +548,7 @@ class PgVectorAdapter(AbstractAdapter):
     @map_adapter_errors(error=_PG_ERRORS)
     async def delete_conflict(self, agent_id: str, conflict_id: str) -> bool:
         tag = await self._p.execute(
-            f"DELETE FROM {self._conflicts_table}"
-            f"  WHERE id = $1 AND agent_id = $2",
+            f"DELETE FROM {self._conflicts_table}  WHERE id = $1 AND agent_id = $2",
             _conflict_row_id(agent_id, conflict_id),
             agent_id,
         )

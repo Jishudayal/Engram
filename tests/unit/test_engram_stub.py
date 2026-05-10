@@ -539,9 +539,7 @@ def _make_detector(responses: list[str], **kwargs: object) -> ContradictionDetec
 _CONTRADICTION_RESP = (
     '{"verdict": "direct_contradiction", "confidence": 0.93, "summary": "Rate limits conflict"}'
 )
-_UNRELATED_RESP = (
-    '{"verdict": "unrelated", "confidence": 0.90, "summary": ""}'
-)
+_UNRELATED_RESP = '{"verdict": "unrelated", "confidence": 0.90, "summary": ""}'
 
 
 class TestEngramReprWithDetector:
@@ -725,7 +723,9 @@ def _make_consolidator(responses: list[str], **kwargs: object) -> Consolidator:
     return Consolidator(llm_fn=mock_llm, **kwargs)  # type: ignore[arg-type]
 
 
-def _make_temporal_conflict(mem_a: Memory, mem_b: Memory, agent_id: str = "agent-1") -> ConflictRecord:
+def _make_temporal_conflict(
+    mem_a: Memory, mem_b: Memory, agent_id: str = "agent-1"
+) -> ConflictRecord:
     return ConflictRecord(
         agent_id=agent_id,
         memory_a_id=mem_a.memory_id,
@@ -1024,6 +1024,7 @@ class TestEngramLineage:
     async def test_lineage_after_real_supersede_via_consolidate(self) -> None:
         """lineage() must include the superseded ancestor after Consolidator.execute()."""
         from datetime import UTC, datetime, timedelta
+
         adapter = InMemoryAdapter()
         t0 = datetime.now(UTC)
         old = Memory(agent_id="agent-1", text="old fact", created_at=t0)
@@ -1075,7 +1076,9 @@ class TestEngramExportProvenance:
 
     async def test_manifest_fields_match_memory(self) -> None:
         adapter = InMemoryAdapter()
-        mem = _attach_prov(Memory(agent_id="agent-1", text="check fields"), source_type=SourceType.API)
+        mem = _attach_prov(
+            Memory(agent_id="agent-1", text="check fields"), source_type=SourceType.API
+        )
         await adapter.store(mem)
         eng = Engram(adapter)
         manifest = await eng.export_provenance("agent-1", mem.memory_id)
@@ -1092,6 +1095,7 @@ class TestEngramExportProvenance:
         manifest = await eng.export_provenance("agent-1", mem.memory_id)
         assert manifest is not None
         from pydantic import ValidationError
+
         with pytest.raises((ValidationError, TypeError)):
             manifest.text = "mutated"  # type: ignore[misc]
 
@@ -1118,6 +1122,7 @@ class TestEngramExportProvenanceJson:
 
     async def test_json_is_valid_and_contains_memory_id(self) -> None:
         import json
+
         adapter = InMemoryAdapter()
         mem = _attach_prov(Memory(agent_id="agent-1", text="json valid"))
         await adapter.store(mem)
@@ -1130,6 +1135,7 @@ class TestEngramExportProvenanceJson:
 
     async def test_json_roundtrip_via_manifest(self) -> None:
         import json
+
         adapter = InMemoryAdapter()
         mem = _attach_prov(Memory(agent_id="agent-1", text="roundtrip"), source_type=SourceType.API)
         await adapter.store(mem)
@@ -1143,6 +1149,7 @@ class TestEngramExportProvenanceJson:
 # Consolidation integration: merged memory gets ProvenanceRecord — step 7.4
 # ---------------------------------------------------------------------------
 
+
 class TestMergeAttachesProvenance:
     async def test_merged_memory_has_provenance(self) -> None:
         adapter = InMemoryAdapter()
@@ -1150,7 +1157,9 @@ class TestMergeAttachesProvenance:
         m2 = Memory(agent_id="agent-1", text="office in Berlin")
         await adapter.store(m1)
         await adapter.store(m2)
-        _MERGE_RESP = '{"action": "merge", "confidence": 0.95, "reasoning": "Combined office fact."}'
+        _MERGE_RESP = (
+            '{"action": "merge", "confidence": 0.95, "reasoning": "Combined office fact."}'
+        )
         await adapter.store_conflict(
             ConflictRecord(
                 agent_id="agent-1",

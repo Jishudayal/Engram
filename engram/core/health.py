@@ -93,9 +93,7 @@ class HealthScorer:
         if half_life <= 0:
             raise ValueError(f"FRESHNESS_HALF_LIFE_DAYS must be > 0, got {half_life!r}")
         if not 0.0 <= threshold <= 1.0:
-            raise ValueError(
-                f"STALE_FRESHNESS_THRESHOLD must be in [0, 1], got {threshold!r}"
-            )
+            raise ValueError(f"STALE_FRESHNESS_THRESHOLD must be in [0, 1], got {threshold!r}")
 
         active = [m for m in memories if m.is_usable()]
         if not active:
@@ -112,25 +110,19 @@ class HealthScorer:
             freshness_values.append(min(1.0, math.exp(-age_days * _LN2 / half_life)))
 
         stale_ids = [
-            m.memory_id
-            for m, f in zip(active, freshness_values, strict=True)
-            if f < threshold
+            m.memory_id for m, f in zip(active, freshness_values, strict=True) if f < threshold
         ]
 
         total_importance = sum(m.importance for m in active)
         if total_importance > 0.0:
-            weighted = sum(
-                f * m.importance for f, m in zip(freshness_values, active, strict=True)
-            )
+            weighted = sum(f * m.importance for f, m in zip(freshness_values, active, strict=True))
             score = weighted / total_importance
         else:
             score = sum(freshness_values) / len(freshness_values)
 
         score = max(0.0, min(1.0, score))
 
-        oldest_age = max(
-            (now - m.updated_at).total_seconds() / _SECONDS_PER_DAY for m in active
-        )
+        oldest_age = max((now - m.updated_at).total_seconds() / _SECONDS_PER_DAY for m in active)
         logger.debug(
             "freshness_score: total=%d active=%d stale=%d oldest_age=%.1fd score=%.3f",
             len(memories),
@@ -221,8 +213,7 @@ class HealthScorer:
         cluster_threshold = self.CONTRADICTION_CLUSTER_THRESHOLD
         if not -1.0 <= cluster_threshold <= 1.0:
             raise ValueError(
-                f"CONTRADICTION_CLUSTER_THRESHOLD must be in [-1, 1], "
-                f"got {cluster_threshold!r}"
+                f"CONTRADICTION_CLUSTER_THRESHOLD must be in [-1, 1], got {cluster_threshold!r}"
             )
 
         active_all = [m for m in memories if m.is_usable()]
@@ -245,8 +236,7 @@ class HealthScorer:
         dims = {len(m.embedding) for m in candidates}  # type: ignore[arg-type]
         if len(dims) > 1:
             raise ValueError(
-                f"all embeddings must have the same dimension; "
-                f"got mixed dimensions: {sorted(dims)}"
+                f"all embeddings must have the same dimension; got mixed dimensions: {sorted(dims)}"
             )
 
         # Build float matrix and drop zero-norm rows (all-zeros embeddings).
@@ -404,9 +394,7 @@ class HealthScorer:
             return 0.0, 0
 
         probes = (
-            random.sample(embedded, probe_count)
-            if len(embedded) > probe_count
-            else list(embedded)
+            random.sample(embedded, probe_count) if len(embedded) > probe_count else list(embedded)
         )
 
         gaps: list[float] = []
@@ -417,9 +405,7 @@ class HealthScorer:
                 probe.embedding,  # type: ignore[arg-type]
                 top_k=top_k + 1,
             )
-            results = [r for r in results if r.memory.memory_id != probe.memory_id][
-                :top_k
-            ]
+            results = [r for r in results if r.memory.memory_id != probe.memory_id][:top_k]
             if not results:
                 continue
 
@@ -431,8 +417,7 @@ class HealthScorer:
         num_probed = len(gaps)
         if num_probed == 0:
             logger.debug(
-                "confidence_accuracy_gap: no valid probe results for agent %s"
-                " — returning (0.0, 0)",
+                "confidence_accuracy_gap: no valid probe results for agent %s — returning (0.0, 0)",
                 agent_id,
             )
             return 0.0, 0
@@ -466,9 +451,9 @@ class HealthScorer:
     SCORE_WEIGHT_CONFIDENCE_GAP: float = 0.25
 
     # Composite score thresholds for risk tier assignment in compute().
-    RISK_THRESHOLD_LOW: float = 0.80     # score >= 0.80 → LOW
+    RISK_THRESHOLD_LOW: float = 0.80  # score >= 0.80 → LOW
     RISK_THRESHOLD_MEDIUM: float = 0.60  # score >= 0.60 → MEDIUM
-    RISK_THRESHOLD_HIGH: float = 0.40    # score >= 0.40 → HIGH; below → CRITICAL
+    RISK_THRESHOLD_HIGH: float = 0.40  # score >= 0.40 → HIGH; below → CRITICAL
 
     def _validate_composite_config(self) -> None:
         """Validate overridable weights and risk thresholds before scoring."""
@@ -492,11 +477,7 @@ class HealthScorer:
         for name, value in thresholds.items():
             if not 0.0 <= value <= 1.0:
                 raise ValueError(f"{name} must be in [0, 1], got {value!r}")
-        if not (
-            self.RISK_THRESHOLD_LOW
-            >= self.RISK_THRESHOLD_MEDIUM
-            >= self.RISK_THRESHOLD_HIGH
-        ):
+        if not (self.RISK_THRESHOLD_LOW >= self.RISK_THRESHOLD_MEDIUM >= self.RISK_THRESHOLD_HIGH):
             raise ValueError(
                 "risk thresholds must be ordered as "
                 "RISK_THRESHOLD_LOW >= RISK_THRESHOLD_MEDIUM >= RISK_THRESHOLD_HIGH"
@@ -587,14 +568,9 @@ class HealthScorer:
             risk = RiskLevel.CRITICAL
 
         now = datetime.now(UTC)
-        avg_importance = (
-            sum(m.importance for m in active) / len(active) if active else 0.0
-        )
+        avg_importance = sum(m.importance for m in active) / len(active) if active else 0.0
         oldest_age: float | None = (
-            max(
-                (now - m.updated_at).total_seconds() / _SECONDS_PER_DAY
-                for m in active
-            )
+            max((now - m.updated_at).total_seconds() / _SECONDS_PER_DAY for m in active)
             if active
             else None
         )

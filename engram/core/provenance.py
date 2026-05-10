@@ -46,17 +46,17 @@ class ProvenanceManifest(BaseModel):
     memory_created_at: UTCDatetime
 
     # --- Lineage ---
-    supersedes: tuple[str, ...] = ()    # memories this one replaced (Memory.supersedes)
-    superseded_by: str | None = None    # memory that replaced this one (Memory.superseded_by)
+    supersedes: tuple[str, ...] = ()  # memories this one replaced (Memory.supersedes)
+    superseded_by: str | None = None  # memory that replaced this one (Memory.superseded_by)
     derived_from: tuple[str, ...] = ()  # source memory IDs when produced by consolidation
 
     # --- Source ---
     source_type: SourceType
-    source_id: str | None = None     # e.g. document_id, conversation_id
-    ingested_by: str | None = None   # agent or user who triggered ingestion
+    source_id: str | None = None  # e.g. document_id, conversation_id
+    ingested_by: str | None = None  # agent or user who triggered ingestion
     ingested_at: UTCDatetime
-    raw_content: str | None = None   # original text before chunking/processing
-    chunk_index: int | None = None   # position within a chunked document
+    raw_content: str | None = None  # original text before chunking/processing
+    chunk_index: int | None = None  # position within a chunked document
 
     # --- Factory ---
 

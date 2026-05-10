@@ -38,28 +38,32 @@ async def my_llm(prompt: str) -> str:
     Stub — returns temporal_supersession so this runs without an API key.
     Replace with your real LLM for production use.
     """
-    return json.dumps({
-        "verdict": "temporal_supersession",
-        "confidence": 0.91,
-        "summary": "Newer memory supersedes the outdated one.",
-    })
+    return json.dumps(
+        {
+            "verdict": "temporal_supersession",
+            "confidence": 0.91,
+            "summary": "Newer memory supersedes the outdated one.",
+        }
+    )
 
 
 async def my_consolidate_llm(prompt: str) -> str:
-    return json.dumps({
-        "action": "flag",
-        "confidence": 0.80,
-        "reasoning": "Requires human review.",
-    })
+    return json.dumps(
+        {
+            "action": "flag",
+            "confidence": 0.80,
+            "reasoning": "Requires human review.",
+        }
+    )
 
 
 # Topic-specific unit vectors so only same-topic memories are flagged as candidates.
 # In production, a real embedding model produces these automatically.
 _EMBED: dict[str, list[float]] = {
     "shipping": [1.0, 0.0, 0.0, 0.0],
-    "returns":  [0.0, 1.0, 0.0, 0.0],
-    "pricing":  [0.0, 0.0, 1.0, 0.0],
-    "general":  [0.0, 0.0, 0.0, 1.0],
+    "returns": [0.0, 1.0, 0.0, 0.0],
+    "pricing": [0.0, 0.0, 1.0, 0.0],
+    "general": [0.0, 0.0, 0.0, 1.0],
 }
 
 
@@ -74,20 +78,17 @@ def months_ago(n: int) -> datetime:
 # (text, topic, months_ago)
 MEMORIES = [
     # Month 6 — initial documentation
-    ("Standard shipping takes 5–7 business days.",              "shipping", 6),
-    ("We offer a 30-day return window on all products.",        "returns",  6),
-    ("The Pro plan costs $49 per month.",                       "pricing",  6),
-
+    ("Standard shipping takes 5–7 business days.", "shipping", 6),
+    ("We offer a 30-day return window on all products.", "returns", 6),
+    ("The Pro plan costs $49 per month.", "pricing", 6),
     # Month 4 — first round of policy updates
-    ("Shipping times improved. Standard is now 3–5 days.",     "shipping", 4),
-    ("Our return window has been extended to 60 days.",         "returns",  4),
-
+    ("Shipping times improved. Standard is now 3–5 days.", "shipping", 4),
+    ("Our return window has been extended to 60 days.", "returns", 4),
     # Month 2 — carrier issue + pricing change
-    ("Due to carrier delays, shipping is back to 5–7 days.",   "shipping", 2),
-    ("The Pro plan is now $39 per month.",                      "pricing",  2),
-
+    ("Due to carrier delays, shipping is back to 5–7 days.", "shipping", 2),
+    ("The Pro plan is now $39 per month.", "pricing", 2),
     # Month 1 — permanent pricing discount
-    ("Permanent discount applied. Pro plan is now $29/month.", "pricing",  1),
+    ("Permanent discount applied. Pro plan is now $29/month.", "pricing", 1),
 ]
 
 
@@ -104,7 +105,6 @@ async def main() -> None:
     )
 
     async with eng:
-
         # --- Ingest ---
 
         print("Six months of support documentation:\n")
@@ -165,8 +165,10 @@ async def main() -> None:
         print(f"  Memories in store:   {after.total_memories}  (one per topic — no duplicates)")
         print(f"  Pending conflicts:   {after.conflict_count}")
         print(f"  Contradiction score: {after.contradiction_score:.2f}")
-        print(f"  Overall score:       {after.score:.2f}  "
-              f"(was {before.score:.2f}, +{after.score - before.score:.2f})")
+        print(
+            f"  Overall score:       {after.score:.2f}  "
+            f"(was {before.score:.2f}, +{after.score - before.score:.2f})"
+        )
         print()
 
         # --- What does the bot say now? ---

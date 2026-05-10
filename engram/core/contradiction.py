@@ -120,7 +120,9 @@ class ClassificationResult:
 
     memory_a_id: str
     memory_b_id: str
-    verdict: str  # "direct_contradiction" | "temporal_supersession" | "partial_conflict" | "unrelated"
+    verdict: (
+        str  # "direct_contradiction" | "temporal_supersession" | "partial_conflict" | "unrelated"
+    )
     confidence: float  # 0.0–1.0; higher = more certain of the verdict
     summary: str  # ≤15-word explanation of the relationship
 
@@ -136,7 +138,7 @@ def _build_anthropic_fn(model: str) -> LLMClassifyFn:
     except ImportError as exc:
         raise ImportError(
             "ContradictionDetector requires the 'anthropic' package when no "
-            "llm_fn is provided. Install it with: pip install \"engram[llm]\" "
+            'llm_fn is provided. Install it with: pip install "engram[llm]" '
             "or supply your own: ContradictionDetector(llm_fn=my_async_fn)"
         ) from exc
 
@@ -447,9 +449,7 @@ class ContradictionDetector:
         for pair, outcome in zip(new_pairs, raw_results, strict=True):
             if isinstance(outcome, BaseException):
                 failures += 1
-                logger.warning(
-                    "scan: classification failed for pair %s: %s", pair, outcome
-                )
+                logger.warning("scan: classification failed for pair %s: %s", pair, outcome)
                 continue
             if outcome is not None:
                 await adapter.store_conflict(outcome)

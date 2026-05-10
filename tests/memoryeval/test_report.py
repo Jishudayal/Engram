@@ -47,8 +47,7 @@ def _make_result(
 def _make_report_all_pass() -> BenchmarkReport:
     """A report where all 10 temporal cases score 1.0."""
     results = [
-        _make_result(f"temporal_case_{i}", BenchmarkCategory.TEMPORAL, 1.0)
-        for i in range(10)
+        _make_result(f"temporal_case_{i}", BenchmarkCategory.TEMPORAL, 1.0) for i in range(10)
     ]
     cat = CategoryScore.from_results(BenchmarkCategory.TEMPORAL, results)
     return BenchmarkReport.from_category_scores("test-backend", [cat])
@@ -63,11 +62,10 @@ def _make_report_mixed() -> BenchmarkReport:
     temporal_results = (
         [_make_result(f"t_pass_{i}", BenchmarkCategory.TEMPORAL, 1.0) for i in range(8)]
         + [_make_result("t_fail", BenchmarkCategory.TEMPORAL, 0.0)]
-        + [_make_result("t_err",  BenchmarkCategory.TEMPORAL, 0.0, error="run: timed out after 30s")]
+        + [_make_result("t_err", BenchmarkCategory.TEMPORAL, 0.0, error="run: timed out after 30s")]
     )
     contra_results = [
-        _make_result(f"c_{i}", BenchmarkCategory.CONTRADICTION, 0.85)
-        for i in range(5)
+        _make_result(f"c_{i}", BenchmarkCategory.CONTRADICTION, 0.85) for i in range(5)
     ]
     cats = [
         CategoryScore.from_results(BenchmarkCategory.TEMPORAL, temporal_results),
@@ -99,8 +97,15 @@ def test_to_json_is_valid_json(all_pass) -> None:
 
 def test_to_json_top_level_keys(all_pass) -> None:
     parsed = json.loads(ReportRenderer(all_pass).to_json())
-    expected = {"schema_version", "report_id", "run_at", "backend_name",
-                "overall_score", "hallucination_risk", "categories"}
+    expected = {
+        "schema_version",
+        "report_id",
+        "run_at",
+        "backend_name",
+        "overall_score",
+        "hallucination_risk",
+        "categories",
+    }
     assert set(parsed.keys()) == expected
 
 
@@ -146,7 +151,12 @@ def test_to_json_result_keys(all_pass) -> None:
     parsed = json.loads(ReportRenderer(all_pass).to_json())
     result = parsed["categories"][0]["results"][0]
     assert set(result.keys()) == {
-        "case_name", "score", "passed", "pass_threshold", "details", "error"
+        "case_name",
+        "score",
+        "passed",
+        "pass_threshold",
+        "details",
+        "error",
     }
 
 
@@ -353,7 +363,7 @@ def test_all_three_formats_parse_same_backend_name(all_pass) -> None:
 
 def test_report_with_error_case_json_round_trip(mixed) -> None:
     """Error messages must survive JSON serialisation without corruption."""
-    blob   = ReportRenderer(mixed).to_json()
+    blob = ReportRenderer(mixed).to_json()
     parsed = json.loads(blob)
     temporal = next(c for c in parsed["categories"] if c["category"] == "temporal")
     errors = [r["error"] for r in temporal["results"] if r["error"]]

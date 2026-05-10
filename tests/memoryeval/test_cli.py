@@ -17,6 +17,7 @@ from memoryeval.cli import main
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _memory_config(tmp_path: Path, **overrides: object) -> Path:
     """Write a minimal in-memory backend config to a temp file."""
     lines = ["backend:", "  name: memory"]
@@ -106,9 +107,7 @@ def test_run_without_config_exits_nonzero() -> None:
 
 def test_run_with_nonexistent_config_exits_nonzero() -> None:
     runner = CliRunner()
-    result = runner.invoke(
-        main, ["run", "--config", "/no/such/file.yaml"], catch_exceptions=True
-    )
+    result = runner.invoke(main, ["run", "--config", "/no/such/file.yaml"], catch_exceptions=True)
     assert result.exit_code != 0
 
 
@@ -143,10 +142,16 @@ def test_run_plain_exits_zero_on_all_pass(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "plain",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "plain",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     assert result.exit_code == 0, result.output
@@ -157,10 +162,16 @@ def test_run_plain_contains_backend_name(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "plain",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "plain",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     assert "memory" in result.output
@@ -171,10 +182,16 @@ def test_run_plain_contains_category_in_output(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "plain",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "plain",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     assert "temporal" in result.output
@@ -186,10 +203,16 @@ def test_run_plain_exits_one_when_failures_exist(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "importance",
-         "--format", "plain",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "importance",
+            "--format",
+            "plain",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     assert result.exit_code == 1
@@ -205,10 +228,16 @@ def test_run_json_output_is_valid_json(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "json",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "json",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     parsed = json.loads(result.output)
@@ -220,10 +249,16 @@ def test_run_json_has_schema_version(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "json",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "json",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     parsed = json.loads(result.output)
@@ -235,10 +270,16 @@ def test_run_json_backend_name_matches_config(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "json",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "json",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     parsed = json.loads(result.output)
@@ -250,10 +291,16 @@ def test_run_json_category_filter_produces_one_category(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "json",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "json",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     parsed = json.loads(result.output)
@@ -266,11 +313,18 @@ def test_run_json_two_category_filter(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--category", "multihop",
-         "--format", "json",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--category",
+            "multihop",
+            "--format",
+            "json",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     parsed = json.loads(result.output)
@@ -284,10 +338,16 @@ def test_run_json_overall_score_in_range(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "json",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "json",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     parsed = json.loads(result.output)
@@ -304,11 +364,17 @@ def test_run_rich_exits_zero_on_pass(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "rich",
-         "--no-color",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "rich",
+            "--no-color",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     assert result.exit_code == 0
@@ -319,11 +385,17 @@ def test_run_rich_contains_backend_name(tmp_path: Path) -> None:
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--category", "temporal",
-         "--format", "rich",
-         "--no-color",
-         "--no-progress"],
+        [
+            "run",
+            "--config",
+            str(cfg),
+            "--category",
+            "temporal",
+            "--format",
+            "rich",
+            "--no-color",
+            "--no-progress",
+        ],
         catch_exceptions=False,
     )
     assert "memory" in result.output
@@ -356,9 +428,7 @@ def test_run_full_suite_produces_five_categories_in_json(tmp_path: Path) -> None
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--format", "json",
-         "--no-progress"],
+        ["run", "--config", str(cfg), "--format", "json", "--no-progress"],
         catch_exceptions=False,
     )
     parsed = json.loads(result.output)
@@ -371,9 +441,7 @@ def test_run_full_suite_exits_one_due_to_importance_gaps(tmp_path: Path) -> None
     runner = CliRunner()
     result = runner.invoke(
         main,
-        ["run", "--config", str(cfg),
-         "--format", "json",
-         "--no-progress"],
+        ["run", "--config", str(cfg), "--format", "json", "--no-progress"],
         catch_exceptions=False,
     )
     # exit 1 because importance gap cases fail on InMemoryAdapter

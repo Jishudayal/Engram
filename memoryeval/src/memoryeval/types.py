@@ -245,8 +245,7 @@ class BenchmarkReport(BaseModel):
                     "Check that at least one category has a positive weight."
                 )
             overall = sum(
-                cs.score * weights.get(cs.category, 1.0) / total_weight
-                for cs in category_scores
+                cs.score * weights.get(cs.category, 1.0) / total_weight for cs in category_scores
             )
         else:
             overall = sum(cs.score for cs in category_scores) / len(category_scores)

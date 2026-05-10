@@ -33,9 +33,10 @@ from memoryeval.types import BenchmarkCategory
 # T1 — After updating a fact, only the new version is ACTIVE
 # ---------------------------------------------------------------------------
 
+
 class NewerVersionActive(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "newer_version_active"
+    category = BenchmarkCategory.TEMPORAL
+    name = "newer_version_active"
     description = "After a fact update, only the newer version should be ACTIVE"
 
     _v2_text: str
@@ -72,9 +73,10 @@ class NewerVersionActive(TestCase):
 # T2 — SUPERSEDED memories do not appear in the ACTIVE list
 # ---------------------------------------------------------------------------
 
+
 class SupersededExcludedFromActive(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "superseded_excluded_from_active"
+    category = BenchmarkCategory.TEMPORAL
+    name = "superseded_excluded_from_active"
     description = "SUPERSEDED memories must not appear in the ACTIVE list; the replacement must still be there"
 
     _superseded_id: str
@@ -88,7 +90,9 @@ class SupersededExcludedFromActive(TestCase):
         await adapter.update(old)
         self._superseded_id = old.memory_id
 
-        fresh = Memory(agent_id=self.agent_id, text="Rate limit is 500 req/min.", embedding=embedding)
+        fresh = Memory(
+            agent_id=self.agent_id, text="Rate limit is 500 req/min.", embedding=embedding
+        )
         await adapter.store(fresh)
         self._fresh_id = fresh.memory_id
 
@@ -108,9 +112,10 @@ class SupersededExcludedFromActive(TestCase):
 # T3 — After multiple updates only the final version is ACTIVE
 # ---------------------------------------------------------------------------
 
+
 class ThreeVersionsOnlyLatestActive(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "three_versions_only_latest_active"
+    category = BenchmarkCategory.TEMPORAL
+    name = "three_versions_only_latest_active"
     description = "With three fact versions, only the latest should remain ACTIVE"
 
     _v3_id: str
@@ -152,9 +157,10 @@ class ThreeVersionsOnlyLatestActive(TestCase):
 # T4 — New memory correctly records what it supersedes
 # ---------------------------------------------------------------------------
 
+
 class SupersedesLinkRecorded(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "supersedes_link_recorded"
+    category = BenchmarkCategory.TEMPORAL
+    name = "supersedes_link_recorded"
     description = "The supersedes[] list on a new memory must reference the memory it replaced"
 
     _v1_id: str
@@ -194,9 +200,10 @@ class SupersedesLinkRecorded(TestCase):
 # T5 — Old memory correctly records which memory superseded it
 # ---------------------------------------------------------------------------
 
+
 class SupersededByLinkRecorded(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "superseded_by_link_recorded"
+    category = BenchmarkCategory.TEMPORAL
+    name = "superseded_by_link_recorded"
     description = "The superseded_by field on an old memory must point to its replacement"
 
     _v1_id: str
@@ -236,9 +243,10 @@ class SupersededByLinkRecorded(TestCase):
 # T6 — importance field survives storage and retrieval
 # ---------------------------------------------------------------------------
 
+
 class ImportanceFieldRoundtrips(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "importance_field_roundtrips"
+    category = BenchmarkCategory.TEMPORAL
+    name = "importance_field_roundtrips"
     description = "A custom importance score must survive write-read roundtrip"
 
     _memory_id: str
@@ -267,9 +275,10 @@ class ImportanceFieldRoundtrips(TestCase):
 # T7 — memories with a past expires_at are identifiable as expired
 # ---------------------------------------------------------------------------
 
+
 class ExpirationDetectable(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "expiration_detectable"
+    category = BenchmarkCategory.TEMPORAL
+    name = "expiration_detectable"
     description = "A past expires_at must flag as expired; a future expires_at must not"
 
     _past_id: str
@@ -313,9 +322,10 @@ class ExpirationDetectable(TestCase):
 # T8 — touch() increments access_count and persists after update
 # ---------------------------------------------------------------------------
 
+
 class AccessTrackingPersists(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "access_tracking_persists"
+    category = BenchmarkCategory.TEMPORAL
+    name = "access_tracking_persists"
     description = "touch() must increment access_count and persist after adapter.update()"
 
     _memory_id: str
@@ -348,9 +358,10 @@ class AccessTrackingPersists(TestCase):
 # T9 — provenance metadata survives storage and retrieval
 # ---------------------------------------------------------------------------
 
+
 class ProvenanceRoundtrips(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "provenance_roundtrips"
+    category = BenchmarkCategory.TEMPORAL
+    name = "provenance_roundtrips"
     description = "Provenance metadata (source_type, ingested_at) must survive write-read"
 
     _memory_id: str
@@ -389,9 +400,10 @@ class ProvenanceRoundtrips(TestCase):
 # T10 — updated_at is preserved exactly through a write-read round-trip
 # ---------------------------------------------------------------------------
 
+
 class UpdatedAtPreservedOnRoundtrip(TestCase):
-    category    = BenchmarkCategory.TEMPORAL
-    name        = "updated_at_preserved_on_roundtrip"
+    category = BenchmarkCategory.TEMPORAL
+    name = "updated_at_preserved_on_roundtrip"
     description = "A manually set updated_at timestamp must survive write-read roundtrip unchanged"
 
     _memory_id: str

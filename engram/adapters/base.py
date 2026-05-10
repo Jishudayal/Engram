@@ -261,9 +261,7 @@ class AbstractAdapter(ABC):
             "update_conflict(), and delete_conflict() to enable contradiction persistence."
         )
 
-    async def fetch_conflict(
-        self, agent_id: str, conflict_id: str
-    ) -> ConflictRecord | None:
+    async def fetch_conflict(self, agent_id: str, conflict_id: str) -> ConflictRecord | None:
         """Return the ConflictRecord, or None if it does not exist.
 
         agent_id enforces tenant isolation — a conflict for a different agent

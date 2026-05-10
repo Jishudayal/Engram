@@ -144,8 +144,10 @@ class TestCaseResult:
 
     def test_default_pass_threshold(self) -> None:
         r = CaseResult(
-            case_name="x", category=BenchmarkCategory.TEMPORAL,
-            score=0.9, passed=True,
+            case_name="x",
+            category=BenchmarkCategory.TEMPORAL,
+            score=0.9,
+            passed=True,
         )
         assert r.pass_threshold == 0.7
 
@@ -196,16 +198,22 @@ class TestCaseResult:
     def test_error_with_nonzero_score_rejected(self) -> None:
         with pytest.raises(ValidationError, match="score must be 0.0"):
             CaseResult(
-                case_name="x", category=BenchmarkCategory.TEMPORAL,
-                score=0.5, pass_threshold=0.7, passed=False,
+                case_name="x",
+                category=BenchmarkCategory.TEMPORAL,
+                score=0.5,
+                pass_threshold=0.7,
+                passed=False,
                 error="boom",
             )
 
     def test_error_with_passed_true_rejected(self) -> None:
         with pytest.raises(ValidationError, match="passed must be False"):
             CaseResult(
-                case_name="x", category=BenchmarkCategory.TEMPORAL,
-                score=0.0, pass_threshold=0.7, passed=True,
+                case_name="x",
+                category=BenchmarkCategory.TEMPORAL,
+                score=0.0,
+                pass_threshold=0.7,
+                passed=True,
                 error="boom",
             )
 
@@ -214,21 +222,30 @@ class TestCaseResult:
     def test_inconsistent_passed_false_when_above_threshold_rejected(self) -> None:
         with pytest.raises(ValidationError, match="inconsistent"):
             CaseResult(
-                case_name="x", category=BenchmarkCategory.TEMPORAL,
-                score=0.9, pass_threshold=0.7, passed=False,  # should be True
+                case_name="x",
+                category=BenchmarkCategory.TEMPORAL,
+                score=0.9,
+                pass_threshold=0.7,
+                passed=False,  # should be True
             )
 
     def test_inconsistent_passed_true_when_below_threshold_rejected(self) -> None:
         with pytest.raises(ValidationError, match="inconsistent"):
             CaseResult(
-                case_name="x", category=BenchmarkCategory.TEMPORAL,
-                score=0.5, pass_threshold=0.7, passed=True,  # should be False
+                case_name="x",
+                category=BenchmarkCategory.TEMPORAL,
+                score=0.5,
+                pass_threshold=0.7,
+                passed=True,  # should be False
             )
 
     def test_score_exactly_at_threshold_is_passing(self) -> None:
         r = CaseResult(
-            case_name="x", category=BenchmarkCategory.TEMPORAL,
-            score=0.7, pass_threshold=0.7, passed=True,
+            case_name="x",
+            category=BenchmarkCategory.TEMPORAL,
+            score=0.7,
+            pass_threshold=0.7,
+            passed=True,
         )
         assert r.passed is True
 

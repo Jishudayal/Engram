@@ -23,9 +23,9 @@ __all__ = ["ReportRenderer"]
 # ── colour maps ──────────────────────────────────────────────────────────────
 
 _RISK_STYLE: dict[HallucinationRisk, str] = {
-    HallucinationRisk.LOW:      "bold green",
-    HallucinationRisk.MEDIUM:   "bold yellow",
-    HallucinationRisk.HIGH:     "bold red",
+    HallucinationRisk.LOW: "bold green",
+    HallucinationRisk.MEDIUM: "bold yellow",
+    HallucinationRisk.HIGH: "bold red",
     HallucinationRisk.CRITICAL: "bold bright_red",
 }
 
@@ -41,6 +41,7 @@ def _score_style(score: float) -> str:
 
 
 # ── renderer ─────────────────────────────────────────────────────────────────
+
 
 class ReportRenderer:
     """Render a BenchmarkReport in Rich, plain-text, or JSON format.
@@ -65,7 +66,7 @@ class ReportRenderer:
         in tests without printing to a terminal.
         """
         con = console or Console()
-        r   = self._report
+        r = self._report
 
         run_at = r.run_at.strftime("%Y-%m-%d %H:%M:%S UTC")
         con.print()
@@ -80,18 +81,18 @@ class ReportRenderer:
             padding=(0, 1),
             expand=False,
         )
-        table.add_column("Category",  style="cyan",    min_width=16)
-        table.add_column("Score",     justify="right", min_width=6)
+        table.add_column("Category", style="cyan", min_width=16)
+        table.add_column("Score", justify="right", min_width=6)
         table.add_column("Pass Rate", justify="right", min_width=9)
-        table.add_column("Status",    justify="center", min_width=6)
+        table.add_column("Status", justify="center", min_width=6)
 
         for cs in r.categories:
-            n      = len(cs.results)
+            n = len(cs.results)
             passed = sum(1 for res in cs.results if res.passed)
             all_ok = passed == n
 
-            score_text  = Text(f"{cs.score:.3f}", style=_score_style(cs.score))
-            pass_text   = Text(f"{passed}/{n}",   style="green" if all_ok else "yellow")
+            score_text = Text(f"{cs.score:.3f}", style=_score_style(cs.score))
+            pass_text = Text(f"{passed}/{n}", style="green" if all_ok else "yellow")
             status_text = Text("✓" if all_ok else "✗", style="green" if all_ok else "red")
 
             table.add_row(cs.category.value, score_text, pass_text, status_text)
@@ -99,9 +100,9 @@ class ReportRenderer:
         con.print(table)
 
         # ── overall score + risk ──────────────────────────────────────────
-        risk_style  = _RISK_STYLE[r.hallucination_risk]
-        score_str   = f"{r.overall_score:.3f}"
-        risk_label  = f"{r.hallucination_risk.value.upper()} RISK"
+        risk_style = _RISK_STYLE[r.hallucination_risk]
+        score_str = f"{r.overall_score:.3f}"
+        risk_label = f"{r.hallucination_risk.value.upper()} RISK"
 
         con.print(
             f"  [bold]Overall[/bold]  "
@@ -136,9 +137,9 @@ class ReportRenderer:
 
         Suitable for log files, CI output, and ``--format plain`` mode.
         """
-        r     = self._report
+        r = self._report
         lines: list[str] = []
-        W     = 60
+        W = 60
 
         lines.append("MemoryEval Report")
         lines.append("=" * W)
@@ -148,31 +149,24 @@ class ReportRenderer:
         lines.append("")
 
         # table header
-        col_cat   = 20
-        col_score =  7
-        col_pass  = 10
-        hdr = (
-            f"{'Category':<{col_cat}}"
-            f"{'Score':>{col_score}}"
-            f"{'Pass Rate':>{col_pass}}"
-        )
+        col_cat = 20
+        col_score = 7
+        col_pass = 10
+        hdr = f"{'Category':<{col_cat}}{'Score':>{col_score}}{'Pass Rate':>{col_pass}}"
         lines.append(hdr)
         lines.append("-" * len(hdr))
 
         for cs in r.categories:
-            n      = len(cs.results)
+            n = len(cs.results)
             passed = sum(1 for res in cs.results if res.passed)
             fraction = f"{passed}/{n}"
             lines.append(
-                f"{cs.category.value:<{col_cat}}"
-                f"{cs.score:>{col_score}.3f}"
-                f"{fraction:>{col_pass}}"
+                f"{cs.category.value:<{col_cat}}{cs.score:>{col_score}.3f}{fraction:>{col_pass}}"
             )
 
         lines.append("")
         lines.append(
-            f"Overall Score:  {r.overall_score:.3f}  "
-            f"[{r.hallucination_risk.value.upper()} RISK]"
+            f"Overall Score:  {r.overall_score:.3f}  [{r.hallucination_risk.value.upper()} RISK]"
         )
         lines.append("")
 
@@ -187,8 +181,7 @@ class ReportRenderer:
             for f in failures:
                 error_part = f"  error={f.error!r}" if f.error else ""
                 lines.append(
-                    f"  [{f.category.value}] {f.case_name}"
-                    f"  score={f.score:.2f}{error_part}"
+                    f"  [{f.category.value}] {f.case_name}  score={f.score:.2f}{error_part}"
                 )
 
         return "\n".join(lines) + "\n"
@@ -203,25 +196,25 @@ class ReportRenderer:
         """
         r = self._report
         data: dict[str, object] = {
-            "schema_version":     "1",
-            "report_id":          r.report_id,
-            "run_at":             r.run_at.isoformat(),
-            "backend_name":       r.backend_name,
-            "overall_score":      r.overall_score,
+            "schema_version": "1",
+            "report_id": r.report_id,
+            "run_at": r.run_at.isoformat(),
+            "backend_name": r.backend_name,
+            "overall_score": r.overall_score,
             "hallucination_risk": r.hallucination_risk.value,
             "categories": [
                 {
-                    "category":  cs.category.value,
-                    "score":     cs.score,
+                    "category": cs.category.value,
+                    "score": cs.score,
                     "pass_rate": cs.pass_rate,
                     "results": [
                         {
-                            "case_name":      res.case_name,
-                            "score":          res.score,
-                            "passed":         res.passed,
+                            "case_name": res.case_name,
+                            "score": res.score,
+                            "passed": res.passed,
                             "pass_threshold": res.pass_threshold,
-                            "details":        res.details,
-                            "error":          res.error,
+                            "details": res.details,
+                            "error": res.error,
                         }
                         for res in cs.results
                     ],

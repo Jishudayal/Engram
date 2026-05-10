@@ -661,7 +661,8 @@ class ConsolidationPlan(BaseModel):
         Complement of human_review_actions within the plan.
         """
         return tuple(
-            a for a in self.actions
+            a
+            for a in self.actions
             if a.tier in (ConsolidationTier.AUTO_MERGE, ConsolidationTier.AUTO_FLAG)
         )
 

@@ -208,9 +208,7 @@ class ChromaAdapter(AbstractAdapter):
     @property
     def _c(self) -> ChromaCollection:
         if self._col is None:
-            raise RuntimeError(
-                "ChromaAdapter is not open — use 'async with' or call open() first"
-            )
+            raise RuntimeError("ChromaAdapter is not open — use 'async with' or call open() first")
         return self._col
 
     # ------------------------------------------------------------------
@@ -313,7 +311,9 @@ class ChromaAdapter(AbstractAdapter):
         # Chroma stubs type distances/embeddings as list[...] | None; we know
         # they are present because we requested them and have non-empty ids.
         distances = result["distances"][0]  # type: ignore[index]
-        raw_embeddings = result["embeddings"][0] if result["embeddings"] is not None else [None] * len(ids)
+        raw_embeddings = (
+            result["embeddings"][0] if result["embeddings"] is not None else [None] * len(ids)
+        )
         metadatas = result["metadatas"][0]  # type: ignore[index]
 
         output: list[SearchResult] = []
@@ -391,9 +391,7 @@ class ChromaAdapter(AbstractAdapter):
         if not memory_ids:
             return {}
         cids = [_chroma_id(agent_id, mid) for mid in memory_ids]
-        result = await asyncio.to_thread(
-            self._c.get, ids=cids, include=["embeddings", "metadatas"]
-        )
+        result = await asyncio.to_thread(self._c.get, ids=cids, include=["embeddings", "metadatas"])
         if not result["ids"]:
             return {}
         raw_embeddings = result["embeddings"]

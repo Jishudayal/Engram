@@ -40,28 +40,32 @@ from engram.integrations.langchain import EngramVectorStore
 
 async def my_llm(prompt: str) -> str:
     """Replace with OpenAI, Anthropic, Gemini, Ollama — anything async."""
-    return json.dumps({
-        "verdict": "temporal_supersession",
-        "confidence": 0.95,
-        "summary": "Newer pricing supersedes the outdated one.",
-    })
+    return json.dumps(
+        {
+            "verdict": "temporal_supersession",
+            "confidence": 0.95,
+            "summary": "Newer pricing supersedes the outdated one.",
+        }
+    )
 
 
 async def my_consolidate_llm(prompt: str) -> str:
-    return json.dumps({
-        "action": "flag",
-        "confidence": 0.80,
-        "reasoning": "Requires human review.",
-    })
+    return json.dumps(
+        {
+            "action": "flag",
+            "confidence": 0.80,
+            "reasoning": "Requires human review.",
+        }
+    )
 
 
 # Topic-specific unit vectors so only same-topic docs are flagged as candidates.
 # In production, a real embedding model (OpenAI, Cohere, etc.) does this automatically.
 _VECS: dict[str, list[float]] = {
-    "pricing":   [1.0, 0.0, 0.0, 0.0],
-    "shipping":  [0.0, 1.0, 0.0, 0.0],
-    "returns":   [0.0, 0.0, 1.0, 0.0],
-    "support":   [0.0, 0.0, 0.0, 1.0],
+    "pricing": [1.0, 0.0, 0.0, 0.0],
+    "shipping": [0.0, 1.0, 0.0, 0.0],
+    "returns": [0.0, 0.0, 1.0, 0.0],
+    "support": [0.0, 0.0, 0.0, 1.0],
 }
 
 

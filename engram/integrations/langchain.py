@@ -279,9 +279,7 @@ class EngramVectorStore(VectorStore):
         engram: Engram | None = kwargs.pop("engram", None)
         agent_id: str | None = kwargs.pop("agent_id", None)
         if engram is None or agent_id is None:
-            raise ValueError(
-                "from_texts() requires 'engram' and 'agent_id' keyword arguments."
-            )
+            raise ValueError("from_texts() requires 'engram' and 'agent_id' keyword arguments.")
         store = cls(engram, embedding, agent_id)
         store.add_texts(texts, metadatas=metadatas, ids=ids)
         return store

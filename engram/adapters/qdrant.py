@@ -447,7 +447,7 @@ class QdrantAdapter(AbstractAdapter):
             count_filter=_agent_filter(agent_id, status=status),
             exact=True,
         )
-        return result.count
+        return int(result.count)
 
     @map_adapter_errors(error=_QDRANT_ERRORS)
     async def exists(self, agent_id: str, memory_id: str) -> bool:

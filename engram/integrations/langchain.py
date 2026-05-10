@@ -25,7 +25,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, Iterable, Sequence
+from collections.abc import Coroutine
+from typing import Any, Iterable, Sequence, TypeVar
 from uuid import uuid4
 
 try:
@@ -53,8 +54,10 @@ from engram.engram import Engram
 
 __all__ = ["EngramVectorStore", "EngramChatMessageHistory"]
 
+_T = TypeVar("_T")
 
-def _run(coro: Any) -> Any:
+
+def _run(coro: Coroutine[Any, Any, _T]) -> _T:
     """Run a coroutine synchronously from a non-async context.
 
     Raises RuntimeError when called from a running event loop — the caller
@@ -77,7 +80,7 @@ def _run(coro: Any) -> Any:
     return asyncio.run(coro)
 
 
-class EngramVectorStore(VectorStore):
+class EngramVectorStore(VectorStore):  # type: ignore[misc]
     """LangChain VectorStore backed by an Engram adapter.
 
     Wraps an already-open Engram instance so it can be plugged into any
@@ -284,7 +287,7 @@ class EngramVectorStore(VectorStore):
         return store
 
 
-class EngramChatMessageHistory(BaseChatMessageHistory):
+class EngramChatMessageHistory(BaseChatMessageHistory):  # type: ignore[misc]
     """LangChain BaseChatMessageHistory backed by an Engram adapter.
 
     Stores each conversation message as a separate Memory under a session_id

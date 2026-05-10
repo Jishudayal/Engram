@@ -301,7 +301,7 @@ class PgVectorAdapter(AbstractAdapter):
             _row_id(agent_id, memory_id),
             agent_id,
         )
-        return tag != "DELETE 0"
+        return bool(tag != "DELETE 0")
 
     # ------------------------------------------------------------------
     # Read
@@ -469,16 +469,18 @@ class PgVectorAdapter(AbstractAdapter):
     @map_adapter_errors(error=_PG_ERRORS)
     async def count(self, agent_id: str, *, status: MemoryStatus | None = None) -> int:
         if status is None:
-            return await self._p.fetchval(
+            count = await self._p.fetchval(
                 f"SELECT COUNT(*) FROM {self._table} WHERE agent_id = $1",
                 agent_id,
             )
-        return await self._p.fetchval(
+            return int(count or 0)
+        count = await self._p.fetchval(
             f"SELECT COUNT(*) FROM {self._table}"
             f"  WHERE agent_id = $1 AND payload->>'status' = $2",
             agent_id,
             status.value,
         )
+        return int(count or 0)
 
     @map_adapter_errors(error=_PG_ERRORS)
     async def exists(self, agent_id: str, memory_id: str) -> bool:
@@ -572,4 +574,4 @@ class PgVectorAdapter(AbstractAdapter):
             _conflict_row_id(agent_id, conflict_id),
             agent_id,
         )
-        return tag != "DELETE 0"
+        return bool(tag != "DELETE 0")

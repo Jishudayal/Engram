@@ -148,7 +148,9 @@ def _build_anthropic_fn(model: str) -> LLMClassifyFn:
             max_tokens=512,
             messages=[{"role": "user", "content": prompt}],
         )
-        return message.content[0].text.strip()
+        block = message.content[0]
+        text = getattr(block, "text", "")
+        return str(text).strip()
 
     return _classify
 

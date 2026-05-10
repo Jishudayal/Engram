@@ -99,6 +99,6 @@ def map_adapter_errors(
                     raise AdapterError(f"{fn.__qualname__}: {exc}") from exc
                 raise
 
-        return wrapper  # type: ignore[return-value]
+        return wrapper
 
     return decorator

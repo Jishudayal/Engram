@@ -583,7 +583,7 @@ class TestPyprojectWiring:
             with patch.dict(sys.modules, lc_null):
                 try:
                     engram.__getattr__("EngramVectorStore")
-                    assert False, "should have raised ImportError"
+                    raise AssertionError("should have raised ImportError")
                 except ImportError as exc:
                     assert "engram[langchain]" in str(exc)
         finally:

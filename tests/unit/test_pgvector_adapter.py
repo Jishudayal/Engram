@@ -21,7 +21,7 @@ from engram.adapters.pgvector import (
     _to_float_list,
     _validate_table,
 )
-from engram.core.constants import ConflictType, MemoryStatus, ResolutionStatus, SourceType
+from engram.core.constants import ConflictType, MemoryStatus, ResolutionStatus
 from engram.core.exceptions import AdapterError, NotFoundError
 from engram.core.models import ConflictRecord, Memory
 
@@ -621,8 +621,8 @@ class TestPyprojectWiring:
         assert PVA is PgVectorAdapter
 
     def test_lazy_import_error_has_install_hint(self) -> None:
-        import importlib
         import sys
+
         # Temporarily hide pgvector so the lazy importer's error path fires.
         pgvector_mod = sys.modules.pop("pgvector", None)
         pgvector_asyncpg_mod = sys.modules.pop("pgvector.asyncpg", None)

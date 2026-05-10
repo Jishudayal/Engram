@@ -33,7 +33,6 @@ from engram import (
 )
 from engram.integrations.langchain import EngramVectorStore
 
-
 # ---------------------------------------------------------------------------
 # Stubs — replace these with your real LLM and embedding model
 # ---------------------------------------------------------------------------

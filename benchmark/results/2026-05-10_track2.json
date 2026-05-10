@@ -1,0 +1,158 @@
+[
+  {
+    "track": "track2",
+    "backend": "mem0",
+    "overall_score": 0.5333,
+    "hallucination_risk": "HIGH",
+    "by_scenario": {
+      "B1-contradiction": 1.0,
+      "B2-retention": 0.6667,
+      "B3-temporal-chain": 0.5,
+      "B4-false-positive": 0.0,
+      "B5-temporal-language": 0.5
+    },
+    "scenario_notes": {
+      "B1-contradiction": [
+        "new_recommended=True",
+        "old_suppressed=True",
+        "old_conflict_flag=absent",
+        "total_hits=1"
+      ],
+      "B2-retention": [
+        "retained=2/3",
+        "searchable=2/3"
+      ],
+      "B3-temporal-chain": [
+        "v3_recommended=True",
+        "v1_suppressed=False  (conflict_flag=False)",
+        "v2_suppressed=False  (conflict_flag=False)"
+      ],
+      "B4-false-positive": [
+        "software_recommended=False",
+        "hardware_recommended=False"
+      ],
+      "B5-temporal-language": [
+        "thursday_recommended=True",
+        "wednesday_suppressed=False",
+        "wednesday_conflict_flag=False"
+      ]
+    }
+  },
+  {
+    "track": "track2",
+    "backend": "naive-qdrant",
+    "overall_score": 0.7,
+    "hallucination_risk": "MEDIUM",
+    "by_scenario": {
+      "B1-contradiction": 0.5,
+      "B2-retention": 1.0,
+      "B3-temporal-chain": 0.5,
+      "B4-false-positive": 1.0,
+      "B5-temporal-language": 0.5
+    },
+    "scenario_notes": {
+      "B1-contradiction": [
+        "new_recommended=True",
+        "old_suppressed=False",
+        "old_conflict_flag=False",
+        "total_hits=2"
+      ],
+      "B2-retention": [
+        "retained=3/3",
+        "searchable=3/3"
+      ],
+      "B3-temporal-chain": [
+        "v3_recommended=True",
+        "v1_suppressed=False  (conflict_flag=False)",
+        "v2_suppressed=False  (conflict_flag=False)"
+      ],
+      "B4-false-positive": [
+        "software_recommended=True",
+        "hardware_recommended=True"
+      ],
+      "B5-temporal-language": [
+        "thursday_recommended=True",
+        "wednesday_suppressed=False",
+        "wednesday_conflict_flag=False"
+      ]
+    }
+  },
+  {
+    "track": "track2",
+    "backend": "engram-detect",
+    "overall_score": 0.8,
+    "hallucination_risk": "MEDIUM",
+    "by_scenario": {
+      "B1-contradiction": 1.0,
+      "B2-retention": 1.0,
+      "B3-temporal-chain": 0.5,
+      "B4-false-positive": 1.0,
+      "B5-temporal-language": 0.5
+    },
+    "scenario_notes": {
+      "B1-contradiction": [
+        "new_recommended=True",
+        "old_suppressed=True",
+        "old_conflict_flag=True",
+        "total_hits=2"
+      ],
+      "B2-retention": [
+        "retained=3/3",
+        "searchable=3/3"
+      ],
+      "B3-temporal-chain": [
+        "v3_recommended=False",
+        "v1_suppressed=True  (conflict_flag=True)",
+        "v2_suppressed=True  (conflict_flag=True)"
+      ],
+      "B4-false-positive": [
+        "software_recommended=True",
+        "hardware_recommended=True"
+      ],
+      "B5-temporal-language": [
+        "thursday_recommended=False",
+        "wednesday_suppressed=True",
+        "wednesday_conflict_flag=True"
+      ]
+    }
+  },
+  {
+    "track": "track2",
+    "backend": "engram-consolidated",
+    "overall_score": 0.8,
+    "hallucination_risk": "MEDIUM",
+    "by_scenario": {
+      "B1-contradiction": 1.0,
+      "B2-retention": 1.0,
+      "B3-temporal-chain": 0.5,
+      "B4-false-positive": 1.0,
+      "B5-temporal-language": 0.5
+    },
+    "scenario_notes": {
+      "B1-contradiction": [
+        "new_recommended=True",
+        "old_suppressed=True",
+        "old_conflict_flag=True",
+        "total_hits=2"
+      ],
+      "B2-retention": [
+        "retained=3/3",
+        "searchable=3/3"
+      ],
+      "B3-temporal-chain": [
+        "v3_recommended=False",
+        "v1_suppressed=True  (conflict_flag=True)",
+        "v2_suppressed=True  (conflict_flag=True)"
+      ],
+      "B4-false-positive": [
+        "software_recommended=True",
+        "hardware_recommended=True"
+      ],
+      "B5-temporal-language": [
+        "thursday_recommended=False",
+        "wednesday_suppressed=True",
+        "wednesday_conflict_flag=True"
+      ]
+    }
+  }
+]

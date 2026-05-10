@@ -1,8 +1,6 @@
 """Tests for memoryeval.types."""
 
 import pytest
-from pydantic import ValidationError
-
 from memoryeval.case import TestCase
 from memoryeval.types import (
     BenchmarkCategory,
@@ -11,7 +9,7 @@ from memoryeval.types import (
     CategoryScore,
     HallucinationRisk,
 )
-
+from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
 # Concrete TestCase used for from_case() tests
@@ -184,7 +182,7 @@ class TestCaseResult:
 
     def test_frozen(self) -> None:
         r = make_result()
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             r.score = 0.5  # type: ignore[misc]
 
     # --- Error invariant ---
@@ -341,7 +339,7 @@ class TestCategoryScore:
 
     def test_frozen(self) -> None:
         cs = make_category_score()
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             cs.score = 0.5  # type: ignore[misc]
 
 
@@ -457,7 +455,7 @@ class TestBenchmarkReport:
 
     def test_frozen(self) -> None:
         report = BenchmarkReport.from_category_scores("memory", self._five_category_scores())
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             report.backend_name = "other"  # type: ignore[misc]
 
     def test_risk_low(self) -> None:

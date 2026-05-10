@@ -26,7 +26,6 @@ from langchain_core.vectorstores import VectorStore
 from engram.core.models import Memory, SearchResult
 from engram.integrations.langchain import EngramChatMessageHistory, EngramVectorStore
 
-
 # ---------------------------------------------------------------------------
 # Shared helpers
 # ---------------------------------------------------------------------------

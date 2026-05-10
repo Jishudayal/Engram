@@ -1,7 +1,6 @@
 """Tests for memoryeval.benchmark.multihop — 10 multi-hop retrieval test cases."""
 
 import pytest
-
 from memoryeval.benchmark.multihop import (
     MULTIHOP_CASES,
     AllVersionsSurfacedBySearch,
@@ -16,7 +15,6 @@ from memoryeval.benchmark.multihop import (
     TwoHopBridgeReachable,
 )
 from memoryeval.types import BenchmarkCategory
-
 
 # ---------------------------------------------------------------------------
 # Class-attribute contract

@@ -1,10 +1,9 @@
 """Tests for AbstractAdapter contract enforcement and exception hierarchy (sub-step 1.7)."""
 
+from datetime import UTC, datetime
 from typing import Any
 
 import pytest
-
-from datetime import UTC, datetime
 
 from engram.adapters.base import AbstractAdapter
 from engram.adapters.memory import InMemoryAdapter

@@ -41,7 +41,7 @@ comparable across queries.
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
@@ -58,7 +58,12 @@ from qdrant_client.models import (
     VectorParams,
 )
 
-from engram.adapters._utils import POINT_NAMESPACE, map_adapter_errors, memory_to_payload, payload_to_memory
+from engram.adapters._utils import (
+    POINT_NAMESPACE,
+    map_adapter_errors,
+    memory_to_payload,
+    payload_to_memory,
+)
 from engram.adapters.base import AbstractAdapter
 from engram.core.constants import MemoryStatus, ResolutionStatus
 from engram.core.exceptions import AdapterError, NotFoundError
@@ -331,7 +336,7 @@ class QdrantAdapter(AbstractAdapter):
                 for k, v in filters.items()
             ]
             query_filter = Filter(
-                must=list(query_filter.must or []) + extra,
+                must=list(query_filter.must or []) + extra,  # type: ignore[arg-type]
                 must_not=query_filter.must_not,
             )
 
@@ -360,7 +365,7 @@ class QdrantAdapter(AbstractAdapter):
     ) -> list[Memory]:
         scroll_filter = _agent_filter(agent_id, status=status)
         all_records: list[Record] = []
-        next_offset: str | int | None = None
+        next_offset: Any = None
 
         while True:
             batch, next_offset = await self._c.scroll(
@@ -404,7 +409,7 @@ class QdrantAdapter(AbstractAdapter):
             scroll_filter=Filter(
                 must=[
                     FieldCondition(key=_AGENT_ID_KEY, match=MatchValue(value=agent_id)),
-                    HasIdCondition(has_id=point_ids),
+                    HasIdCondition(has_id=cast(list[str | int | uuid.UUID], point_ids)),
                 ]
             ),
             limit=len(memory_ids),
@@ -423,7 +428,7 @@ class QdrantAdapter(AbstractAdapter):
             scroll_filter=Filter(
                 must=[
                     FieldCondition(key=_AGENT_ID_KEY, match=MatchValue(value=agent_id)),
-                    HasIdCondition(has_id=point_ids),
+                    HasIdCondition(has_id=cast(list[str | int | uuid.UUID], point_ids)),
                 ]
             ),
             limit=len(memory_ids),
@@ -551,7 +556,7 @@ class QdrantAdapter(AbstractAdapter):
 
         scroll_filter = self._conflict_filter(agent_id, status=status)
         all_records: list[Record] = []
-        next_offset: str | int | None = None
+        next_offset: Any = None
 
         while True:
             batch, next_offset = await self._c.scroll(

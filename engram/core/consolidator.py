@@ -48,13 +48,13 @@ from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
 from engram.core.constants import (
+    DEFAULT_IMPORTANCE,
     ActionType,
     ConflictType,
     ConsolidationTier,
     MemoryStatus,
     ResolutionStatus,
     SourceType,
-    DEFAULT_IMPORTANCE,
 )
 from engram.core.exceptions import NotFoundError
 from engram.core.models import ConsolidationAction, ConsolidationPlan, Memory, ProvenanceRecord

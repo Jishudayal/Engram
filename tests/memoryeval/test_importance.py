@@ -6,7 +6,6 @@ Tier 2 (I6-I10): reliability gap — score 0.0 on InMemoryAdapter (cosine-only),
 """
 
 import pytest
-
 from memoryeval.benchmark.importance import (
     IMPORTANCE_CASES,
     AccessCountBoostedRetrieval,
@@ -16,12 +15,11 @@ from memoryeval.benchmark.importance import (
     ImportanceRoundtrip,
     ImportanceUpdatePersists,
     MultipleImportanceLevelsAllPreserved,
-    RecentlyAccessedSurfaces,
     RecencyBreaksImportanceTie,
+    RecentlyAccessedSurfaces,
     TopKSortedByImportance,
 )
 from memoryeval.types import BenchmarkCategory
-
 
 # ---------------------------------------------------------------------------
 # Class-attribute contract

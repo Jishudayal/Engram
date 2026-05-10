@@ -5,8 +5,6 @@ from __future__ import annotations
 import asyncio
 
 import pytest
-
-from memoryeval.benchmark import ALL_CASES
 from memoryeval.benchmark.importance import ImportanceRoundtrip
 from memoryeval.benchmark.temporal import NewerVersionActive
 from memoryeval.case import TestCase
@@ -15,9 +13,7 @@ from memoryeval.types import (
     BenchmarkCategory,
     BenchmarkReport,
     CaseResult,
-    CategoryScore,
 )
-
 
 # ---------------------------------------------------------------------------
 # Inline broken-case helpers (only needed in this module)
@@ -166,9 +162,10 @@ async def test_run_case_setup_raises_does_not_call_teardown() -> None:
 
 async def test_run_case_run_raises_still_calls_teardown() -> None:
     """Teardown must run after a successful setup even when run() fails."""
+    from memoryeval.benchmark._embeddings import vec
+
     from engram.adapters.memory import InMemoryAdapter
     from engram.core.models import Memory
-    from memoryeval.benchmark._embeddings import vec
 
     teardown_ran = False
 
@@ -291,8 +288,9 @@ async def test_run_category_order_matches_enum_declaration() -> None:
 
 
 async def test_run_hallucination_risk_set() -> None:
-    from engram.adapters.memory import InMemoryAdapter
     from memoryeval.types import HallucinationRisk
+
+    from engram.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer  = BenchmarkScorer(adapter, backend_name="test")
@@ -528,7 +526,6 @@ async def test_teardown_failure_does_not_raise_from_run_case() -> None:
 
 
 async def test_progress_hook_called_once_per_case() -> None:
-    import asyncio
 
     from engram.adapters.memory import InMemoryAdapter
 

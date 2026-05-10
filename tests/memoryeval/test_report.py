@@ -13,7 +13,6 @@ import io
 import json
 
 import pytest
-
 from memoryeval.report import ReportRenderer
 from memoryeval.types import (
     BenchmarkCategory,
@@ -22,7 +21,6 @@ from memoryeval.types import (
     CategoryScore,
     HallucinationRisk,
 )
-
 
 # ---------------------------------------------------------------------------
 # Shared test fixtures (built from types directly — no scorer needed)

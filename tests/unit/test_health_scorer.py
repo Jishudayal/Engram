@@ -1212,7 +1212,7 @@ class TestComputePendingReview:
 
     async def test_pending_review_populated_from_adapter(self) -> None:
         from engram.adapters.memory import InMemoryAdapter
-        from engram.core.constants import ConflictType, ResolutionStatus
+        from engram.core.constants import ConflictType
         from engram.core.models import ConflictRecord
 
         adapter = InMemoryAdapter()
@@ -1232,7 +1232,6 @@ class TestComputePendingReview:
         assert result.pending_review[0].conflict_id == conflict.conflict_id
 
     async def test_pending_review_excludes_resolved_conflicts(self) -> None:
-        from datetime import UTC, datetime
 
         from engram.adapters.memory import InMemoryAdapter
         from engram.core.constants import ConflictType, ResolutionStatus
@@ -1289,7 +1288,7 @@ class TestComputePendingReview:
         from typing import Any
 
         from engram.adapters.base import AbstractAdapter
-        from engram.core.constants import MemoryStatus, ResolutionStatus
+        from engram.core.constants import MemoryStatus
         from engram.core.models import Memory, SearchResult
 
         class _NoConflictAdapter(AbstractAdapter):

@@ -45,6 +45,7 @@ from __future__ import annotations
 import asyncio
 import json
 import uuid
+from collections.abc import Mapping
 from typing import Any
 
 from chromadb.api import ClientAPI
@@ -106,7 +107,7 @@ def _to_chroma(memory: Memory, vector_size: int) -> tuple[str, list[float], dict
     return _chroma_id(memory.agent_id, memory.memory_id), vector, metadata
 
 
-def _from_chroma(raw_embedding: Any, metadata: dict[str, Any]) -> Memory:
+def _from_chroma(raw_embedding: Any, metadata: Mapping[str, Any]) -> Memory:
     """Reconstruct a Memory from Chroma record fields.
 
     Prefers the raw embedding stored in the payload (exact float64 precision)
@@ -222,7 +223,7 @@ class ChromaAdapter(AbstractAdapter):
         await asyncio.to_thread(
             self._c.upsert,
             ids=[cid],
-            embeddings=[vector],
+            embeddings=[vector],  # type: ignore[arg-type]
             metadatas=[metadata],
         )
 
@@ -243,7 +244,7 @@ class ChromaAdapter(AbstractAdapter):
         await asyncio.to_thread(
             self._c.upsert,
             ids=[cid],
-            embeddings=[vector],
+            embeddings=[vector],  # type: ignore[arg-type]
             metadatas=[metadata],
         )
 
@@ -299,7 +300,7 @@ class ChromaAdapter(AbstractAdapter):
         fetch_k = top_k * _FILTER_OVERFETCH if filters else top_k
         result = await asyncio.to_thread(
             self._c.query,
-            query_embeddings=[query_embedding],
+            query_embeddings=[query_embedding],  # type: ignore[arg-type]
             n_results=fetch_k,
             where=where,
             include=["embeddings", "metadatas", "distances"],
@@ -309,9 +310,11 @@ class ChromaAdapter(AbstractAdapter):
         if not ids:
             return []
 
-        distances = result["distances"][0]
-        raw_embeddings = result["embeddings"][0] if result["embeddings"] is not None else [None] * len(ids)
-        metadatas = result["metadatas"][0]
+        # Chroma stubs type distances/embeddings as list[...] | None; we know
+        # they are present because we requested them and have non-empty ids.
+        distances = result["distances"][0]  # type: ignore[index]
+        raw_embeddings = result["embeddings"][0] if result["embeddings"] is not None else [None] * len(ids)  # type: ignore[index]
+        metadatas = result["metadatas"][0]  # type: ignore[index]
 
         output: list[SearchResult] = []
         rank = 1
@@ -379,7 +382,7 @@ class ChromaAdapter(AbstractAdapter):
         await asyncio.to_thread(
             self._c.upsert,
             ids=[r[0] for r in records],
-            embeddings=[r[1] for r in records],
+            embeddings=[r[1] for r in records],  # type: ignore[arg-type]
             metadatas=[r[2] for r in records],
         )
 

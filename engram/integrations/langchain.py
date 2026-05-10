@@ -25,8 +25,8 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import Coroutine
-from typing import Any, Iterable, Sequence, TypeVar
+from collections.abc import Coroutine, Iterable, Sequence
+from typing import Any, TypeVar
 from uuid import uuid4
 
 try:
@@ -80,7 +80,7 @@ def _run(coro: Coroutine[Any, Any, _T]) -> _T:
     return asyncio.run(coro)
 
 
-class EngramVectorStore(VectorStore):  # type: ignore[misc]
+class EngramVectorStore(VectorStore):
     """LangChain VectorStore backed by an Engram adapter.
 
     Wraps an already-open Engram instance so it can be plugged into any
@@ -287,7 +287,7 @@ class EngramVectorStore(VectorStore):  # type: ignore[misc]
         return store
 
 
-class EngramChatMessageHistory(BaseChatMessageHistory):  # type: ignore[misc]
+class EngramChatMessageHistory(BaseChatMessageHistory):
     """LangChain BaseChatMessageHistory backed by an Engram adapter.
 
     Stores each conversation message as a separate Memory under a session_id
@@ -411,6 +411,10 @@ class EngramChatMessageHistory(BaseChatMessageHistory):  # type: ignore[misc]
     def messages(self) -> list[BaseMessage]:
         """Return all messages synchronously. Use aget_messages() in async contexts."""
         return _run(self.aget_messages())
+
+    @messages.setter
+    def messages(self, value: list[BaseMessage]) -> None:
+        raise NotImplementedError("Use aadd_messages() to add messages.")
 
     def add_message(self, message: BaseMessage) -> None:
         """Store a single message synchronously. Use aadd_messages() in async contexts."""

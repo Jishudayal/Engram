@@ -713,7 +713,6 @@ class TestEngramScanContradictions:
 # ---------------------------------------------------------------------------
 
 from engram.core.consolidator import Consolidator  # noqa: E402
-from engram.core.constants import ConflictType  # noqa: E402
 from engram.core.models import ConflictRecord  # noqa: E402
 
 
@@ -861,8 +860,8 @@ class TestEngramPendingReview:
 # Engram.provenance_for() + Engram.lineage() — step 7.2
 # ---------------------------------------------------------------------------
 
+from engram.core.constants import SourceType  # noqa: E402
 from engram.core.models import ProvenanceRecord  # noqa: E402
-from engram.core.constants import SourceType     # noqa: E402
 
 
 def _attach_prov(mem: Memory, *, source_type: SourceType = SourceType.DOCUMENT) -> Memory:
@@ -1004,7 +1003,6 @@ class TestEngramLineage:
         assert len(chain) <= 3  # terminates, doesn't loop forever
 
     async def test_merge_branch_picks_oldest_parent(self) -> None:
-        from datetime import UTC, datetime, timedelta
         adapter = InMemoryAdapter()
         older = Memory(agent_id="agent-1", text="older source")
         newer = Memory(agent_id="agent-1", text="newer source")

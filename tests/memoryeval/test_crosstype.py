@@ -1,14 +1,13 @@
 """Tests for memoryeval.benchmark.crosstype — 10 cross-type interaction test cases."""
 
 import pytest
-
 from memoryeval.benchmark.crosstype import (
     CROSSTYPE_CASES,
     ActiveAndSupersededCountCorrect,
     AllFourStatusesStorable,
     AllOptionalFieldsRoundtrip,
-    ExpiryAndImportanceBothPreserved,
     ExpiredMemoryStillSearchable,
+    ExpiryAndImportanceBothPreserved,
     MemoryTypeCoexistAllSearchable,
     ProvenanceAndSupersessionCombined,
     SearchReturnsAllStatusesByDefault,
@@ -16,7 +15,6 @@ from memoryeval.benchmark.crosstype import (
     TouchOnlyChangesAccessFields,
 )
 from memoryeval.types import BenchmarkCategory
-
 
 # ---------------------------------------------------------------------------
 # Class-attribute contract

@@ -2,6 +2,7 @@
 
 from engram.adapters.base import AbstractAdapter
 from engram.adapters.memory import InMemoryAdapter
+from engram.core.consolidator import Consolidator, LLMConsolidateFn, PlanningResult
 from engram.core.constants import (
     ActionType,
     ConflictType,
@@ -12,7 +13,9 @@ from engram.core.constants import (
     RiskLevel,
     SourceType,
 )
+from engram.core.contradiction import ClassificationResult, ContradictionDetector, LLMClassifyFn
 from engram.core.exceptions import AdapterError, EngramError, NotFoundError
+from engram.core.health import HealthScorer
 from engram.core.models import (
     ConflictRecord,
     ConsolidationAction,
@@ -23,9 +26,6 @@ from engram.core.models import (
     SearchResult,
 )
 from engram.core.provenance import ProvenanceManifest
-from engram.core.contradiction import ClassificationResult, ContradictionDetector, LLMClassifyFn
-from engram.core.consolidator import Consolidator, LLMConsolidateFn, PlanningResult
-from engram.core.health import HealthScorer
 from engram.engram import Engram
 
 __version__ = "0.1.0-alpha"

@@ -1,7 +1,6 @@
 """Tests for memoryeval.benchmark.temporal — 10 temporal test cases."""
 
 import pytest
-
 from memoryeval.benchmark.temporal import (
     TEMPORAL_CASES,
     AccessTrackingPersists,
@@ -16,7 +15,6 @@ from memoryeval.benchmark.temporal import (
     UpdatedAtPreservedOnRoundtrip,
 )
 from memoryeval.types import BenchmarkCategory
-
 
 # ---------------------------------------------------------------------------
 # Class-attribute contract

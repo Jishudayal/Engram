@@ -1,7 +1,6 @@
 """Tests for memoryeval.benchmark.contradiction — 10 contradiction test cases."""
 
 import pytest
-
 from memoryeval.benchmark.contradiction import (
     CONTRADICTION_CASES,
     AllConflictingClaimsSearchable,
@@ -10,13 +9,12 @@ from memoryeval.benchmark.contradiction import (
     EmbeddingFidelityDistinct,
     EmbeddingFidelityHighPrecision,
     FlaggedStatusPersistable,
-    ResolvedContradictionHasOneActive,
     ResolutionReducesActiveCount,
+    ResolvedContradictionHasOneActive,
     SupersessionLinksIntact,
     ThreeClaimsOneActive,
 )
 from memoryeval.types import BenchmarkCategory
-
 
 # ---------------------------------------------------------------------------
 # Class-attribute contract

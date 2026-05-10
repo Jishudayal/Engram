@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 import pytest
 
 from engram.adapters.memory import InMemoryAdapter
+from engram.core.consolidator import _DEFAULT_MODEL, Consolidator, PlanningResult
 from engram.core.constants import (
     AUTO_FLAG_THRESHOLD,
     AUTO_MERGE_THRESHOLD,
@@ -13,7 +14,6 @@ from engram.core.constants import (
     ConsolidationTier,
     ResolutionStatus,
 )
-from engram.core.consolidator import _DEFAULT_MODEL, Consolidator, PlanningResult
 from engram.core.exceptions import NotFoundError
 from engram.core.models import ConflictRecord, ConsolidationAction, ConsolidationPlan, Memory
 
@@ -999,7 +999,6 @@ class TestExecutePreflight:
 # ConsolidationPlan tier-based properties (6.5)
 # ---------------------------------------------------------------------------
 
-from engram.core.models import ConsolidationAction  # noqa: E402 (already imported at top)
 
 
 def make_action(

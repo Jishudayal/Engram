@@ -22,8 +22,8 @@ from typing import Any
 import pytest
 
 from engram import AbstractAdapter, Memory, MemoryStatus, NotFoundError
-from engram.core.models import ProvenanceRecord, SearchResult
 from engram.core.constants import SourceType
+from engram.core.models import ProvenanceRecord, SearchResult
 
 # Fixed base time so ordering tests are not sensitive to the system clock.
 _T0 = datetime(2024, 1, 1, tzinfo=UTC)

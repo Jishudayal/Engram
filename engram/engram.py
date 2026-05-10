@@ -47,8 +47,8 @@ from engram.core.models import ConflictRecord, Memory, ProvenanceRecord, SearchR
 from engram.core.provenance import ProvenanceManifest
 
 if TYPE_CHECKING:
-    from engram.core.contradiction import ContradictionDetector
     from engram.core.consolidator import Consolidator
+    from engram.core.contradiction import ContradictionDetector
     from engram.core.models import ConsolidationPlan, HealthScore
 
 __all__ = ["Engram"]

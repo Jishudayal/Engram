@@ -1,10 +1,8 @@
 """Tests for memoryeval.case — TestCase ABC."""
 
 import pytest
-
 from memoryeval.case import TestCase
 from memoryeval.types import BenchmarkCategory
-
 
 # ---------------------------------------------------------------------------
 # Concrete test case implementations used across tests

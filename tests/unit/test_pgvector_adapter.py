@@ -25,7 +25,6 @@ from engram.core.constants import ConflictType, MemoryStatus, ResolutionStatus
 from engram.core.exceptions import AdapterError, NotFoundError
 from engram.core.models import ConflictRecord, Memory
 
-
 # ---------------------------------------------------------------------------
 # Shared test helpers
 # ---------------------------------------------------------------------------

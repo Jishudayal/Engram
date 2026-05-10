@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import pytest
 
-from engram import MemoryStatus
 from engram.adapters.qdrant import QdrantAdapter
 from engram.core.exceptions import NotFoundError
 from tests.adapters.contract import AdapterContractTests, _m

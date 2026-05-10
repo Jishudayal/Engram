@@ -13,11 +13,11 @@ Qdrant vs. Engram, the gap on these cases is the core signal.
 
 Implementation note on gap-case determinism
 --------------------------------------------
-InMemoryAdapter's search() uses a stable sort keyed on cosine similarity.
-When two memories have *identical* embeddings their cosine scores are equal,
-so the sort preserves insertion order. Gap cases exploit this: the "wrong"
-memory (low importance / untouched) is always stored **first** so that
-InMemoryAdapter returns it first, giving a deterministic score of 0.0.
+Gap cases (I6-I10) give the "correct" memory (high importance / frequently
+accessed / recently accessed) a slightly **lower** cosine score than the
+"wrong" memory. A cosine-only adapter ranks by similarity and always returns
+the wrong memory first, giving a deterministic score of 0.0 regardless of
+insertion order or backend tie-breaking behaviour.
 
 Scoring convention
 ------------------
@@ -232,36 +232,37 @@ class MultipleImportanceLevelsAllPreserved(TestCase):
 
 
 # ---------------------------------------------------------------------------
-# I6 — High-importance memory must rank above low-importance when similarity
-#      is equal (importance breaks the tie that cosine-only search cannot)
+# I6 — High-importance memory must rank above low-importance even at slightly
+#      lower cosine similarity (importance signal overrides raw vector ranking)
 # ---------------------------------------------------------------------------
 
 
 class HighImportanceRanksAboveLow(TestCase):
     category = BenchmarkCategory.IMPORTANCE
     name = "high_importance_ranks_above_low"
-    description = "With equal cosine scores, the high-importance memory must rank first"
+    description = (
+        "The high-importance memory must rank first even when it has a slightly lower cosine score"
+    )
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters — importance is ignored.
-    # Engram's importance-weighted ranker scores 1.0 here.
+    # Low-importance memory is an exact-match to the query (cosine 1.0); high-importance
+    # memory is slightly off (cosine ~0.82). A raw adapter ranks low first; an
+    # importance-aware ranker promotes high.
 
     _high_id: str
     _low_id: str
 
     async def setup(self, adapter) -> None:
-        # Store LOW-importance FIRST so the stable cosine sort returns it first
-        # (InMemoryAdapter preserves insertion order on ties → deterministic 0.0)
-        embedding = vec("refund", "policy", "days")
         low = Memory(
             agent_id=self.agent_id,
             text="Low-priority archived refund note.",
-            embedding=embedding,
+            embedding=vec("refund", "policy", "days"),  # exact query match → cosine 1.0
             importance=0.1,
         )
         high = Memory(
             agent_id=self.agent_id,
             text="Critical refund policy — active enforcement.",
-            embedding=embedding,
+            embedding=vec("refund", "policy"),  # one keyword short → cosine ~0.82
             importance=0.9,
         )
         await adapter.store(low)
@@ -280,25 +281,25 @@ class HighImportanceRanksAboveLow(TestCase):
 
 # ---------------------------------------------------------------------------
 # I7 — top_k results should be the highest-importance subset, not an
-#      insertion-order subset, when all cosine scores are equal
+#      cosine-ranked subset, when high-importance memories score lower by cosine
 # ---------------------------------------------------------------------------
 
 
 class TopKSortedByImportance(TestCase):
     category = BenchmarkCategory.IMPORTANCE
     name = "top_k_sorted_by_importance"
-    description = (
-        "top_k=2 must return the two highest-importance memories, not the first two inserted"
-    )
+    description = "top_k=2 must return the two highest-importance memories even when they score lower by cosine"
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters.
+    # Low-importance memories are exact-match (cosine 1.0); high-importance memories are
+    # slightly off (cosine ~0.82). A raw adapter fills top_k with the 2 low-importance
+    # exact-matches; an importance-aware ranker surfaces the 2 high-importance ones.
 
     _high_ids: set[str]
 
     async def setup(self, adapter) -> None:
-        embedding = vec("api", "rate", "limit")
-        # Store 3 low-importance FIRST, 2 high-importance SECOND
-        # InMemoryAdapter returns first 2 by insertion order → both low → 0.0
+        low_embedding = vec("api", "rate", "limit")  # exact query match → cosine 1.0
+        high_embedding = vec("api", "rate")  # one keyword short → cosine ~0.82
         high_ids: list[str] = []
         for level, text in (
             (0.1, "Minor API note A."),
@@ -306,14 +307,16 @@ class TopKSortedByImportance(TestCase):
             (0.15, "Minor API note C."),
         ):
             await adapter.store(
-                Memory(agent_id=self.agent_id, text=text, embedding=embedding, importance=level)
+                Memory(agent_id=self.agent_id, text=text, embedding=low_embedding, importance=level)
             )
 
         for level, text in (
             (0.9, "Critical API rate limit policy."),
             (0.85, "Important API rate guidance."),
         ):
-            m = Memory(agent_id=self.agent_id, text=text, embedding=embedding, importance=level)
+            m = Memory(
+                agent_id=self.agent_id, text=text, embedding=high_embedding, importance=level
+            )
             await adapter.store(m)
             high_ids.append(m.memory_id)
 
@@ -337,29 +340,31 @@ class TopKSortedByImportance(TestCase):
 class AccessCountBoostedRetrieval(TestCase):
     category = BenchmarkCategory.IMPORTANCE
     name = "access_count_boosted_retrieval"
-    description = (
-        "A memory touched 5 times must rank above an untouched one with the same embedding"
-    )
+    description = "A memory touched 5 times must rank above an untouched one even with a slightly lower cosine"
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters — access_count is ignored.
+    # Untouched memory is exact-match (cosine 1.0); frequently-accessed has one extra
+    # keyword (cosine ~0.82). A raw adapter ranks untouched first; an access-aware
+    # ranker promotes the frequently-accessed memory.
 
     _frequent_id: str
     _untouched_id: str
 
     async def setup(self, adapter) -> None:
-        embedding = vec("refund", "policy")
-        # Store UNTOUCHED FIRST (so insertion-order tie-break returns it first)
         untouched = Memory(
-            agent_id=self.agent_id, text="Untouched refund policy.", embedding=embedding
+            agent_id=self.agent_id,
+            text="Untouched refund policy.",
+            embedding=vec("refund", "policy"),  # exact query match → cosine 1.0
         )
         await adapter.store(untouched)
         self._untouched_id = untouched.memory_id
 
         frequent = Memory(
-            agent_id=self.agent_id, text="Frequently accessed refund policy.", embedding=embedding
+            agent_id=self.agent_id,
+            text="Frequently accessed refund policy.",
+            embedding=vec("refund", "policy", "window"),  # one extra keyword → cosine ~0.82
         )
         await adapter.store(frequent)
-        # Simulate 5 accesses without redundant round-trips
         for _ in range(5):
             frequent.touch()
         await adapter.update(frequent)
@@ -383,27 +388,30 @@ class RecentlyAccessedSurfaces(TestCase):
     category = BenchmarkCategory.IMPORTANCE
     name = "recently_accessed_surfaces"
     description = (
-        "A memory touched recently must rank above a never-accessed one with the same embedding"
+        "A recently touched memory must rank above a stale one even with a slightly lower cosine"
     )
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters — last_accessed is ignored.
+    # Stale memory is exact-match (cosine 1.0); recently-accessed has one extra keyword
+    # (cosine ~0.82). A raw adapter ranks stale first; a recency-aware ranker promotes
+    # the recently-accessed memory.
 
     _recent_id: str
     _stale_id: str
 
     async def setup(self, adapter) -> None:
-        embedding = vec("password", "security")
-        # Store STALE (never accessed) FIRST so insertion-order tie-break returns it first
         stale = Memory(
             agent_id=self.agent_id,
             text="Old security policy (never accessed).",
-            embedding=embedding,
+            embedding=vec("password", "security"),  # exact query match → cosine 1.0
         )
         await adapter.store(stale)
         self._stale_id = stale.memory_id
 
         recent = Memory(
-            agent_id=self.agent_id, text="Security policy (recently reviewed).", embedding=embedding
+            agent_id=self.agent_id,
+            text="Security policy (recently reviewed).",
+            embedding=vec("password", "security", "requirement"),  # one extra → cosine ~0.82
         )
         await adapter.store(recent)
         recent.touch()
@@ -427,21 +435,24 @@ class RecentlyAccessedSurfaces(TestCase):
 class RecencyBreaksImportanceTie(TestCase):
     category = BenchmarkCategory.IMPORTANCE
     name = "recency_breaks_importance_tie"
-    description = "With equal importance scores, the recently-accessed memory must rank first"
+    description = (
+        "With equal importance, the recently-accessed memory must rank first even at lower cosine"
+    )
 
     # INTENTIONAL: scores 0.0 on cosine-only adapters — last_accessed is ignored.
+    # Old memory is exact-match (cosine 1.0); recently-accessed is one keyword short
+    # (cosine ~0.82). Both have identical importance. A raw adapter ranks old first;
+    # a recency-aware ranker promotes the recently-accessed memory.
 
     _recent_id: str
     _old_id: str
 
     async def setup(self, adapter) -> None:
-        embedding = vec("price", "plan", "subscription")
         importance = 0.75
-        # Store OLD (never accessed) FIRST
         old = Memory(
             agent_id=self.agent_id,
             text="Pricing plan — last reviewed 6 months ago.",
-            embedding=embedding,
+            embedding=vec("price", "plan", "subscription"),  # exact query match → cosine 1.0
             importance=importance,
         )
         await adapter.store(old)
@@ -450,7 +461,7 @@ class RecencyBreaksImportanceTie(TestCase):
         recent = Memory(
             agent_id=self.agent_id,
             text="Pricing plan — reviewed this week.",
-            embedding=embedding,
+            embedding=vec("price", "plan"),  # one keyword short → cosine ~0.82
             importance=importance,
         )
         await adapter.store(recent)

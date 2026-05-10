@@ -1,0 +1,421 @@
+[
+  {
+    "track": "track1",
+    "backend": "engram-inmemory-adapter",
+    "run_at": "2026-05-10T10:06:10.918807+00:00",
+    "overall_score": 0.88,
+    "hallucination_risk": "low",
+    "pass_rate": 0.88,
+    "total_cases": 50,
+    "passed_cases": 44,
+    "by_category": {
+      "temporal": 1.0,
+      "contradiction": 0.9,
+      "multihop": 1.0,
+      "importance": 0.5,
+      "cross_type": 1.0
+    },
+    "failed_cases": [
+      {
+        "case": "both_claims_active_is_contradiction",
+        "category": "contradiction",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "high_importance_ranks_above_low",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "top_k_sorted_by_importance",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "access_count_boosted_retrieval",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recently_accessed_surfaces",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recency_breaks_importance_tie",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      }
+    ]
+  },
+  {
+    "track": "track1",
+    "backend": "engram-qdrant-adapter",
+    "run_at": "2026-05-10T10:06:11.015681+00:00",
+    "overall_score": 0.88,
+    "hallucination_risk": "low",
+    "pass_rate": 0.88,
+    "total_cases": 50,
+    "passed_cases": 44,
+    "by_category": {
+      "temporal": 1.0,
+      "contradiction": 0.9,
+      "multihop": 1.0,
+      "importance": 0.5,
+      "cross_type": 1.0
+    },
+    "failed_cases": [
+      {
+        "case": "both_claims_active_is_contradiction",
+        "category": "contradiction",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "high_importance_ranks_above_low",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "top_k_sorted_by_importance",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "access_count_boosted_retrieval",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recently_accessed_surfaces",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recency_breaks_importance_tie",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      }
+    ]
+  },
+  {
+    "track": "track1",
+    "backend": "engram-chroma-adapter",
+    "run_at": "2026-05-10T10:06:11.556811+00:00",
+    "overall_score": 0.88,
+    "hallucination_risk": "low",
+    "pass_rate": 0.88,
+    "total_cases": 50,
+    "passed_cases": 44,
+    "by_category": {
+      "temporal": 1.0,
+      "contradiction": 0.9,
+      "multihop": 1.0,
+      "importance": 0.5,
+      "cross_type": 1.0
+    },
+    "failed_cases": [
+      {
+        "case": "both_claims_active_is_contradiction",
+        "category": "contradiction",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "high_importance_ranks_above_low",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "top_k_sorted_by_importance",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "access_count_boosted_retrieval",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recently_accessed_surfaces",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recency_breaks_importance_tie",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      }
+    ]
+  },
+  {
+    "track": "track1",
+    "backend": "engram-pgvector-adapter",
+    "run_at": "2026-05-10T10:06:11.874594+00:00",
+    "overall_score": 0.88,
+    "hallucination_risk": "low",
+    "pass_rate": 0.88,
+    "total_cases": 50,
+    "passed_cases": 44,
+    "by_category": {
+      "temporal": 1.0,
+      "contradiction": 0.9,
+      "multihop": 1.0,
+      "importance": 0.5,
+      "cross_type": 1.0
+    },
+    "failed_cases": [
+      {
+        "case": "both_claims_active_is_contradiction",
+        "category": "contradiction",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "high_importance_ranks_above_low",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "top_k_sorted_by_importance",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "access_count_boosted_retrieval",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recently_accessed_surfaces",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recency_breaks_importance_tie",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      }
+    ]
+  },
+  {
+    "track": "track1",
+    "backend": "naive-qdrant",
+    "run_at": "2026-05-10T10:06:11.987628+00:00",
+    "overall_score": 0.4207,
+    "hallucination_risk": "critical",
+    "pass_rate": 0.4,
+    "total_cases": 50,
+    "passed_cases": 20,
+    "by_category": {
+      "temporal": 0.05,
+      "contradiction": 0.5,
+      "multihop": 1.0,
+      "importance": 0.22,
+      "cross_type": 0.3333
+    },
+    "failed_cases": [
+      {
+        "case": "newer_version_active",
+        "category": "temporal",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "superseded_excluded_from_active",
+        "category": "temporal",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "three_versions_only_latest_active",
+        "category": "temporal",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "supersedes_link_recorded",
+        "category": "temporal",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "superseded_by_link_recorded",
+        "category": "temporal",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "importance_field_roundtrips",
+        "category": "temporal",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "expiration_detectable",
+        "category": "temporal",
+        "score": 0.5,
+        "error": null
+      },
+      {
+        "case": "access_tracking_persists",
+        "category": "temporal",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "provenance_roundtrips",
+        "category": "temporal",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "updated_at_preserved_on_roundtrip",
+        "category": "temporal",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "both_claims_active_is_contradiction",
+        "category": "contradiction",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "resolved_contradiction_has_one_active",
+        "category": "contradiction",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "three_claims_one_active",
+        "category": "contradiction",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "supersession_links_intact",
+        "category": "contradiction",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "resolution_reduces_active_count",
+        "category": "contradiction",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "importance_roundtrip",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "importance_update_persists",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "multiple_importance_levels_all_preserved",
+        "category": "importance",
+        "score": 0.2,
+        "error": null
+      },
+      {
+        "case": "high_importance_ranks_above_low",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "top_k_sorted_by_importance",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "access_count_boosted_retrieval",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recently_accessed_surfaces",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "recency_breaks_importance_tie",
+        "category": "importance",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "active_and_superseded_count_correct",
+        "category": "cross_type",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "all_four_statuses_storable",
+        "category": "cross_type",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "provenance_and_supersession_combined",
+        "category": "cross_type",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "expiry_and_importance_both_preserved",
+        "category": "cross_type",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "supersession_chain_with_provenance",
+        "category": "cross_type",
+        "score": 0.0,
+        "error": null
+      },
+      {
+        "case": "touch_only_changes_access_fields",
+        "category": "cross_type",
+        "score": 0.3333333333333333,
+        "error": null
+      },
+      {
+        "case": "all_optional_fields_roundtrip",
+        "category": "cross_type",
+        "score": 0.0,
+        "error": null
+      }
+    ]
+  }
+]

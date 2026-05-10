@@ -319,7 +319,7 @@ class ChromaAdapter(AbstractAdapter):
         output: list[SearchResult] = []
         rank = 1
         for emb, distance, meta in zip(raw_embeddings, distances, metadatas, strict=True):
-            score = max(0.0, 1.0 - distance)
+            score = max(0.0, min(1.0, 1.0 - distance))
             if score_threshold is not None and score < score_threshold:
                 continue
             if filters:

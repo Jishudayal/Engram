@@ -22,11 +22,9 @@ from uuid import uuid4
 
 from engram.core.constants import MemoryStatus
 from engram.core.models import Memory, SearchResult
-
 from memoryeval.benchmark._embeddings import cosine, vec
 from memoryeval.case import TestCase
 from memoryeval.types import BenchmarkCategory
-
 
 # ---------------------------------------------------------------------------
 # C1 — Both conflicting claims ACTIVE is a contradiction (bad baseline)

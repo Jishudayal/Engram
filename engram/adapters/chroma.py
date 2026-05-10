@@ -313,7 +313,7 @@ class ChromaAdapter(AbstractAdapter):
         # Chroma stubs type distances/embeddings as list[...] | None; we know
         # they are present because we requested them and have non-empty ids.
         distances = result["distances"][0]  # type: ignore[index]
-        raw_embeddings = result["embeddings"][0] if result["embeddings"] is not None else [None] * len(ids)  # type: ignore[index]
+        raw_embeddings = result["embeddings"][0] if result["embeddings"] is not None else [None] * len(ids)
         metadatas = result["metadatas"][0]  # type: ignore[index]
 
         output: list[SearchResult] = []

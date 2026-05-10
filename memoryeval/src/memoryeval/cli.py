@@ -26,7 +26,6 @@ from memoryeval.report import ReportRenderer
 from memoryeval.scorer import BenchmarkScorer
 from memoryeval.types import BenchmarkCategory, BenchmarkReport, CaseResult
 
-
 # ---------------------------------------------------------------------------
 # Adapter factory
 # ---------------------------------------------------------------------------
@@ -71,6 +70,7 @@ def _build_adapter(cfg: MemoryEvalConfig) -> Any:
     if name == "chroma":
         try:
             import chromadb
+
             from engram.adapters.chroma import ChromaAdapter
         except ImportError as exc:
             raise click.UsageError(

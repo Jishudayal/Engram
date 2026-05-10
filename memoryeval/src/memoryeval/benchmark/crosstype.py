@@ -19,11 +19,9 @@ from uuid import uuid4
 
 from engram.core.constants import MemoryStatus, MemoryType, SourceType
 from engram.core.models import Memory, ProvenanceRecord, SearchResult
-
 from memoryeval.benchmark._embeddings import vec
 from memoryeval.case import TestCase
 from memoryeval.types import BenchmarkCategory
-
 
 # ---------------------------------------------------------------------------
 # X1 — After supersession, status counts are exactly correct

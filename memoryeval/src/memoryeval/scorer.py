@@ -103,7 +103,7 @@ class BenchmarkScorer:
             await asyncio.wait_for(
                 case.setup(self._adapter), timeout=self._case_timeout
             )
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return CaseResult.from_case(
                 case, error=f"setup: timed out after {self._case_timeout}s"
             )
@@ -116,7 +116,7 @@ class BenchmarkScorer:
             )
             score = case.score(raw)
             return CaseResult.from_case(case, score=score)
-        except asyncio.TimeoutError:
+        except TimeoutError:
             return CaseResult.from_case(
                 case, error=f"run: timed out after {self._case_timeout}s"
             )
@@ -127,7 +127,7 @@ class BenchmarkScorer:
                 await asyncio.wait_for(
                     case.teardown(self._adapter), timeout=self._case_timeout
                 )
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 logger.warning(
                     "teardown timed out for case %s after %.1fs",
                     case.name, self._case_timeout,

@@ -26,11 +26,9 @@ from uuid import uuid4
 
 from engram.core.constants import MemoryStatus
 from engram.core.models import Memory, SearchResult
-
 from memoryeval.benchmark._embeddings import vec
 from memoryeval.case import TestCase
 from memoryeval.types import BenchmarkCategory
-
 
 # ---------------------------------------------------------------------------
 # M1 — All same-topic memories are co-retrievable in a single search

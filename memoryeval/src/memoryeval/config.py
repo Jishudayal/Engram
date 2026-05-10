@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 
 from memoryeval.types import BenchmarkCategory
 
-
 __all__ = ["BackendConfig", "MemoryEvalConfig"]
 
 

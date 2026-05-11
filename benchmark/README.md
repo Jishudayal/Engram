@@ -39,7 +39,7 @@ docker run -d --name engram-qdrant-mem0 -p 6333:6333 qdrant/qdrant
 # Smoke test — confirms Mem0 is wired correctly before running Track 2
 OPENAI_API_KEY=sk-... python benchmark/smoke_mem0.py
 
-# Run Track 2 — all 5 scenarios across 4 systems
+# Run Track 2 — all 7 scenarios across 4 systems
 OPENAI_API_KEY=sk-... python benchmark/run_track2.py
 ```
 
@@ -63,6 +63,33 @@ OPENAI_API_KEY=sk-... python benchmark/run_track2.py
 | B3 — Temporal chain | Three versions of the same fact; only the latest is recommended |
 | B4 — False positive guard | Two non-contradictory sub-policies; both should be recommended |
 | B5 — Temporal language | Rescheduled event; only the new schedule should surface |
+| B6 — Explicit temporal language | Varied phrasing with explicit month markers; tests detection across lexically different sentences |
+| B7 — Metadata timestamp | Current fact stored first, stale fact stored second with older `created_at`; tests whether structured timestamps override insertion order |
+
+### Results (2026-05-11)
+
+Scoring dimensions: **correctness** (right answer returned, weight 0.4) · **signal** (stale content flagged or suppressed, weight 0.4) · **preservation** (no false deletions, weight 0.2).
+
+| System | Overall | Correctness | Signal | Preservation | Risk |
+|---|---|---|---|---|---|
+| `engram-detect` | **0.9429** | 1.00 | 0.86 | 1.00 | LOW |
+| `engram-consolidated` | **0.9429** | 1.00 | 0.86 | 1.00 | LOW |
+| `mem0` | 0.7714 | 1.00 | 0.43 | 1.00 | MEDIUM |
+| `naive-qdrant` | 0.7143 | 1.00 | 0.29 | 1.00 | MEDIUM |
+
+Per-scenario composite scores:
+
+| Scenario | engram-detect | engram-consolidated | mem0 | naive-qdrant |
+|---|---|---|---|---|
+| B1 — Direct contradiction | 1.00 | 1.00 | 0.60 | 0.60 |
+| B2 — Retention | 1.00 | 1.00 | 1.00 | 1.00 |
+| B3 — Temporal chain | 1.00 | 1.00 | 0.60 | 0.60 |
+| B4 — False positive guard | 1.00 | 1.00 | 1.00 | 1.00 |
+| B5 — Temporal language | 1.00 | 1.00 | 1.00 | 0.60 |
+| B6 — Explicit temporal language | 0.60 | 0.60 | 0.60 | 0.60 |
+| B7 — Metadata timestamp | 1.00 | 1.00 | 0.60 | 0.60 |
+
+**B6 note:** All four systems score 0.60 on B6. The two sentences in this scenario are phrased differently enough that their cosine similarity falls below Engram's 0.82 cluster threshold, so the LLM classifier is never invoked and no conflict is recorded. This is a known architectural trade-off: conflict detection requires sufficient semantic overlap at the embedding level before the more expensive LLM step is triggered. Varied real-world phrasing that expresses the same underlying fact can fall below this threshold.
 
 **Dependencies (benchmark-only, not in pyproject.toml extras):**
 

@@ -5,8 +5,9 @@ Step 6.1 — Consolidator.plan(): LLM-driven action planning over PENDING Confli
 The consolidation pipeline has two phases:
 
   Phase 1 (plan — this file): For each PENDING ConflictRecord, decide what to do:
-    - TEMPORAL_SUPERSESSION → SUPERSEDE heuristically; the older memory loses.
-      No LLM call: the ContradictionDetector already classified this with confidence.
+    - TEMPORAL_SUPERSESSION → pairwise SUPERSEDE for 2-memory components (older loses);
+      3+ memories connected by temporal conflicts → CHAIN_SUPERSEDE with the newest
+      memory as keeper. No LLM call: created_at ordering is a structural fact.
     - DIRECT_CONTRADICTION / PARTIAL_CONFLICT → LLM prompt returns action + confidence.
       "merge"  — synthesise both memories into a single reconciled fact.
       "flag"   — keep both; surface for human review (use when ambiguous).
@@ -197,9 +198,13 @@ class Consolidator:
         Flow:
           1. Fetch all PENDING ConflictRecords.
           2. Bulk-fetch the involved memories via adapter.fetch_batch().
-          3. Route each conflict: heuristic for TEMPORAL_SUPERSESSION, LLM for
-             DIRECT_CONTRADICTION / PARTIAL_CONFLICT.
-          4. Collect actionable ConsolidationActions and wrap in a ConsolidationPlan.
+          3. Separate TEMPORAL_SUPERSESSION conflicts from all others.
+          4. Run chain detection on temporal conflicts: connected components with
+             3+ memories produce one CHAIN_SUPERSEDE action each (no LLM call);
+             2-member components fall through to the standard pairwise path.
+          5. Route remaining conflicts: heuristic SUPERSEDE for solo temporal pairs,
+             LLM (merge or flag) for DIRECT_CONTRADICTION / PARTIAL_CONFLICT.
+          6. Collect all actions and wrap in a ConsolidationPlan.
 
         Returns None when there are no PENDING conflicts or no actionable actions
         (i.e., all conflicts were skipped due to missing memories or unknown verdicts).
@@ -217,6 +222,33 @@ class Consolidator:
         # Bulk-fetch all memories referenced by the conflict records.
         all_memory_ids = list({mid for c in pending for mid in (c.memory_a_id, c.memory_b_id)})
         memory_index = await adapter.fetch_batch(agent_id, all_memory_ids)
+
+        # Separate temporal conflicts for chain detection.
+        temporal_conflicts = [
+            c for c in pending if c.conflict_type == ConflictType.TEMPORAL_SUPERSESSION
+        ]
+        other_conflicts = [
+            c for c in pending if c.conflict_type != ConflictType.TEMPORAL_SUPERSESSION
+        ]
+
+        # Chain detection: 3+ member clusters → CHAIN_SUPERSEDE; solo pairs fall through.
+        chain_clusters, solo_temporal_conflicts = self._group_into_chains(
+            temporal_conflicts, memory_index
+        )
+        chain_actions = [
+            self._chain_supersession_action(cluster, memory_index, agent_id)
+            for cluster in chain_clusters
+        ]
+        if chain_clusters:
+            logger.info(
+                "plan: agent=%s detected %d chain cluster(s) covering %d memories",
+                agent_id,
+                len(chain_clusters),
+                sum(len(c) for c in chain_clusters),
+            )
+
+        # Process solo temporal pairs and all non-temporal conflicts individually.
+        individually_planned = solo_temporal_conflicts + other_conflicts
 
         sem = asyncio.Semaphore(self._max_concurrency)
 
@@ -237,12 +269,12 @@ class Consolidator:
             return await self._classify_conflict(conflict, mem_a, mem_b, agent_id, sem)
 
         raw_results = await asyncio.gather(
-            *[_plan_one(c) for c in pending],
+            *[_plan_one(c) for c in individually_planned],
             return_exceptions=True,
         )
 
-        actions: list[ConsolidationAction] = []
-        for conflict, outcome in zip(pending, raw_results, strict=True):
+        actions: list[ConsolidationAction] = list(chain_actions)
+        for conflict, outcome in zip(individually_planned, raw_results, strict=True):
             if isinstance(outcome, BaseException):
                 logger.warning(
                     "plan: classification failed for conflict %s: %s",
@@ -280,6 +312,123 @@ class Consolidator:
     # ------------------------------------------------------------------
     # Internal — routing
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _group_into_chains(
+        temporal_conflicts: list[ConflictRecord],
+        memory_index: dict[str, Memory],
+    ) -> tuple[list[frozenset[str]], list[ConflictRecord]]:
+        """Partition TEMPORAL_SUPERSESSION conflicts into chains and solo pairs.
+
+        Builds an adjacency graph from the conflict pairs and finds connected
+        components via BFS. Components with 3+ memories are chains; components
+        with exactly 2 memories fall back to the standard pairwise SUPERSEDE path.
+
+        Args:
+            temporal_conflicts: All TEMPORAL_SUPERSESSION ConflictRecords to partition.
+            memory_index:       Memory lookup used to skip conflicts whose memories
+                                are absent from the adapter (same guard as plan()).
+
+        Returns:
+            chain_clusters:   List of frozensets (3+ memory IDs each). Each cluster
+                              will produce one CHAIN_SUPERSEDE action.
+            solo_conflicts:   ConflictRecords for pairs not absorbed into a chain.
+                              Processed by the existing per-conflict routing logic.
+        """
+        from collections import defaultdict, deque
+
+        # Log and drop conflicts where either memory is absent. These would be
+        # silently skipped once plan() stops routing temporal conflicts through
+        # _plan_one(), so we preserve observability here.
+        valid = []
+        for c in temporal_conflicts:
+            a_present = c.memory_a_id in memory_index
+            b_present = c.memory_b_id in memory_index
+            if a_present and b_present:
+                valid.append(c)
+            else:
+                logger.warning(
+                    "_group_into_chains: skipping conflict %s — memory not found "
+                    "(a=%s present=%s, b=%s present=%s)",
+                    c.conflict_id,
+                    c.memory_a_id,
+                    a_present,
+                    c.memory_b_id,
+                    b_present,
+                )
+
+        # Build undirected adjacency: memory_id → set of neighbor memory_ids.
+        adj: dict[str, set[str]] = defaultdict(set)
+        for conflict in valid:
+            adj[conflict.memory_a_id].add(conflict.memory_b_id)
+            adj[conflict.memory_b_id].add(conflict.memory_a_id)
+
+        # BFS to find connected components.
+        visited: set[str] = set()
+        components: list[frozenset[str]] = []
+        for start in adj:
+            if start in visited:
+                continue
+            component: set[str] = set()
+            queue: deque[str] = deque([start])
+            while queue:
+                node = queue.popleft()
+                if node in visited:
+                    continue
+                visited.add(node)
+                component.add(node)
+                for neighbor in adj[node]:
+                    if neighbor not in visited:
+                        queue.append(neighbor)
+            components.append(frozenset(component))
+
+        # Split: 3+ member components become chains; 2-member components are solo pairs.
+        chain_clusters = [c for c in components if len(c) >= 3]
+        solo_pairs: set[frozenset[str]] = {c for c in components if len(c) == 2}
+
+        # Deduplicate solo conflicts by unordered pair — the detector prevents
+        # duplicates in practice, but guard against stale duplicate PENDING records.
+        seen_pairs: set[frozenset[str]] = set()
+        solo_conflicts: list[ConflictRecord] = []
+        for c in valid:
+            pair = frozenset({c.memory_a_id, c.memory_b_id})
+            if pair in solo_pairs and pair not in seen_pairs:
+                solo_conflicts.append(c)
+                seen_pairs.add(pair)
+
+        return chain_clusters, solo_conflicts
+
+    def _chain_supersession_action(
+        self,
+        cluster: frozenset[str],
+        memory_index: dict[str, Memory],
+        agent_id: str,
+    ) -> ConsolidationAction:
+        """Build a CHAIN_SUPERSEDE action for a 3+ member temporal supersession cluster.
+
+        The keeper is the memory with the latest created_at. Ties are broken
+        deterministically by memory_id (descending lexicographic order) so that
+        bulk-ingested memories with identical timestamps always resolve to the
+        same keeper regardless of iteration order.
+
+        source_memory_ids convention: (*sorted_stale_ids, keeper_id) — keeper is last.
+        The executor uses this convention to unpack stale members and the keeper.
+
+        Tier is always AUTO_MERGE and confidence 1.0: created_at ordering is a
+        structural fact, not an LLM estimate, so no human review is needed.
+        """
+        keeper_id = max(cluster, key=lambda mid: (memory_index[mid].created_at, mid))
+        stale_ids = sorted(mid for mid in cluster if mid != keeper_id)
+        n_stale = len(stale_ids)
+
+        return ConsolidationAction(
+            agent_id=agent_id,
+            action_type=ActionType.CHAIN_SUPERSEDE,
+            tier=ConsolidationTier.AUTO_MERGE,
+            confidence=1.0,
+            source_memory_ids=(*stale_ids, keeper_id),
+            reasoning=f"{len(cluster)}-version chain: {n_stale} stale {'memory' if n_stale == 1 else 'memories'} superseded by newest.",
+        )
 
     async def _classify_conflict(
         self,
@@ -436,19 +585,24 @@ class Consolidator:
         """Apply every action in a ConsolidationPlan against the adapter.
 
         For each ConsolidationAction:
-          SUPERSEDE — archive the older memory (status=SUPERSEDED, superseded_by=keeper),
-                      resolve the ConflictRecord (AUTO_RESOLVED).
-          MERGE     — store a new merged Memory (text from action.reasoning), archive both
-                      sources (status=ARCHIVED, superseded_by=merged_id), resolve the
-                      ConflictRecord (AUTO_RESOLVED).
-          FLAG      — update the ConflictRecord's resolution_notes and keep it PENDING
-                      so a human can act; no memory is modified.
-          ARCHIVE   — archive each memory in source_memory_ids; no conflict to resolve.
+          SUPERSEDE        — archive the older memory (status=SUPERSEDED,
+                             superseded_by=keeper), resolve the ConflictRecord.
+          CHAIN_SUPERSEDE  — archive all stale members of a temporal chain pointing
+                             to the single keeper; resolve all pairwise ConflictRecords
+                             within the cluster in one pass.
+          MERGE            — store a new merged Memory (text from action.reasoning),
+                             archive both sources (status=ARCHIVED, superseded_by=merged_id),
+                             resolve the ConflictRecord (AUTO_RESOLVED).
+          FLAG             — update the ConflictRecord's resolution_notes and keep it
+                             PENDING so a human can act; no memory is modified.
+          ARCHIVE          — archive each memory in source_memory_ids; no conflict
+                             to resolve.
 
         Preflight validation runs before any writes (skipped for dry runs):
           - All source memories must exist in the adapter.
-          - Every non-ARCHIVE action must have a corresponding PENDING ConflictRecord.
-            If the conflict was resolved between plan() and execute() (stale plan),
+          - Every non-ARCHIVE pairwise action must have a corresponding PENDING
+            ConflictRecord. CHAIN_SUPERSEDE must still have at least one PENDING
+            conflict inside its cluster. If either check fails (stale plan),
             NotFoundError is raised before any writes occur.
 
         When plan.is_dry_run is True, all adapter writes are skipped; actions are still
@@ -502,8 +656,20 @@ class Consolidator:
             frozenset({c.memory_a_id, c.memory_b_id}): c for c in pending
         }
 
+        # ARCHIVE has no associated ConflictRecord — skip entirely.
+        # CHAIN_SUPERSEDE uses N-member source_memory_ids, so frozenset(source_memory_ids)
+        # is not a valid 2-member conflict key. Instead, verify at least one PENDING pair
+        # still exists within the cluster to guard against stale plans.
         for action in plan.actions:
             if action.action_type == ActionType.ARCHIVE:
+                continue
+            if action.action_type == ActionType.CHAIN_SUPERSEDE:
+                cluster_ids = frozenset(action.source_memory_ids)
+                if not any(key <= cluster_ids for key in conflict_lookup):
+                    raise NotFoundError(
+                        f"Preflight failed: no PENDING conflicts remain for chain "
+                        f"{tuple(sorted(cluster_ids))}. Replanning required."
+                    )
                 continue
             key = frozenset(action.source_memory_ids)
             if key not in conflict_lookup:
@@ -542,6 +708,8 @@ class Consolidator:
 
         if action.action_type == ActionType.SUPERSEDE:
             await self._execute_supersede(action, adapter, conflict, memory_map)
+        elif action.action_type == ActionType.CHAIN_SUPERSEDE:
+            await self._execute_chain_supersede(action, adapter, conflict_lookup, memory_map)
         elif action.action_type == ActionType.MERGE:
             await self._execute_merge(action, adapter, conflict, memory_map)
         elif action.action_type == ActionType.FLAG:
@@ -669,6 +837,77 @@ class Consolidator:
         conflict.resolution_notes = action.reasoning or "Flagged for human review."
         await adapter.update_conflict(conflict)
         action.mark_executed(action.source_memory_ids[0])
+
+    async def _execute_chain_supersede(
+        self,
+        action: ConsolidationAction,
+        adapter: AbstractAdapter,
+        conflict_lookup: dict[frozenset[str], ConflictRecord],
+        memory_map: dict[str, Memory],
+    ) -> None:
+        """Archive all stale members of a temporal chain, update the keeper, and
+        resolve every pairwise ConflictRecord within the cluster.
+
+        source_memory_ids convention (set by _chain_supersession_action()):
+        (*sorted_stale_ids, keeper_id) — keeper is always the last element.
+
+        Each stale memory gets status=SUPERSEDED and superseded_by=keeper_id.
+        The keeper's supersedes list gains all stale IDs, and it inherits the
+        max importance across the whole cluster (mirrors _execute_supersede logic).
+
+        All pairwise ConflictRecords in conflict_lookup whose both endpoints are
+        cluster members (key ⊆ all_ids) are resolved in one pass regardless of
+        whether every pairwise conflict was originally detected. This handles both
+        fully-connected triangle clusters and linear chains where intermediate pairs
+        were below the cluster threshold.
+
+        Preflight guarantees all source memories exist in memory_map.
+        """
+        *stale_ids, keeper_id = action.source_memory_ids
+        keeper = memory_map[keeper_id]
+        all_ids: frozenset[str] = frozenset(action.source_memory_ids)
+
+        # Compute cluster-wide max importance before mutating any records.
+        max_importance = max(memory_map[mid].importance for mid in all_ids)
+
+        keeper_changed = False
+        for stale_id in stale_ids:
+            stale = memory_map[stale_id]
+            stale.status = MemoryStatus.SUPERSEDED
+            stale.superseded_by = keeper_id
+            await adapter.update(stale)
+            if stale_id not in keeper.supersedes:
+                keeper.supersedes.append(stale_id)
+                keeper_changed = True
+
+        promoted_importance = max(keeper.importance, max_importance)
+        if promoted_importance != keeper.importance:
+            keeper.importance = promoted_importance
+            keeper_changed = True
+
+        if keeper_changed:
+            await adapter.update(keeper)
+
+        # Resolve TEMPORAL_SUPERSESSION conflict records inside the cluster only.
+        # conflict_lookup keys are 2-element frozensets; key <= all_ids means both
+        # endpoints are cluster members. Filtering by conflict_type ensures that
+        # DIRECT_CONTRADICTION or PARTIAL_CONFLICT pairs between cluster members
+        # remain PENDING and are handled by their own separately planned actions.
+        resolved_at = datetime.now(UTC)
+        for key, conflict in conflict_lookup.items():
+            if (
+                key <= all_ids
+                and conflict.conflict_type == ConflictType.TEMPORAL_SUPERSESSION
+            ):
+                resolved = conflict.model_copy(
+                    update={
+                        "resolved_at": resolved_at,
+                        "resolution_status": ResolutionStatus.AUTO_RESOLVED,
+                    }
+                )
+                await adapter.update_conflict(resolved)
+
+        action.mark_executed(keeper_id)
 
     async def _execute_archive(
         self,

@@ -72,6 +72,7 @@ class ActionType(StrEnum):
 
     MERGE = "merge"
     SUPERSEDE = "supersede"
+    CHAIN_SUPERSEDE = "chain_supersede"
     FLAG = "flag"
     ARCHIVE = "archive"
 

@@ -635,8 +635,13 @@ class ConsolidationPlan(BaseModel):
 
     @property
     def would_supersede(self) -> tuple[ConsolidationAction, ...]:
-        """Actions in this plan that supersede memories."""
+        """Actions in this plan that supersede a single memory."""
         return tuple(a for a in self.actions if a.action_type == ActionType.SUPERSEDE)
+
+    @property
+    def would_chain_supersede(self) -> tuple[ConsolidationAction, ...]:
+        """Actions in this plan that supersede a temporal chain (3+ memories)."""
+        return tuple(a for a in self.actions if a.action_type == ActionType.CHAIN_SUPERSEDE)
 
     @property
     def would_flag_for_review(self) -> tuple[ConsolidationAction, ...]:

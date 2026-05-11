@@ -36,6 +36,7 @@ B3 — Three-version chain:         add v1→v2→v3; check only v3 is recommend
 B4 — False positive guard:        add two non-contradictory facts; check no flags.
 B5 — Temporal language (implicit): update a scheduled event; check current version.
 B6 — Temporal language (explicit): date-cued policy update; check current version.
+B7 — Metadata created_at order:   inverted storage order; only created_at reveals truth.
 """
 
 from __future__ import annotations
@@ -402,10 +403,80 @@ async def scenario_b6(systems: list[BehavioralSystem]) -> list[ScenarioResult]:
 
 
 # ---------------------------------------------------------------------------
+# B7 — Metadata created_at ordering (no temporal language in text)
+# Two near-identical facts where only structured created_at reveals which is current.
+# Correctness: newer-by-metadata (60-day) fact is recommended.
+# Signal:      older-by-metadata (90-day) fact is flagged or suppressed.
+# Preservation: newer fact is present in results.
+#
+# Key design: the current fact (60-day) is stored FIRST in code but carries
+# created_at = today. The outdated fact (90-day) is stored SECOND but carries
+# created_at = 30 days ago. Native storage order therefore gives the wrong
+# answer — "90-day" appears newer by insertion time. Only a system that reads
+# structured created_at metadata (Engram via rule 3) gets this right.
+# Systems without timestamp awareness (Naive, Mem0) will likely recommend the
+# 90-day fact because it was stored last.
+# ---------------------------------------------------------------------------
+
+
+async def scenario_b7(systems: list[BehavioralSystem]) -> list[ScenarioResult]:
+    """Token expiry: 60-day (current, created today) vs 90-day (outdated, created 30 days ago)."""
+    from datetime import UTC, datetime, timedelta
+
+    ns = "b7_metadata_timestamp"
+    results = []
+
+    today = datetime.now(UTC)
+    thirty_days_ago = today - timedelta(days=30)
+
+    # Stored first in code — but created_at = today (the current policy).
+    new_fact = "API authentication tokens expire after 60 days of inactivity."
+    # Stored second in code — but created_at = 30 days ago (the outdated policy).
+    old_fact = "API authentication tokens expire after 90 days of inactivity."
+    query = "API token authentication expiry inactivity"
+
+    for sys in systems:
+        await sys.reset(ns)
+        await sys.add_fact(ns, new_fact, created_at=today)
+        await sys.add_fact(ns, old_fact, created_at=thirty_days_ago)
+        await sys.consolidate(ns)
+
+        hits = await sys.search(ns, query)
+        new_hit = _contains(hits, "60 days")
+        old_hit = _contains(hits, "90 days")
+
+        correctness = 1.0 if (new_hit is not None and new_hit.recommended) else 0.0
+        signal = _stale_signal(old_hit)
+        preservation = 1.0 if new_hit is not None else 0.0
+
+        notes = [
+            f"correctness={correctness}  60day_recommended={new_hit is not None and new_hit.recommended}",
+            f"signal={signal}  90day_flag={old_hit.conflict_flag if old_hit else 'absent'}",
+            f"preservation={preservation}",
+            "storage_order=new_first  created_at=new:today  old:30d_ago",
+        ]
+        results.append(
+            ScenarioResult(
+                "B7-metadata-timestamp", sys.name, correctness, signal, preservation, notes
+            )
+        )
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Run all scenarios
 # ---------------------------------------------------------------------------
 
-ALL_SCENARIOS = [scenario_b1, scenario_b2, scenario_b3, scenario_b4, scenario_b5, scenario_b6]
+ALL_SCENARIOS = [
+    scenario_b1,
+    scenario_b2,
+    scenario_b3,
+    scenario_b4,
+    scenario_b5,
+    scenario_b6,
+    scenario_b7,
+]
 
 
 async def run_all(systems: list[BehavioralSystem]) -> list[ScenarioResult]:

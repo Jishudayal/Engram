@@ -2,22 +2,24 @@
   {
     "track": "track2",
     "backend": "mem0",
-    "overall_score": 0.92,
+    "overall_score": 0.7714,
     "correctness_avg": 1.0,
-    "signal_avg": 0.8,
+    "signal_avg": 0.4286,
     "preservation_avg": 1.0,
-    "hallucination_risk": "LOW",
+    "hallucination_risk": "MEDIUM",
     "by_scenario": {
-      "B1-contradiction": 1.0,
+      "B1-contradiction": 0.6,
       "B2-retention": 1.0,
       "B3-temporal-chain": 0.6,
       "B4-false-positive": 1.0,
-      "B5-temporal-language": 1.0
+      "B5-temporal-language": 1.0,
+      "B6-temporal-language-explicit": 0.6,
+      "B7-metadata-timestamp": 0.6
     },
     "by_dimension": {
       "B1-contradiction": {
         "correctness": 1.0,
-        "signal": 1.0,
+        "signal": 0.0,
         "preservation": 1.0
       },
       "B2-retention": {
@@ -39,12 +41,22 @@
         "correctness": 1.0,
         "signal": 1.0,
         "preservation": 1.0
+      },
+      "B6-temporal-language-explicit": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
+      },
+      "B7-metadata-timestamp": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
       }
     },
     "scenario_notes": {
       "B1-contradiction": [
         "correctness=1.0  new_recommended=True",
-        "signal=1.0  old_conflict_flag=absent",
+        "signal=0.0  old_conflict_flag=False",
         "preservation=1.0"
       ],
       "B2-retention": [
@@ -66,15 +78,26 @@
         "correctness=1.0  thursday_recommended=True",
         "signal=1.0  wednesday_flag=absent",
         "preservation=1.0"
+      ],
+      "B6-temporal-language-explicit": [
+        "correctness=1.0  march_recommended=True",
+        "signal=0.0  january_flag=False",
+        "preservation=1.0"
+      ],
+      "B7-metadata-timestamp": [
+        "correctness=1.0  60day_recommended=True",
+        "signal=0.0  90day_flag=False",
+        "preservation=1.0",
+        "storage_order=new_first  created_at=new:today  old:30d_ago"
       ]
     }
   },
   {
     "track": "track2",
     "backend": "naive-qdrant",
-    "overall_score": 0.76,
+    "overall_score": 0.7143,
     "correctness_avg": 1.0,
-    "signal_avg": 0.4,
+    "signal_avg": 0.2857,
     "preservation_avg": 1.0,
     "hallucination_risk": "MEDIUM",
     "by_scenario": {
@@ -82,7 +105,9 @@
       "B2-retention": 1.0,
       "B3-temporal-chain": 0.6,
       "B4-false-positive": 1.0,
-      "B5-temporal-language": 0.6
+      "B5-temporal-language": 0.6,
+      "B6-temporal-language-explicit": 0.6,
+      "B7-metadata-timestamp": 0.6
     },
     "by_dimension": {
       "B1-contradiction": {
@@ -106,6 +131,16 @@
         "preservation": 1.0
       },
       "B5-temporal-language": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
+      },
+      "B6-temporal-language-explicit": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
+      },
+      "B7-metadata-timestamp": {
         "correctness": 1.0,
         "signal": 0.0,
         "preservation": 1.0
@@ -136,15 +171,26 @@
         "correctness=1.0  thursday_recommended=True",
         "signal=0.0  wednesday_flag=False",
         "preservation=1.0"
+      ],
+      "B6-temporal-language-explicit": [
+        "correctness=1.0  march_recommended=True",
+        "signal=0.0  january_flag=False",
+        "preservation=1.0"
+      ],
+      "B7-metadata-timestamp": [
+        "correctness=1.0  60day_recommended=True",
+        "signal=0.0  90day_flag=False",
+        "preservation=1.0",
+        "storage_order=new_first  created_at=new:today  old:30d_ago"
       ]
     }
   },
   {
     "track": "track2",
     "backend": "engram-detect",
-    "overall_score": 1.0,
+    "overall_score": 0.9429,
     "correctness_avg": 1.0,
-    "signal_avg": 1.0,
+    "signal_avg": 0.8571,
     "preservation_avg": 1.0,
     "hallucination_risk": "LOW",
     "by_scenario": {
@@ -152,7 +198,9 @@
       "B2-retention": 1.0,
       "B3-temporal-chain": 1.0,
       "B4-false-positive": 1.0,
-      "B5-temporal-language": 1.0
+      "B5-temporal-language": 1.0,
+      "B6-temporal-language-explicit": 0.6,
+      "B7-metadata-timestamp": 1.0
     },
     "by_dimension": {
       "B1-contradiction": {
@@ -176,6 +224,16 @@
         "preservation": 1.0
       },
       "B5-temporal-language": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B6-temporal-language-explicit": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
+      },
+      "B7-metadata-timestamp": {
         "correctness": 1.0,
         "signal": 1.0,
         "preservation": 1.0
@@ -206,15 +264,26 @@
         "correctness=1.0  thursday_recommended=True",
         "signal=1.0  wednesday_flag=True",
         "preservation=1.0"
+      ],
+      "B6-temporal-language-explicit": [
+        "correctness=1.0  march_recommended=True",
+        "signal=0.0  january_flag=False",
+        "preservation=1.0"
+      ],
+      "B7-metadata-timestamp": [
+        "correctness=1.0  60day_recommended=True",
+        "signal=1.0  90day_flag=True",
+        "preservation=1.0",
+        "storage_order=new_first  created_at=new:today  old:30d_ago"
       ]
     }
   },
   {
     "track": "track2",
     "backend": "engram-consolidated",
-    "overall_score": 1.0,
+    "overall_score": 0.9429,
     "correctness_avg": 1.0,
-    "signal_avg": 1.0,
+    "signal_avg": 0.8571,
     "preservation_avg": 1.0,
     "hallucination_risk": "LOW",
     "by_scenario": {
@@ -222,7 +291,9 @@
       "B2-retention": 1.0,
       "B3-temporal-chain": 1.0,
       "B4-false-positive": 1.0,
-      "B5-temporal-language": 1.0
+      "B5-temporal-language": 1.0,
+      "B6-temporal-language-explicit": 0.6,
+      "B7-metadata-timestamp": 1.0
     },
     "by_dimension": {
       "B1-contradiction": {
@@ -246,6 +317,16 @@
         "preservation": 1.0
       },
       "B5-temporal-language": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B6-temporal-language-explicit": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
+      },
+      "B7-metadata-timestamp": {
         "correctness": 1.0,
         "signal": 1.0,
         "preservation": 1.0
@@ -276,6 +357,17 @@
         "correctness=1.0  thursday_recommended=True",
         "signal=1.0  wednesday_flag=True",
         "preservation=1.0"
+      ],
+      "B6-temporal-language-explicit": [
+        "correctness=1.0  march_recommended=True",
+        "signal=0.0  january_flag=False",
+        "preservation=1.0"
+      ],
+      "B7-metadata-timestamp": [
+        "correctness=1.0  60day_recommended=True",
+        "signal=1.0  90day_flag=True",
+        "preservation=1.0",
+        "storage_order=new_first  created_at=new:today  old:30d_ago"
       ]
     }
   }

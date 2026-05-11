@@ -674,6 +674,160 @@ class TestEngramSearchEnrichment:
         assert mem_b.memory_id in by_id[mem_a.memory_id].conflicts_with
         assert mem_a.memory_id in by_id[mem_b.memory_id].conflicts_with
 
+    async def test_temporal_supersession_prefers_newer_created_at(self) -> None:
+        from datetime import UTC, datetime
+
+        from engram.core.models import ConflictRecord
+
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter, detector=_make_detector([]))
+
+        mem_old = make_memory(
+            embedding=[1.0, 0.01],
+            text="SLA 99.5%",
+            created_at=datetime(2026, 1, 1, tzinfo=UTC),
+        )
+        mem_new = make_memory(
+            embedding=[0.99, 0.02],
+            text="SLA 99.9%",
+            created_at=datetime(2026, 3, 1, tzinfo=UTC),
+        )
+        await adapter.store(mem_old)
+        await adapter.store(mem_new)
+        await adapter.store_conflict(
+            ConflictRecord(
+                agent_id="agent-1",
+                memory_a_id=mem_old.memory_id,
+                memory_b_id=mem_new.memory_id,
+                conflict_type=ConflictType.TEMPORAL_SUPERSESSION,
+                confidence=0.95,
+            )
+        )
+
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=2)
+        by_id = {r.memory.memory_id: r for r in results}
+        # mem_old has better cosine but older created_at — rule 3 should demote it
+        assert by_id[mem_new.memory_id].recommended is True
+        assert by_id[mem_old.memory_id].recommended is False
+
+    async def test_status_filter_removes_superseded_memory(self) -> None:
+        from engram.core.models import ConflictRecord
+
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter, detector=_make_detector([]))
+
+        mem_active = make_memory(embedding=[1.0, 0.01], text="new policy")
+        mem_superseded = make_memory(
+            embedding=[0.99, 0.02], text="old policy", status=MemoryStatus.SUPERSEDED
+        )
+        await adapter.store(mem_active)
+        await adapter.store(mem_superseded)
+        await adapter.store_conflict(
+            ConflictRecord(
+                agent_id="agent-1",
+                memory_a_id=mem_superseded.memory_id,
+                memory_b_id=mem_active.memory_id,
+                conflict_type=ConflictType.DIRECT_CONTRADICTION,
+                confidence=0.95,
+            )
+        )
+
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=2)
+        result_ids = {r.memory.memory_id for r in results}
+        assert mem_superseded.memory_id not in result_ids
+        assert mem_active.memory_id in result_ids
+
+    async def test_superseded_by_link_demotes_memory(self) -> None:
+        from engram.core.models import ConflictRecord
+
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter, detector=_make_detector([]))
+
+        mem_b = make_memory(embedding=[0.99, 0.02], text="new policy")
+        # mem_a has better cosine (rank 1) but superseded_by link → rule 2 should demote it
+        mem_a = make_memory(embedding=[1.0, 0.01], text="old policy", superseded_by=mem_b.memory_id)
+        await adapter.store(mem_a)
+        await adapter.store(mem_b)
+        await adapter.store_conflict(
+            ConflictRecord(
+                agent_id="agent-1",
+                memory_a_id=mem_a.memory_id,
+                memory_b_id=mem_b.memory_id,
+                conflict_type=ConflictType.DIRECT_CONTRADICTION,
+                confidence=0.90,
+            )
+        )
+
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=2)
+        by_id = {r.memory.memory_id: r for r in results}
+        assert by_id[mem_a.memory_id].recommended is False
+        assert by_id[mem_b.memory_id].recommended is True
+
+    async def test_direct_contradiction_falls_back_to_rank(self) -> None:
+        from datetime import UTC, datetime
+
+        from engram.core.models import ConflictRecord
+
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter, detector=_make_detector([]))
+
+        # Same timestamp, no superseded_by — rule 4 (rank fallback) decides
+        ts = datetime(2026, 1, 1, tzinfo=UTC)
+        mem_a = make_memory(embedding=[1.0, 0.01], text="rate 100", created_at=ts)
+        mem_b = make_memory(embedding=[0.90, 0.05], text="rate 500", created_at=ts)
+        await adapter.store(mem_a)
+        await adapter.store(mem_b)
+        await adapter.store_conflict(
+            ConflictRecord(
+                agent_id="agent-1",
+                memory_a_id=mem_a.memory_id,
+                memory_b_id=mem_b.memory_id,
+                conflict_type=ConflictType.DIRECT_CONTRADICTION,
+                confidence=0.90,
+            )
+        )
+
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=2)
+        by_id = {r.memory.memory_id: r for r in results}
+        assert by_id[mem_a.memory_id].recommended is True
+        assert by_id[mem_b.memory_id].recommended is False
+
+    async def test_three_version_chain_newest_recommended(self) -> None:
+        from datetime import UTC, datetime
+
+        from engram.core.models import ConflictRecord
+
+        adapter = InMemoryAdapter()
+        eng = Engram(adapter, detector=_make_detector([]))
+
+        t1 = datetime(2026, 1, 1, tzinfo=UTC)
+        t2 = datetime(2026, 2, 1, tzinfo=UTC)
+        t3 = datetime(2026, 3, 1, tzinfo=UTC)
+        # v1 has best cosine but oldest created_at; v3 has worst cosine but newest
+        v1 = make_memory(embedding=[1.0, 0.01], text="SLA 99.5%", created_at=t1)
+        v2 = make_memory(embedding=[0.99, 0.02], text="SLA 99.9%", created_at=t2)
+        v3 = make_memory(embedding=[0.98, 0.03], text="SLA 99.7%", created_at=t3)
+        await adapter.store(v1)
+        await adapter.store(v2)
+        await adapter.store(v3)
+
+        for older, newer in [(v1, v2), (v2, v3), (v1, v3)]:
+            await adapter.store_conflict(
+                ConflictRecord(
+                    agent_id="agent-1",
+                    memory_a_id=older.memory_id,
+                    memory_b_id=newer.memory_id,
+                    conflict_type=ConflictType.TEMPORAL_SUPERSESSION,
+                    confidence=0.95,
+                )
+            )
+
+        results = await eng.search("agent-1", [1.0, 0.01], top_k=3)
+        by_id = {r.memory.memory_id: r for r in results}
+        assert by_id[v3.memory_id].recommended is True
+        assert by_id[v2.memory_id].recommended is False
+        assert by_id[v1.memory_id].recommended is False
+
 
 class TestEngramScanContradictions:
     async def test_without_detector_raises_value_error(self) -> None:

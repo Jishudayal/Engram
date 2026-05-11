@@ -55,6 +55,13 @@ __all__ = ["Engram"]
 
 logger = logging.getLogger(__name__)
 
+# Statuses that are eligible to surface in search results.
+# SUPERSEDED and ARCHIVED memories have been retired by consolidation and must
+# not be returned, even if they are still physically present in the vector index.
+_STATUS_SEARCHABLE: frozenset[MemoryStatus] = frozenset(
+    {MemoryStatus.ACTIVE, MemoryStatus.FLAGGED, MemoryStatus.PENDING_REVIEW}
+)
+
 # Number of candidate memories to fetch during store-time detection.
 # +1 to account for the self-match: the just-stored memory will appear as the top
 # result (cosine=1.0) and is filtered out below, so 21 yields up to 20 true candidates.
@@ -435,6 +442,60 @@ class Engram:
     # Internal — search-time enrichment
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _prefer_in_conflict(
+        result_a: SearchResult,
+        result_b: SearchResult,
+        conflict: ConflictRecord,
+    ) -> str:
+        """Return the memory_id of the result that should be marked not_recommended.
+
+        Applied by _enrich_with_conflicts() when two results in the same search
+        response share a PENDING ConflictRecord. Rules are checked in priority order
+        so that structured metadata (status, supersession links, timestamps) overrides
+        raw cosine ranking whenever the information is available.
+
+        Priority:
+        1. Non-ACTIVE status (SUPERSEDED, ARCHIVED, …) — always loses, regardless
+           of cosine score. A memory that has already been retired by consolidation
+           must never be recommended again.
+        2. Explicit superseded_by link — if one memory's superseded_by points to
+           the other memory in this pair, the superseded one loses. This handles
+           the case where consolidation ran but the retired memory is still in the
+           vector index.
+        3. created_at order — the later-stored memory is presumed to reflect more
+           current information regardless of conflict type. The older one loses.
+           Falls through to rule 4 only when timestamps are exactly equal.
+        4. Fallback — the result with the worse cosine rank (higher rank number)
+           loses. This is the pre-existing behavior, preserved for
+           DIRECT_CONTRADICTION and PARTIAL_CONFLICT where neither memory is
+           structurally "older" than the other.
+        """
+        mem_a, mem_b = result_a.memory, result_b.memory
+
+        # Rule 1: non-ACTIVE status always loses.
+        a_active = mem_a.status == MemoryStatus.ACTIVE
+        b_active = mem_b.status == MemoryStatus.ACTIVE
+        if a_active != b_active:
+            return mem_b.memory_id if a_active else mem_a.memory_id
+
+        # Rule 2: explicit supersession link set during consolidation.
+        if mem_a.superseded_by == mem_b.memory_id:
+            return mem_a.memory_id
+        if mem_b.superseded_by == mem_a.memory_id:
+            return mem_b.memory_id
+
+        # Rule 3: newer created_at wins for all conflict types.
+        # For recommendation purposes, the later-stored memory is treated as the more
+        # current assertion. The older memory remains conflict-flagged and available
+        # for review. Falls through to rule 4 only when timestamps are exactly equal
+        # (common in unit tests and bulk ingests).
+        if mem_a.created_at != mem_b.created_at:
+            return mem_a.memory_id if mem_a.created_at < mem_b.created_at else mem_b.memory_id
+
+        # Rule 4: fallback — worse cosine rank loses.
+        return mem_a.memory_id if result_a.rank > result_b.rank else mem_b.memory_id
+
     async def _enrich_with_conflicts(
         self,
         agent_id: str,
@@ -443,9 +504,9 @@ class Engram:
         """Annotate search results with conflict metadata from stored ConflictRecords.
 
         Fetches all PENDING conflicts for the agent, builds a memory-id index,
-        and for each result finds relevant conflicts. When two results in the same
-        response conflict with each other, the lower-ranked result is marked
-        recommended=False.
+        and for each result finds relevant conflicts. A result is marked
+        recommended=False if it loses to any conflicting result in the same
+        response, as determined by _prefer_in_conflict().
         """
         all_conflicts = await self._adapter.list_conflicts(
             agent_id, status=ResolutionStatus.PENDING
@@ -459,7 +520,17 @@ class Engram:
             conflict_index.setdefault(conflict.memory_a_id, []).append(conflict)
             conflict_index.setdefault(conflict.memory_b_id, []).append(conflict)
 
+        # Build pair lookup: frozenset({id_a, id_b}) → highest-confidence ConflictRecord.
+        # Used by the second pass to retrieve the specific record for each conflict pair.
+        conflict_record_map: dict[frozenset[str], ConflictRecord] = {}
+        for conflict in all_conflicts:
+            key: frozenset[str] = frozenset({conflict.memory_a_id, conflict.memory_b_id})
+            existing = conflict_record_map.get(key)
+            if existing is None or conflict.confidence > existing.confidence:
+                conflict_record_map[key] = conflict
+
         result_ids = {r.memory.memory_id for r in results}
+        result_map = {r.memory.memory_id: r for r in results}
 
         # First pass — collect conflict data per result
         conflict_data: list[dict[str, Any]] = []
@@ -483,20 +554,27 @@ class Engram:
                 }
             )
 
-        # Second pass — determine recommended flag
-        # If two results conflict with each other, mark the lower-ranked one
-        # (higher rank number = worse score) as not recommended.
+        # Second pass — determine recommended flag.
+        # A memory is marked not_recommended if it loses to ANY conflicting memory
+        # present in the same response. A single loss is sufficient — this ensures
+        # that in a temporal chain A→B→C, both A and B are suppressed, not just A.
         not_recommended: set[str] = set()
-        rank_map = {r.memory.memory_id: r.rank for r in results}
         for result, data in zip(results, conflict_data, strict=True):
             if not data:
                 continue
+            mid = result.memory.memory_id
             for other_id in data["conflicts_with"]:
                 if other_id not in result_ids:
                     continue
-                other_rank = rank_map.get(other_id)
-                if other_rank is not None and other_rank > result.rank:
-                    not_recommended.add(other_id)
+                other_result = result_map[other_id]
+                record = conflict_record_map.get(frozenset({mid, other_id}))
+                if record is None:
+                    # Defensive fallback: no record found, use rank.
+                    if other_result.rank > result.rank:
+                        not_recommended.add(other_id)
+                    continue
+                loser_id = self._prefer_in_conflict(result, other_result, record)
+                not_recommended.add(loser_id)
 
         # Third pass — build enriched SearchResult instances
         enriched: list[SearchResult] = []
@@ -514,13 +592,21 @@ class Engram:
                     )
                 )
 
+        # Status post-filter: strip memories retired by consolidation (SUPERSEDED,
+        # ARCHIVED). They may still be present in the vector index but must not
+        # be shown to callers. Applied after enrichment so conflict metadata is
+        # available for logging before the items are removed.
+        pre_filter_count = len(enriched)
+        enriched = [r for r in enriched if r.memory.status in _STATUS_SEARCHABLE]
+
         flagged = sum(1 for d in conflict_data if d)
         logger.debug(
-            "_enrich_with_conflicts: agent=%s results=%d flagged=%d not_recommended=%d",
+            "_enrich_with_conflicts: agent=%s results=%d flagged=%d not_recommended=%d filtered=%d",
             agent_id,
             len(results),
             flagged,
             len(not_recommended),
+            pre_filter_count - len(enriched),
         )
         return enriched
 

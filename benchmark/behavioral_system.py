@@ -28,6 +28,7 @@ from __future__ import annotations
 import os
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Protocol, runtime_checkable
 
 import openai
@@ -75,8 +76,14 @@ class BehavioralSystem(Protocol):
         """Wipe all stored memories for this namespace and prepare for a fresh run."""
         ...
 
-    async def add_fact(self, namespace: str, text: str) -> None:
-        """Store one fact into the namespace."""
+    async def add_fact(self, namespace: str, text: str, created_at: datetime | None = None) -> None:
+        """Store one fact into the namespace.
+
+        created_at is an optional explicit timestamp for the stored memory.
+        Systems that support structured timestamps (e.g. EngramSystem) use it
+        to override the default now(). Systems that don't (Mem0, NaiveQdrant)
+        accept the argument and ignore it.
+        """
         ...
 
     async def search(self, namespace: str, query: str, top_k: int = 5) -> list[BehavioralHit]:
@@ -138,7 +145,7 @@ class Mem0System:
     async def reset(self, namespace: str) -> None:
         self._m.delete_all(user_id=namespace)
 
-    async def add_fact(self, namespace: str, text: str) -> None:
+    async def add_fact(self, namespace: str, text: str, created_at: datetime | None = None) -> None:
         self._m.add(
             [{"role": "user", "content": text}],
             user_id=namespace,
@@ -206,7 +213,7 @@ class NaiveQdrantSystem:
             vectors_config=VectorParams(size=_EMBED_DIMS, distance=Distance.COSINE),
         )
 
-    async def add_fact(self, namespace: str, text: str) -> None:
+    async def add_fact(self, namespace: str, text: str, created_at: datetime | None = None) -> None:
         vector = await _embed(text, self._oai)
         import uuid
 
@@ -325,7 +332,7 @@ class EngramSystem:
             consolidator=consolidator,
         )
 
-    async def add_fact(self, namespace: str, text: str) -> None:
+    async def add_fact(self, namespace: str, text: str, created_at: datetime | None = None) -> None:
         vector = await _embed(text, self._oai)
         import uuid
 
@@ -334,6 +341,7 @@ class EngramSystem:
             memory_id=str(uuid.uuid4()),
             text=text,
             embedding=vector,
+            **({"created_at": created_at} if created_at is not None else {}),
         )
         await self._e.store(memory)
 

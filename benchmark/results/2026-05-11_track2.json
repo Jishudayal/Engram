@@ -1,0 +1,282 @@
+[
+  {
+    "track": "track2",
+    "backend": "mem0",
+    "overall_score": 0.92,
+    "correctness_avg": 1.0,
+    "signal_avg": 0.8,
+    "preservation_avg": 1.0,
+    "hallucination_risk": "LOW",
+    "by_scenario": {
+      "B1-contradiction": 1.0,
+      "B2-retention": 1.0,
+      "B3-temporal-chain": 0.6,
+      "B4-false-positive": 1.0,
+      "B5-temporal-language": 1.0
+    },
+    "by_dimension": {
+      "B1-contradiction": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B2-retention": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B3-temporal-chain": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
+      },
+      "B4-false-positive": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B5-temporal-language": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      }
+    },
+    "scenario_notes": {
+      "B1-contradiction": [
+        "correctness=1.0  new_recommended=True",
+        "signal=1.0  old_conflict_flag=absent",
+        "preservation=1.0"
+      ],
+      "B2-retention": [
+        "correctness=1.00  searchable=3/3",
+        "signal=1.0  any_flagged=False  any_suppressed=False",
+        "preservation=1.00  retained=3/3"
+      ],
+      "B3-temporal-chain": [
+        "correctness=1.0  v3_recommended=True",
+        "signal=0.00  v1=0.0  v2=0.0",
+        "preservation=1.0"
+      ],
+      "B4-false-positive": [
+        "correctness=1.0  software_rec=True  hardware_rec=True",
+        "signal=1.0  software_flag=False  hardware_flag=False",
+        "preservation=1.0"
+      ],
+      "B5-temporal-language": [
+        "correctness=1.0  thursday_recommended=True",
+        "signal=1.0  wednesday_flag=absent",
+        "preservation=1.0"
+      ]
+    }
+  },
+  {
+    "track": "track2",
+    "backend": "naive-qdrant",
+    "overall_score": 0.76,
+    "correctness_avg": 1.0,
+    "signal_avg": 0.4,
+    "preservation_avg": 1.0,
+    "hallucination_risk": "MEDIUM",
+    "by_scenario": {
+      "B1-contradiction": 0.6,
+      "B2-retention": 1.0,
+      "B3-temporal-chain": 0.6,
+      "B4-false-positive": 1.0,
+      "B5-temporal-language": 0.6
+    },
+    "by_dimension": {
+      "B1-contradiction": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
+      },
+      "B2-retention": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B3-temporal-chain": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
+      },
+      "B4-false-positive": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B5-temporal-language": {
+        "correctness": 1.0,
+        "signal": 0.0,
+        "preservation": 1.0
+      }
+    },
+    "scenario_notes": {
+      "B1-contradiction": [
+        "correctness=1.0  new_recommended=True",
+        "signal=0.0  old_conflict_flag=False",
+        "preservation=1.0"
+      ],
+      "B2-retention": [
+        "correctness=1.00  searchable=3/3",
+        "signal=1.0  any_flagged=False  any_suppressed=False",
+        "preservation=1.00  retained=3/3"
+      ],
+      "B3-temporal-chain": [
+        "correctness=1.0  v3_recommended=True",
+        "signal=0.00  v1=0.0  v2=0.0",
+        "preservation=1.0"
+      ],
+      "B4-false-positive": [
+        "correctness=1.0  software_rec=True  hardware_rec=True",
+        "signal=1.0  software_flag=False  hardware_flag=False",
+        "preservation=1.0"
+      ],
+      "B5-temporal-language": [
+        "correctness=1.0  thursday_recommended=True",
+        "signal=0.0  wednesday_flag=False",
+        "preservation=1.0"
+      ]
+    }
+  },
+  {
+    "track": "track2",
+    "backend": "engram-detect",
+    "overall_score": 1.0,
+    "correctness_avg": 1.0,
+    "signal_avg": 1.0,
+    "preservation_avg": 1.0,
+    "hallucination_risk": "LOW",
+    "by_scenario": {
+      "B1-contradiction": 1.0,
+      "B2-retention": 1.0,
+      "B3-temporal-chain": 1.0,
+      "B4-false-positive": 1.0,
+      "B5-temporal-language": 1.0
+    },
+    "by_dimension": {
+      "B1-contradiction": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B2-retention": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B3-temporal-chain": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B4-false-positive": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B5-temporal-language": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      }
+    },
+    "scenario_notes": {
+      "B1-contradiction": [
+        "correctness=1.0  new_recommended=True",
+        "signal=1.0  old_conflict_flag=True",
+        "preservation=1.0"
+      ],
+      "B2-retention": [
+        "correctness=1.00  searchable=3/3",
+        "signal=1.0  any_flagged=False  any_suppressed=False",
+        "preservation=1.00  retained=3/3"
+      ],
+      "B3-temporal-chain": [
+        "correctness=1.0  v3_recommended=True",
+        "signal=1.00  v1=1.0  v2=1.0",
+        "preservation=1.0"
+      ],
+      "B4-false-positive": [
+        "correctness=1.0  software_rec=True  hardware_rec=True",
+        "signal=1.0  software_flag=False  hardware_flag=False",
+        "preservation=1.0"
+      ],
+      "B5-temporal-language": [
+        "correctness=1.0  thursday_recommended=True",
+        "signal=1.0  wednesday_flag=True",
+        "preservation=1.0"
+      ]
+    }
+  },
+  {
+    "track": "track2",
+    "backend": "engram-consolidated",
+    "overall_score": 1.0,
+    "correctness_avg": 1.0,
+    "signal_avg": 1.0,
+    "preservation_avg": 1.0,
+    "hallucination_risk": "LOW",
+    "by_scenario": {
+      "B1-contradiction": 1.0,
+      "B2-retention": 1.0,
+      "B3-temporal-chain": 1.0,
+      "B4-false-positive": 1.0,
+      "B5-temporal-language": 1.0
+    },
+    "by_dimension": {
+      "B1-contradiction": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B2-retention": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B3-temporal-chain": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B4-false-positive": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      },
+      "B5-temporal-language": {
+        "correctness": 1.0,
+        "signal": 1.0,
+        "preservation": 1.0
+      }
+    },
+    "scenario_notes": {
+      "B1-contradiction": [
+        "correctness=1.0  new_recommended=True",
+        "signal=1.0  old_conflict_flag=True",
+        "preservation=1.0"
+      ],
+      "B2-retention": [
+        "correctness=1.00  searchable=3/3",
+        "signal=1.0  any_flagged=False  any_suppressed=False",
+        "preservation=1.00  retained=3/3"
+      ],
+      "B3-temporal-chain": [
+        "correctness=1.0  v3_recommended=True",
+        "signal=1.00  v1=1.0  v2=1.0",
+        "preservation=1.0"
+      ],
+      "B4-false-positive": [
+        "correctness=1.0  software_rec=True  hardware_rec=True",
+        "signal=1.0  software_flag=False  hardware_flag=False",
+        "preservation=1.0"
+      ],
+      "B5-temporal-language": [
+        "correctness=1.0  thursday_recommended=True",
+        "signal=1.0  wednesday_flag=True",
+        "preservation=1.0"
+      ]
+    }
+  }
+]

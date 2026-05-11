@@ -895,10 +895,7 @@ class Consolidator:
         # remain PENDING and are handled by their own separately planned actions.
         resolved_at = datetime.now(UTC)
         for key, conflict in conflict_lookup.items():
-            if (
-                key <= all_ids
-                and conflict.conflict_type == ConflictType.TEMPORAL_SUPERSESSION
-            ):
+            if key <= all_ids and conflict.conflict_type == ConflictType.TEMPORAL_SUPERSESSION:
                 resolved = conflict.model_copy(
                     update={
                         "resolved_at": resolved_at,

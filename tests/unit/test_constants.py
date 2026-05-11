@@ -65,7 +65,7 @@ class TestResolutionStatus:
 
 class TestActionType:
     def test_members_frozen(self) -> None:
-        assert {m.value for m in ActionType} == {"merge", "supersede", "flag", "archive"}
+        assert {m.value for m in ActionType} == {"merge", "supersede", "chain_supersede", "flag", "archive"}
 
 
 class TestConsolidationTier:

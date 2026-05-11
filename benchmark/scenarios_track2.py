@@ -30,11 +30,12 @@ Scenario design
 Each scenario uses the ``namespace`` argument as the tenant key so runs
 across systems do not cross-contaminate.
 
-B1 — Direct contradiction:   add old fact then new fact; check retrieval.
-B2 — Retention (no loss):    add three independent facts; check all retained.
-B3 — Three-version chain:    add v1→v2→v3; check only v3 is recommended.
-B4 — False positive guard:   add two non-contradictory facts; check no flags.
-B5 — Temporal language:      update a scheduled event; check current version.
+B1 — Direct contradiction:        add old fact then new fact; check retrieval.
+B2 — Retention (no loss):         add three independent facts; check all retained.
+B3 — Three-version chain:         add v1→v2→v3; check only v3 is recommended.
+B4 — False positive guard:        add two non-contradictory facts; check no flags.
+B5 — Temporal language (implicit): update a scheduled event; check current version.
+B6 — Temporal language (explicit): date-cued policy update; check current version.
 """
 
 from __future__ import annotations
@@ -347,10 +348,64 @@ async def scenario_b5(systems: list[BehavioralSystem]) -> list[ScenarioResult]:
 
 
 # ---------------------------------------------------------------------------
+# B6 — Explicit temporal language in text
+# Two facts about the same policy where the text itself carries date cues.
+# Correctness: newer (March) version is recommended.
+# Signal:      older (January) version is flagged or suppressed.
+# Preservation: newer version is present in results.
+#
+# Unlike B1/B5 (structurally identical sentences, value-only change), B6
+# embeds explicit temporal markers ("As of January / As of March, updated").
+# This tests whether the LLM classifier picks up text-based temporal cues,
+# and whether systems like Mem0 that rely on LLM extraction handle dated
+# policy language correctly.
+# ---------------------------------------------------------------------------
+
+
+async def scenario_b6(systems: list[BehavioralSystem]) -> list[ScenarioResult]:
+    """Return policy: As of January (30 days) → As of March (14 days)."""
+    ns = "b6_temporal_language"
+    results = []
+
+    old_fact = "As of January, the standard return window for all purchases is 30 days."
+    new_fact = (
+        "As of March, the return policy was updated: purchases now have a 14-day return window."
+    )
+    query = "return policy refund window current"
+
+    for sys in systems:
+        await sys.reset(ns)
+        await sys.add_fact(ns, old_fact)
+        await sys.add_fact(ns, new_fact)
+        await sys.consolidate(ns)
+
+        hits = await sys.search(ns, query)
+        new_hit = _contains(hits, "14-day")
+        old_hit = _contains(hits, "30 days")
+
+        correctness = 1.0 if (new_hit is not None and new_hit.recommended) else 0.0
+        signal = _stale_signal(old_hit)
+        preservation = 1.0 if new_hit is not None else 0.0
+
+        notes = [
+            f"correctness={correctness}  march_recommended={new_hit is not None and new_hit.recommended}",
+            f"signal={signal}  january_flag={old_hit.conflict_flag if old_hit else 'absent'}",
+            f"preservation={preservation}",
+        ]
+        results.append(
+            ScenarioResult(
+                "B6-temporal-language-explicit", sys.name, correctness, signal, preservation, notes
+            )
+        )
+
+    return results
+
+
+# ---------------------------------------------------------------------------
 # Run all scenarios
 # ---------------------------------------------------------------------------
 
-ALL_SCENARIOS = [scenario_b1, scenario_b2, scenario_b3, scenario_b4, scenario_b5]
+ALL_SCENARIOS = [scenario_b1, scenario_b2, scenario_b3, scenario_b4, scenario_b5, scenario_b6]
 
 
 async def run_all(systems: list[BehavioralSystem]) -> list[ScenarioResult]:

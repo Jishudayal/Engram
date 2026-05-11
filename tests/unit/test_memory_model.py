@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from engram.core.constants import DEFAULT_IMPORTANCE, MemoryStatus, MemoryType
-from engram.core.models import Memory
+from memnotary.core.constants import DEFAULT_IMPORTANCE, MemoryStatus, MemoryType
+from memnotary.core.models import Memory
 
 
 def make_memory(**overrides: object) -> Memory:

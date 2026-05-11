@@ -23,10 +23,10 @@ sys.path.insert(0, str(_HERE.parent / "memoryeval" / "src"))
 sys.path.insert(0, str(_HERE))
 
 import chromadb
-from engram.adapters.chroma import ChromaAdapter
-from engram.adapters.memory import InMemoryAdapter
-from engram.adapters.pgvector import PgVectorAdapter
-from engram.adapters.qdrant import QdrantAdapter
+from memnotary.adapters.chroma import ChromaAdapter
+from memnotary.adapters.memory import InMemoryAdapter
+from memnotary.adapters.pgvector import PgVectorAdapter
+from memnotary.adapters.qdrant import QdrantAdapter
 from memoryeval.scorer import BenchmarkScorer
 from memoryeval.types import BenchmarkReport
 from naive_qdrant_adapter import NaiveQdrantAdapter
@@ -150,7 +150,7 @@ async def main() -> None:
     results.append(result)
     print_result(result)
 
-    # ── Step 1.5 ── NaiveQdrantAdapter (no Engram data model) ────────────────
+    # ── Step 1.5 ── NaiveQdrantAdapter (no Memnotary data model) ────────────────
     print("\nRunning Step 1.5 — NaiveQdrantAdapter (raw Qdrant, no data model)...")
     naive_adapter = NaiveQdrantAdapter(vector_size=16)
     await naive_adapter.open()

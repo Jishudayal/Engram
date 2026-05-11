@@ -1,4 +1,4 @@
-"""Shared enums and threshold constants used across Engram."""
+"""Shared enums and threshold constants used across Memnotary."""
 
 from enum import StrEnum
 
@@ -95,7 +95,7 @@ AUTO_FLAG_THRESHOLD: float = 0.78
 # Minimum LLM confidence for the contradiction detector to emit a conflict record.
 # Separate from consolidation thresholds — contradiction detection is a binary
 # yes/no classification, not a tiered merge decision.
-# See: engram/core/contradiction.py (Step 5).
+# See: memnotary/core/contradiction.py (Step 5).
 CONTRADICTION_CONFIDENCE_THRESHOLD: float = 0.80
 
 

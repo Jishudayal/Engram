@@ -1,19 +1,19 @@
 """
-LangChain retriever backed by Engram.
+LangChain retriever backed by Memnotary.
 
 Scenario: A documentation bot ingests product FAQs through LangChain's
 standard VectorStore API. The pricing FAQ gets updated mid-way through
-ingestion. Without Engram, both versions sit in the store and the bot
-gives inconsistent answers. Engram catches the conflict and resolves it.
+ingestion. Without Memnotary, both versions sit in the store and the bot
+gives inconsistent answers. Memnotary catches the conflict and resolves it.
 
 What this shows:
-  - EngramVectorStore is a drop-in LangChain VectorStore
+  - MemnotaryVectorStore is a drop-in LangChain VectorStore
   - Bulk ingestion via aadd_texts (standard LangChain pattern)
   - scan_contradictions() catches conflicts across a batch
   - Consolidation resolves them; retrieval becomes consistent
 
 Run:
-    pip install "engram[langchain]"
+    pip install "memnotary[langchain]"
     python examples/langchain_retriever.py
 
 No API key needed — this example uses stub LLM and embedding functions.
@@ -24,14 +24,14 @@ import json
 
 from langchain_core.embeddings import Embeddings
 
-from engram import (
+from memnotary import (
     Consolidator,
     ContradictionDetector,
-    Engram,
     InMemoryAdapter,
+    Memnotary,
     MemoryStatus,
 )
-from engram.integrations.langchain import EngramVectorStore
+from memnotary.integrations.langchain import MemnotaryVectorStore
 
 # ---------------------------------------------------------------------------
 # Stubs — replace these with your real LLM and embedding model
@@ -97,14 +97,14 @@ class StubEmbeddings(Embeddings):
 
 
 async def main() -> None:
-    eng = Engram(
+    eng = Memnotary(
         InMemoryAdapter(),
         detector=ContradictionDetector(llm_fn=my_llm),
         consolidator=Consolidator(llm_fn=my_consolidate_llm),
     )
 
     async with eng:
-        store = EngramVectorStore(eng, StubEmbeddings(), agent_id="docs-bot")
+        store = MemnotaryVectorStore(eng, StubEmbeddings(), agent_id="docs-bot")
 
         # --- Bulk ingest (standard LangChain pattern) ---
 
@@ -180,7 +180,7 @@ async def main() -> None:
         print("  One answer. Consistent. Correct.")
         print()
         print("  Note: store.asimilarity_search() returns LangChain Documents with")
-        print("  a '_memory_id' metadata key, so you can fetch the full Engram")
+        print("  a '_memory_id' metadata key, so you can fetch the full Memnotary")
         print("  Memory or SearchResult when you need conflict metadata.")
 
 

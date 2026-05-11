@@ -2,7 +2,7 @@
 
 Requires the optional 'pgvector' extra::
 
-    pip install "engram[pgvector]"
+    pip install "memnotary[pgvector]"
 
 Call ``open()`` (or use ``async with``) before any other method.
 
@@ -53,16 +53,16 @@ from typing import Any
 import asyncpg
 from pgvector.asyncpg import register_vector
 
-from engram.adapters._utils import (
+from memnotary.adapters._utils import (
     POINT_NAMESPACE,
     map_adapter_errors,
     memory_to_payload,
     payload_to_memory,
 )
-from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus, ResolutionStatus
-from engram.core.exceptions import AdapterError, NotFoundError
-from engram.core.models import ConflictRecord, Memory, SearchResult
+from memnotary.adapters.base import AbstractAdapter
+from memnotary.core.constants import MemoryStatus, ResolutionStatus
+from memnotary.core.exceptions import AdapterError, NotFoundError
+from memnotary.core.models import ConflictRecord, Memory, SearchResult
 
 __all__ = ["PgVectorAdapter"]
 

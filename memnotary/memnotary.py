@@ -1,18 +1,18 @@
-"""Engram — the main entry point.
+"""Memnotary — the main entry point.
 
-Wrap any AbstractAdapter with Engram to gain contradiction detection,
+Wrap any AbstractAdapter with Memnotary to gain contradiction detection,
 health scoring, and consolidation on top of your vector backend:
 
     adapter = QdrantAdapter(url="localhost:6333", collection="memories")
-    async with Engram(adapter) as eng:
+    async with Memnotary(adapter) as eng:
         await eng.store(memory)
         results = await eng.search("agent-1", query_embedding)
 
 Pass a ContradictionDetector to enable conflict detection on every store
 and conflict-flag enrichment on every search:
 
-    from engram import Engram, ContradictionDetector
-    eng = Engram(adapter, detector=ContradictionDetector())
+    from memnotary import Memnotary, ContradictionDetector
+    eng = Memnotary(adapter, detector=ContradictionDetector())
 
 After bulk ingestion, run a batch scan to detect conflicts across the batch:
 
@@ -21,8 +21,8 @@ After bulk ingestion, run a batch scan to detect conflicts across the batch:
 
 To plan and execute consolidation of detected conflicts:
 
-    from engram import Engram, ContradictionDetector, Consolidator
-    eng = Engram(adapter, detector=ContradictionDetector(), consolidator=Consolidator())
+    from memnotary import Memnotary, ContradictionDetector, Consolidator
+    eng = Memnotary(adapter, detector=ContradictionDetector(), consolidator=Consolidator())
     plan = await eng.consolidate("agent-1")  # None if no PENDING conflicts
 
 What's implemented in each step:
@@ -32,7 +32,7 @@ What's implemented in each step:
   5.2 — store-time detection, search-time enrichment, scan_contradictions()
   6.1 — Consolidator.plan() — LLM-driven action planning
   6.2 — update_conflict() adapter contract
-  6.3 — Consolidator.execute() + Engram.consolidate() wiring
+  6.3 — Consolidator.execute() + Memnotary.consolidate() wiring
 """
 
 from __future__ import annotations
@@ -40,18 +40,18 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, Any
 
-from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus, ResolutionStatus
-from engram.core.health import HealthScorer
-from engram.core.models import ConflictRecord, Memory, ProvenanceRecord, SearchResult
-from engram.core.provenance import ProvenanceManifest
+from memnotary.adapters.base import AbstractAdapter
+from memnotary.core.constants import MemoryStatus, ResolutionStatus
+from memnotary.core.health import HealthScorer
+from memnotary.core.models import ConflictRecord, Memory, ProvenanceRecord, SearchResult
+from memnotary.core.provenance import ProvenanceManifest
 
 if TYPE_CHECKING:
-    from engram.core.consolidator import Consolidator
-    from engram.core.contradiction import ContradictionDetector
-    from engram.core.models import ConsolidationPlan, HealthScore
+    from memnotary.core.consolidator import Consolidator
+    from memnotary.core.contradiction import ContradictionDetector
+    from memnotary.core.models import ConsolidationPlan, HealthScore
 
-__all__ = ["Engram"]
+__all__ = ["Memnotary"]
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,7 @@ _STATUS_SEARCHABLE: frozenset[MemoryStatus] = frozenset(
 _STORE_TIME_CANDIDATE_LIMIT = 21
 
 
-class Engram:
+class Memnotary:
     """Memory layer facade — wraps an adapter and coordinates reliability features.
 
     Instantiate with any AbstractAdapter subclass. Pass a ContradictionDetector
@@ -121,10 +121,10 @@ class Engram:
     def __repr__(self) -> str:
         if self._detector is not None:
             return (
-                f"Engram(adapter={self._adapter.backend_name!r}, "
+                f"Memnotary(adapter={self._adapter.backend_name!r}, "
                 f"detector={type(self._detector).__name__})"
             )
-        return f"Engram(adapter={self._adapter.backend_name!r})"
+        return f"Memnotary(adapter={self._adapter.backend_name!r})"
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -270,7 +270,7 @@ class Engram:
         if self._detector is None:
             raise ValueError(
                 "scan_contradictions() requires a ContradictionDetector. "
-                "Pass detector=ContradictionDetector() to Engram()."
+                "Pass detector=ContradictionDetector() to Memnotary()."
             )
         return await self._detector.scan(agent_id, self._adapter)
 
@@ -389,7 +389,7 @@ class Engram:
         if self._consolidator is None:
             raise ValueError(
                 "consolidate() requires a Consolidator. "
-                "Pass consolidator=Consolidator() to Engram()."
+                "Pass consolidator=Consolidator() to Memnotary()."
             )
         plan = await self._consolidator.plan(agent_id, self._adapter)
         if plan is None:
@@ -613,7 +613,7 @@ class Engram:
     # Async context manager
     # ------------------------------------------------------------------
 
-    async def __aenter__(self) -> Engram:
+    async def __aenter__(self) -> Memnotary:
         await self._adapter.__aenter__()
         return self
 

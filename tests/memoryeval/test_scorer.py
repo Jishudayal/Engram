@@ -83,7 +83,7 @@ class _SlowScoreZero(TestCase):
 
 
 async def test_run_case_passing_case_has_score_and_passed() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -96,7 +96,7 @@ async def test_run_case_passing_case_has_score_and_passed() -> None:
 
 
 async def test_run_case_zero_score_not_passed() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -108,7 +108,7 @@ async def test_run_case_zero_score_not_passed() -> None:
 
 
 async def test_run_case_result_captures_case_metadata() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -124,7 +124,7 @@ async def test_run_case_result_captures_case_metadata() -> None:
 
 
 async def test_run_case_run_raises_returns_error_result() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -137,7 +137,7 @@ async def test_run_case_run_raises_returns_error_result() -> None:
 
 
 async def test_run_case_setup_raises_returns_error_result() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -150,7 +150,7 @@ async def test_run_case_setup_raises_returns_error_result() -> None:
 
 
 async def test_run_case_setup_raises_does_not_call_teardown() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     _SetupRaises._teardown_called = False
     adapter = InMemoryAdapter()
@@ -164,8 +164,8 @@ async def test_run_case_run_raises_still_calls_teardown() -> None:
     """Teardown must run after a successful setup even when run() fails."""
     from memoryeval.benchmark._embeddings import vec
 
-    from engram.adapters.memory import InMemoryAdapter
-    from engram.core.models import Memory
+    from memnotary.adapters.memory import InMemoryAdapter
+    from memnotary.core.models import Memory
 
     teardown_ran = False
 
@@ -208,7 +208,7 @@ async def test_run_case_run_raises_still_calls_teardown() -> None:
 
 
 async def test_run_returns_benchmark_report() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="my-backend")
@@ -219,7 +219,7 @@ async def test_run_returns_benchmark_report() -> None:
 
 
 async def test_run_has_all_five_categories() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -231,7 +231,7 @@ async def test_run_has_all_five_categories() -> None:
 
 
 async def test_run_each_category_has_ten_results() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -244,7 +244,7 @@ async def test_run_each_category_has_ten_results() -> None:
 
 
 async def test_run_total_results_is_fifty() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -255,7 +255,7 @@ async def test_run_total_results_is_fifty() -> None:
 
 
 async def test_run_overall_score_in_valid_range() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -265,7 +265,7 @@ async def test_run_overall_score_in_valid_range() -> None:
 
 
 async def test_run_category_scores_in_valid_range() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -278,7 +278,7 @@ async def test_run_category_scores_in_valid_range() -> None:
 
 async def test_run_category_order_matches_enum_declaration() -> None:
     """Categories must appear in BenchmarkCategory enum order."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -292,7 +292,7 @@ async def test_run_category_order_matches_enum_declaration() -> None:
 async def test_run_hallucination_risk_set() -> None:
     from memoryeval.types import HallucinationRisk
 
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -307,7 +307,7 @@ async def test_run_hallucination_risk_set() -> None:
 
 
 async def test_run_single_category_filter() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -319,7 +319,7 @@ async def test_run_single_category_filter() -> None:
 
 
 async def test_run_two_category_filter() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -331,7 +331,7 @@ async def test_run_two_category_filter() -> None:
 
 
 async def test_run_empty_category_filter_raises_value_error() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -345,7 +345,7 @@ async def test_run_empty_category_filter_raises_value_error() -> None:
 
 
 async def test_custom_case_list() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(
@@ -361,7 +361,7 @@ async def test_custom_case_list() -> None:
 
 async def test_custom_case_list_with_category_filter() -> None:
     """Category filter applies on top of the custom case list."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(
@@ -381,7 +381,7 @@ async def test_custom_case_list_with_category_filter() -> None:
 
 
 async def test_scores_by_category_has_five_entries() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -402,7 +402,7 @@ async def test_scores_by_category_has_five_entries() -> None:
 async def test_importance_gap_cases_lower_category_score() -> None:
     """Importance gap cases (I6-I10) score 0.0 on InMemoryAdapter; the
     category average must be < 1.0 as a result."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -415,7 +415,7 @@ async def test_importance_gap_cases_lower_category_score() -> None:
 
 async def test_temporal_fidelity_cases_score_full() -> None:
     """All temporal cases are adapter-fidelity cases → category score = 1.0."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -460,7 +460,7 @@ class _SlowRun(TestCase):
 
 
 async def test_setup_timeout_produces_error_result() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test", case_timeout=0.05)
@@ -473,7 +473,7 @@ async def test_setup_timeout_produces_error_result() -> None:
 
 
 async def test_run_timeout_produces_error_result() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test", case_timeout=0.05)
@@ -509,7 +509,7 @@ class _TeardownRaises(TestCase):
 
 
 async def test_teardown_failure_does_not_raise_from_run_case() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -527,7 +527,7 @@ async def test_teardown_failure_does_not_raise_from_run_case() -> None:
 
 async def test_progress_hook_called_once_per_case() -> None:
 
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     calls: list[tuple[str, int, int]] = []
 
@@ -549,7 +549,7 @@ async def test_progress_hook_called_once_per_case() -> None:
 
 async def test_progress_hook_none_is_fine() -> None:
     """run() with no hook must behave identically to run() without the arg."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(
@@ -567,7 +567,7 @@ async def test_progress_hook_none_is_fine() -> None:
 
 
 def test_duplicate_case_names_raises_at_init() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     with pytest.raises(ValueError, match="Duplicate case names"):
@@ -584,7 +584,7 @@ def test_duplicate_case_names_raises_at_init() -> None:
 
 
 async def test_all_results_flat_tuple_length() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")
@@ -594,7 +594,7 @@ async def test_all_results_flat_tuple_length() -> None:
 
 
 async def test_all_results_are_case_result_instances() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(
@@ -609,7 +609,7 @@ async def test_all_results_are_case_result_instances() -> None:
 
 async def test_all_results_subset_run() -> None:
     """all_results count matches total cases when categories are filtered."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     scorer = BenchmarkScorer(adapter, backend_name="test")

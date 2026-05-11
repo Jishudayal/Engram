@@ -1,6 +1,6 @@
 """Shared serialization and error-mapping utilities for storage adapters.
 
-Internal module — import directly from engram.adapters._utils; not re-exported
+Internal module — import directly from memnotary.adapters._utils; not re-exported
 from the package root.
 
 memory_to_payload / payload_to_memory
@@ -20,12 +20,12 @@ import uuid
 from collections.abc import Callable, Coroutine
 from typing import Any, ParamSpec, TypeVar
 
-from engram.core.exceptions import AdapterError, EngramError, NotFoundError
-from engram.core.models import Memory
+from memnotary.core.exceptions import AdapterError, MemnotaryError, NotFoundError
+from memnotary.core.models import Memory
 
 __all__ = ["POINT_NAMESPACE", "map_adapter_errors", "memory_to_payload", "payload_to_memory"]
 
-# Engram-specific UUID5 namespace for deriving per-backend point IDs from
+# Memnotary-specific UUID5 namespace for deriving per-backend point IDs from
 # (agent_id, memory_id). Using a project-specific namespace makes generated
 # IDs distinguishable from UUIDv5s produced under other namespaces (e.g., DNS)
 # and keeps cross-adapter IDs consistent when data is migrated.
@@ -61,12 +61,12 @@ def map_adapter_errors(
     not_found: tuple[type[Exception], ...] = (),
     error: tuple[type[Exception], ...] = (),
 ) -> Callable[[Callable[_P, Coroutine[Any, Any, _T]]], Callable[_P, Coroutine[Any, Any, _T]]]:
-    """Decorator factory: map backend exceptions to Engram's exception hierarchy.
+    """Decorator factory: map backend exceptions to Memnotary's exception hierarchy.
 
     not_found   — re-raise matching exceptions as NotFoundError
     error       — re-raise matching exceptions as AdapterError
     not_found is checked first, so it takes precedence when a type appears in both.
-    EngramError subclasses pass through unchanged (never double-wrapped).
+    MemnotaryError subclasses pass through unchanged (never double-wrapped).
     Unmapped exceptions propagate as-is.
 
     Error messages include fn.__qualname__ for fast triage in logs:
@@ -86,7 +86,7 @@ def map_adapter_errors(
         async def wrapper(*args: _P.args, **kwargs: _P.kwargs) -> _T:
             try:
                 return await fn(*args, **kwargs)
-            except EngramError:
+            except MemnotaryError:
                 raise  # already in hierarchy; never double-wrap
             except Exception as exc:
                 if not_found and isinstance(exc, not_found):

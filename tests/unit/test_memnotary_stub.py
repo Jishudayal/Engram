@@ -1,17 +1,17 @@
-"""Tests for the Engram facade class (sub-step 1.8)."""
+"""Tests for the Memnotary facade class (sub-step 1.8)."""
 
 from typing import Any
 
 import pytest
 
-from engram import (
+from memnotary import (
     AbstractAdapter,
     ActionType,
     AdapterError,
     ConflictType,
     ConsolidationTier,
-    Engram,
-    EngramError,
+    Memnotary,
+    MemnotaryError,
     Memory,
     MemoryStatus,
     NotFoundError,
@@ -26,7 +26,7 @@ from engram import (
 
 
 class _StubAdapter(AbstractAdapter):
-    """Trackable no-op adapter for Engram delegation tests."""
+    """Trackable no-op adapter for Memnotary delegation tests."""
 
     def __init__(self) -> None:
         self.calls: list[str] = []
@@ -135,23 +135,23 @@ def make_memory(**overrides: object) -> Memory:
 
 class TestEngramInstantiation:
     def test_takes_adapter(self) -> None:
-        eng = Engram(_StubAdapter())
+        eng = Memnotary(_StubAdapter())
         assert eng is not None
 
     def test_adapter_property_returns_adapter(self) -> None:
         adapter = _StubAdapter()
-        assert Engram(adapter).adapter is adapter
+        assert Memnotary(adapter).adapter is adapter
 
     def test_adapter_is_abstract_adapter(self) -> None:
-        assert isinstance(Engram(_StubAdapter()).adapter, AbstractAdapter)
+        assert isinstance(Memnotary(_StubAdapter()).adapter, AbstractAdapter)
 
     def test_non_adapter_raises_type_error(self) -> None:
         with pytest.raises(TypeError, match="AbstractAdapter"):
-            Engram("not_an_adapter")  # type: ignore[arg-type]
+            Memnotary("not_an_adapter")  # type: ignore[arg-type]
 
     def test_type_error_includes_actual_type(self) -> None:
         with pytest.raises(TypeError, match="str"):
-            Engram("oops")  # type: ignore[arg-type]
+            Memnotary("oops")  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -161,12 +161,12 @@ class TestEngramInstantiation:
 
 class TestEngramBackendName:
     def test_delegates_to_adapter(self) -> None:
-        assert Engram(_StubAdapter()).backend_name == "stub"
+        assert Memnotary(_StubAdapter()).backend_name == "stub"
 
 
 class TestEngramRepr:
     def test_includes_backend_name(self) -> None:
-        assert repr(Engram(_StubAdapter())) == "Engram(adapter='stub')"
+        assert repr(Memnotary(_StubAdapter())) == "Memnotary(adapter='stub')"
 
 
 # ---------------------------------------------------------------------------
@@ -176,24 +176,24 @@ class TestEngramRepr:
 
 class TestEngramContextManager:
     async def test_aenter_returns_engram(self) -> None:
-        async with Engram(_StubAdapter()) as eng:
-            assert isinstance(eng, Engram)
+        async with Memnotary(_StubAdapter()) as eng:
+            assert isinstance(eng, Memnotary)
 
     async def test_aenter_returns_same_instance(self) -> None:
-        eng = Engram(_StubAdapter())
+        eng = Memnotary(_StubAdapter())
         async with eng as ctx:
             assert ctx is eng
 
     async def test_aexit_closes_adapter(self) -> None:
         adapter = _StubAdapter()
-        async with Engram(adapter):
+        async with Memnotary(adapter):
             pass
         assert adapter.closed is True
 
     async def test_aexit_closes_adapter_on_exception(self) -> None:
         adapter = _StubAdapter()
         with pytest.raises(RuntimeError):
-            async with Engram(adapter):
+            async with Memnotary(adapter):
                 raise RuntimeError("crash")
         assert adapter.closed is True
 
@@ -201,19 +201,19 @@ class TestEngramContextManager:
 class TestEngramContextManagerDelegation:
     async def test_aenter_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        async with Engram(adapter):
+        async with Memnotary(adapter):
             pass
         assert "__aenter__" in adapter.calls
 
     async def test_aexit_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        async with Engram(adapter):
+        async with Memnotary(adapter):
             pass
         assert "__aexit__" in adapter.calls
 
     async def test_aenter_before_aexit(self) -> None:
         adapter = _StubAdapter()
-        async with Engram(adapter):
+        async with Memnotary(adapter):
             pass
         assert adapter.calls.index("__aenter__") < adapter.calls.index("__aexit__")
 
@@ -226,13 +226,13 @@ class TestEngramContextManagerDelegation:
 class TestEngramClose:
     async def test_close_closes_adapter(self) -> None:
         adapter = _StubAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         await eng.close()
         assert adapter.closed is True
 
     async def test_close_is_idempotent(self) -> None:
         adapter = _StubAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         await eng.close()
         await eng.close()  # must not raise
 
@@ -245,32 +245,32 @@ class TestEngramClose:
 class TestEngramStore:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).store(make_memory())
+        await Memnotary(adapter).store(make_memory())
         assert "store" in adapter.calls
 
     async def test_returns_none(self) -> None:
-        assert await Engram(_StubAdapter()).store(make_memory()) is None
+        assert await Memnotary(_StubAdapter()).store(make_memory()) is None
 
     async def test_memory_reaches_adapter(self) -> None:
         adapter = _StubAdapter()
         m = make_memory()
-        await Engram(adapter).store(m)
+        await Memnotary(adapter).store(m)
         assert m.memory_id in adapter._store
 
 
 class TestEngramStoreBatch:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).store_batch([make_memory(), make_memory()])
+        await Memnotary(adapter).store_batch([make_memory(), make_memory()])
         assert "store_batch" in adapter.calls
 
     async def test_returns_none(self) -> None:
-        assert await Engram(_StubAdapter()).store_batch([make_memory()]) is None
+        assert await Memnotary(_StubAdapter()).store_batch([make_memory()]) is None
 
     async def test_memories_reach_adapter(self) -> None:
         adapter = _StubAdapter()
         memories = [make_memory(), make_memory()]
-        await Engram(adapter).store_batch(memories)
+        await Memnotary(adapter).store_batch(memories)
         for m in memories:
             assert m.memory_id in adapter._store
 
@@ -278,82 +278,82 @@ class TestEngramStoreBatch:
 class TestEngramUpdate:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).update(make_memory())
+        await Memnotary(adapter).update(make_memory())
         assert "update" in adapter.calls
 
     async def test_returns_none(self) -> None:
-        assert await Engram(_StubAdapter()).update(make_memory()) is None
+        assert await Memnotary(_StubAdapter()).update(make_memory()) is None
 
 
 class TestEngramDelete:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).delete("agent-1", "mem-x")
+        await Memnotary(adapter).delete("agent-1", "mem-x")
         assert "delete" in adapter.calls
 
     async def test_returns_true_when_found(self) -> None:
         adapter = _StubAdapter()
         m = make_memory()
         adapter._store[m.memory_id] = m
-        result = await Engram(adapter).delete("agent-1", m.memory_id)
+        result = await Memnotary(adapter).delete("agent-1", m.memory_id)
         assert result is True
 
     async def test_returns_false_when_not_found(self) -> None:
-        result = await Engram(_StubAdapter()).delete("agent-1", "missing")
+        result = await Memnotary(_StubAdapter()).delete("agent-1", "missing")
         assert result is False
 
 
 class TestEngramDeleteBatch:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).delete_batch("agent-1", ["a", "b"])
+        await Memnotary(adapter).delete_batch("agent-1", ["a", "b"])
         assert "delete_batch" in adapter.calls
 
     async def test_returns_count_deleted(self) -> None:
         adapter = _StubAdapter()
         m = make_memory()
         adapter._store[m.memory_id] = m
-        count = await Engram(adapter).delete_batch("agent-1", [m.memory_id, "missing"])
+        count = await Memnotary(adapter).delete_batch("agent-1", [m.memory_id, "missing"])
         assert count == 1
 
     async def test_returns_zero_when_none_found(self) -> None:
-        count = await Engram(_StubAdapter()).delete_batch("agent-1", ["x", "y"])
+        count = await Memnotary(_StubAdapter()).delete_batch("agent-1", ["x", "y"])
         assert count == 0
 
 
 class TestEngramFetch:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).fetch("agent-1", "mem-x")
+        await Memnotary(adapter).fetch("agent-1", "mem-x")
         assert "fetch" in adapter.calls
 
     async def test_returns_none_when_absent(self) -> None:
-        result = await Engram(_StubAdapter()).fetch("agent-1", "missing")
+        result = await Memnotary(_StubAdapter()).fetch("agent-1", "missing")
         assert result is None
 
     async def test_returns_stored_memory(self) -> None:
         adapter = _StubAdapter()
         m = make_memory()
         adapter._store[m.memory_id] = m
-        result = await Engram(adapter).fetch("agent-1", m.memory_id)
+        result = await Memnotary(adapter).fetch("agent-1", m.memory_id)
         assert result is m
 
 
 class TestEngramFetchBatch:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).fetch_batch("agent-1", ["a", "b"])
+        await Memnotary(adapter).fetch_batch("agent-1", ["a", "b"])
         assert "fetch_batch" in adapter.calls
 
     async def test_returns_dict(self) -> None:
-        result = await Engram(_StubAdapter()).fetch_batch("agent-1", [])
+        result = await Memnotary(_StubAdapter()).fetch_batch("agent-1", [])
         assert isinstance(result, dict)
 
     async def test_absent_ids_omitted(self) -> None:
         adapter = _StubAdapter()
         m = make_memory()
         adapter._store[m.memory_id] = m
-        result = await Engram(adapter).fetch_batch("agent-1", [m.memory_id, "missing"])
+        result = await Memnotary(adapter).fetch_batch("agent-1", [m.memory_id, "missing"])
         assert m.memory_id in result
         assert "missing" not in result
 
@@ -361,16 +361,16 @@ class TestEngramFetchBatch:
 class TestEngramSearch:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).search("agent-1", [0.1, 0.2])
+        await Memnotary(adapter).search("agent-1", [0.1, 0.2])
         assert "search" in adapter.calls
 
     async def test_returns_list(self) -> None:
-        result = await Engram(_StubAdapter()).search("agent-1", [0.1])
+        result = await Memnotary(_StubAdapter()).search("agent-1", [0.1])
         assert isinstance(result, list)
 
     async def test_passes_kwargs_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).search(
+        await Memnotary(adapter).search(
             "agent-1",
             [0.1],
             top_k=5,
@@ -385,7 +385,7 @@ class TestEngramSearch:
 
     async def test_default_kwargs(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).search("agent-1", [0.1])
+        await Memnotary(adapter).search("agent-1", [0.1])
         assert adapter._search_kwargs["top_k"] == 10
         assert adapter._search_kwargs["score_threshold"] is None
         assert adapter._search_kwargs["filters"] is None
@@ -394,16 +394,16 @@ class TestEngramSearch:
 class TestEngramListAll:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).list_all("agent-1")
+        await Memnotary(adapter).list_all("agent-1")
         assert "list_all" in adapter.calls
 
     async def test_returns_list(self) -> None:
-        result = await Engram(_StubAdapter()).list_all("agent-1")
+        result = await Memnotary(_StubAdapter()).list_all("agent-1")
         assert isinstance(result, list)
 
     async def test_passes_kwargs_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).list_all(
+        await Memnotary(adapter).list_all(
             "agent-1",
             status=MemoryStatus.ACTIVE,
             limit=50,
@@ -417,7 +417,7 @@ class TestEngramListAll:
 
     async def test_default_kwargs(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).list_all("agent-1")
+        await Memnotary(adapter).list_all("agent-1")
         assert adapter._list_all_kwargs["status"] is None
         assert adapter._list_all_kwargs["limit"] is None
         assert adapter._list_all_kwargs["offset"] == 0
@@ -426,35 +426,35 @@ class TestEngramListAll:
 class TestEngramCount:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).count("agent-1")
+        await Memnotary(adapter).count("agent-1")
         assert "count" in adapter.calls
 
     async def test_returns_int(self) -> None:
-        result = await Engram(_StubAdapter()).count("agent-1")
+        result = await Memnotary(_StubAdapter()).count("agent-1")
         assert isinstance(result, int)
 
     async def test_reflects_stored_memories(self) -> None:
         adapter = _StubAdapter()
         adapter._store["x"] = make_memory()
         adapter._store["y"] = make_memory()
-        assert await Engram(adapter).count("agent-1") == 2
+        assert await Memnotary(adapter).count("agent-1") == 2
 
 
 class TestEngramExists:
     async def test_delegates_to_adapter(self) -> None:
         adapter = _StubAdapter()
-        await Engram(adapter).exists("agent-1", "mem-x")
+        await Memnotary(adapter).exists("agent-1", "mem-x")
         assert "exists" in adapter.calls
 
     async def test_returns_false_when_absent(self) -> None:
-        result = await Engram(_StubAdapter()).exists("agent-1", "missing")
+        result = await Memnotary(_StubAdapter()).exists("agent-1", "missing")
         assert result is False
 
     async def test_returns_true_when_present(self) -> None:
         adapter = _StubAdapter()
         m = make_memory()
         adapter._store[m.memory_id] = m
-        assert await Engram(adapter).exists("agent-1", m.memory_id) is True
+        assert await Memnotary(adapter).exists("agent-1", m.memory_id) is True
 
 
 # ---------------------------------------------------------------------------
@@ -465,7 +465,7 @@ class TestEngramExists:
 class TestEngramNotImplementedStubs:
     async def test_consolidate_without_consolidator_raises_value_error(self) -> None:
         with pytest.raises(ValueError, match="consolidate\\(\\) requires a Consolidator"):
-            await Engram(_StubAdapter()).consolidate("agent-1")
+            await Memnotary(_StubAdapter()).consolidate("agent-1")
 
 
 # ---------------------------------------------------------------------------
@@ -475,16 +475,16 @@ class TestEngramNotImplementedStubs:
 
 class TestPublicImports:
     def test_engram_importable_from_root(self) -> None:
-        from engram import Engram as E
+        from memnotary import Memnotary as E
 
-        assert E is Engram
+        assert E is Memnotary
 
     def test_exceptions_importable_from_root(self) -> None:
         assert issubclass(NotFoundError, AdapterError)
-        assert issubclass(AdapterError, EngramError)
+        assert issubclass(AdapterError, MemnotaryError)
 
     def test_models_importable_from_root(self) -> None:
-        from engram import ConsolidationPlan, HealthScore, Memory, SearchResult
+        from memnotary import ConsolidationPlan, HealthScore, Memory, SearchResult
 
         assert Memory is not None
         assert SearchResult is not None
@@ -492,7 +492,7 @@ class TestPublicImports:
         assert ConsolidationPlan is not None
 
     def test_abstract_adapter_importable_from_root(self) -> None:
-        from engram import AbstractAdapter as AA
+        from memnotary import AbstractAdapter as AA
 
         assert AA is AbstractAdapter
 
@@ -504,12 +504,12 @@ class TestPublicImports:
         assert RiskLevel is not None
 
     def test_version_available(self) -> None:
-        import engram
+        import memnotary
 
-        assert engram.__version__ == "0.1.0-alpha"
+        assert memnotary.__version__ == "0.1.0-alpha"
 
     def test_contradiction_detector_importable_from_root(self) -> None:
-        from engram import ClassificationResult, ContradictionDetector, LLMClassifyFn
+        from memnotary import ClassificationResult, ContradictionDetector, LLMClassifyFn
 
         assert ContradictionDetector is not None
         assert ClassificationResult is not None
@@ -517,14 +517,14 @@ class TestPublicImports:
 
 
 # ---------------------------------------------------------------------------
-# Engram with ContradictionDetector — step 5.2
+# Memnotary with ContradictionDetector — step 5.2
 # ---------------------------------------------------------------------------
 
 # These tests use InMemoryAdapter directly because _StubAdapter does not
 # implement conflict storage. InMemoryAdapter is the reference implementation.
 
-from engram.adapters.memory import InMemoryAdapter  # noqa: E402
-from engram.core.contradiction import ContradictionDetector  # noqa: E402
+from memnotary.adapters.memory import InMemoryAdapter  # noqa: E402
+from memnotary.core.contradiction import ContradictionDetector  # noqa: E402
 
 
 def _make_detector(responses: list[str], **kwargs: object) -> ContradictionDetector:
@@ -544,11 +544,11 @@ _UNRELATED_RESP = '{"verdict": "unrelated", "confidence": 0.90, "summary": ""}'
 
 class TestEngramReprWithDetector:
     def test_repr_without_detector(self) -> None:
-        assert repr(Engram(_StubAdapter())) == "Engram(adapter='stub')"
+        assert repr(Memnotary(_StubAdapter())) == "Memnotary(adapter='stub')"
 
     def test_repr_with_detector(self) -> None:
         det = _make_detector([])
-        r = repr(Engram(_StubAdapter(), detector=det))
+        r = repr(Memnotary(_StubAdapter(), detector=det))
         assert "ContradictionDetector" in r
         assert "stub" in r
 
@@ -556,7 +556,7 @@ class TestEngramReprWithDetector:
 class TestEngramStoreTimeDetection:
     async def test_store_without_detector_no_conflict_stored(self) -> None:
         adapter = InMemoryAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         mem_a = make_memory(embedding=[1.0, 0.0])
         mem_b = make_memory(embedding=[0.99, 0.01])
         await eng.store(mem_a)
@@ -567,7 +567,7 @@ class TestEngramStoreTimeDetection:
     async def test_store_with_no_embedding_skips_detection(self) -> None:
         adapter = InMemoryAdapter()
         det = _make_detector([_CONTRADICTION_RESP])
-        eng = Engram(adapter, detector=det)
+        eng = Memnotary(adapter, detector=det)
         mem = make_memory(embedding=None)
         await eng.store(mem)
         assert await adapter.list_conflicts("agent-1") == []
@@ -575,14 +575,14 @@ class TestEngramStoreTimeDetection:
     async def test_store_first_memory_no_candidates(self) -> None:
         adapter = InMemoryAdapter()
         det = _make_detector([_CONTRADICTION_RESP])
-        eng = Engram(adapter, detector=det)
+        eng = Memnotary(adapter, detector=det)
         await eng.store(make_memory(embedding=[1.0, 0.0]))
         assert await adapter.list_conflicts("agent-1") == []
 
     async def test_store_triggers_detection_and_stores_conflict(self) -> None:
         adapter = InMemoryAdapter()
         det = _make_detector([_CONTRADICTION_RESP], cluster_threshold=0.80)
-        eng = Engram(adapter, detector=det)
+        eng = Memnotary(adapter, detector=det)
         mem_a = make_memory(embedding=[1.0, 0.01], text="Rate limit is 100 req/min")
         mem_b = make_memory(embedding=[0.99, 0.02], text="Rate limit is 500 req/min")
         await eng.store(mem_a)
@@ -595,7 +595,7 @@ class TestEngramStoreTimeDetection:
     async def test_store_batch_skips_detection(self) -> None:
         adapter = InMemoryAdapter()
         det = _make_detector([_CONTRADICTION_RESP], cluster_threshold=0.80)
-        eng = Engram(adapter, detector=det)
+        eng = Memnotary(adapter, detector=det)
         mem_a = make_memory(embedding=[1.0, 0.01], text="Rate limit is 100")
         mem_b = make_memory(embedding=[0.99, 0.02], text="Rate limit is 500")
         await eng.store_batch([mem_a, mem_b])
@@ -605,10 +605,10 @@ class TestEngramStoreTimeDetection:
 class TestEngramSearchEnrichment:
     async def _setup(
         self,
-    ) -> tuple[Engram, InMemoryAdapter, Memory, Memory, Memory]:
+    ) -> tuple[Memnotary, InMemoryAdapter, Memory, Memory, Memory]:
         adapter = InMemoryAdapter()
         det = _make_detector([_CONTRADICTION_RESP], cluster_threshold=0.80)
-        eng = Engram(adapter, detector=det)
+        eng = Memnotary(adapter, detector=det)
         mem_a = make_memory(embedding=[1.0, 0.01], text="Rate limit is 100 req/min")
         mem_b = make_memory(embedding=[0.99, 0.02], text="Rate limit is 500 req/min")
         mem_c = make_memory(embedding=[-1.0, 0.0], text="Office is in London")
@@ -619,7 +619,7 @@ class TestEngramSearchEnrichment:
 
     async def test_search_without_detector_returns_default_flags(self) -> None:
         adapter = InMemoryAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         mem = make_memory(embedding=[1.0, 0.0])
         await adapter.store(mem)
         results = await eng.search("agent-1", [1.0, 0.0], top_k=1)
@@ -631,7 +631,7 @@ class TestEngramSearchEnrichment:
     async def test_search_no_conflicts_returns_unchanged_results(self) -> None:
         adapter = InMemoryAdapter()
         det = _make_detector([])
-        eng = Engram(adapter, detector=det)
+        eng = Memnotary(adapter, detector=det)
         mem = make_memory(embedding=[1.0, 0.0])
         await adapter.store(mem)
         results = await eng.search("agent-1", [1.0, 0.0], top_k=1)
@@ -677,10 +677,10 @@ class TestEngramSearchEnrichment:
     async def test_temporal_supersession_prefers_newer_created_at(self) -> None:
         from datetime import UTC, datetime
 
-        from engram.core.models import ConflictRecord
+        from memnotary.core.models import ConflictRecord
 
         adapter = InMemoryAdapter()
-        eng = Engram(adapter, detector=_make_detector([]))
+        eng = Memnotary(adapter, detector=_make_detector([]))
 
         mem_old = make_memory(
             embedding=[1.0, 0.01],
@@ -711,10 +711,10 @@ class TestEngramSearchEnrichment:
         assert by_id[mem_old.memory_id].recommended is False
 
     async def test_status_filter_removes_superseded_memory(self) -> None:
-        from engram.core.models import ConflictRecord
+        from memnotary.core.models import ConflictRecord
 
         adapter = InMemoryAdapter()
-        eng = Engram(adapter, detector=_make_detector([]))
+        eng = Memnotary(adapter, detector=_make_detector([]))
 
         mem_active = make_memory(embedding=[1.0, 0.01], text="new policy")
         mem_superseded = make_memory(
@@ -738,10 +738,10 @@ class TestEngramSearchEnrichment:
         assert mem_active.memory_id in result_ids
 
     async def test_superseded_by_link_demotes_memory(self) -> None:
-        from engram.core.models import ConflictRecord
+        from memnotary.core.models import ConflictRecord
 
         adapter = InMemoryAdapter()
-        eng = Engram(adapter, detector=_make_detector([]))
+        eng = Memnotary(adapter, detector=_make_detector([]))
 
         mem_b = make_memory(embedding=[0.99, 0.02], text="new policy")
         # mem_a has better cosine (rank 1) but superseded_by link → rule 2 should demote it
@@ -766,10 +766,10 @@ class TestEngramSearchEnrichment:
     async def test_direct_contradiction_falls_back_to_rank(self) -> None:
         from datetime import UTC, datetime
 
-        from engram.core.models import ConflictRecord
+        from memnotary.core.models import ConflictRecord
 
         adapter = InMemoryAdapter()
-        eng = Engram(adapter, detector=_make_detector([]))
+        eng = Memnotary(adapter, detector=_make_detector([]))
 
         # Same timestamp, no superseded_by — rule 4 (rank fallback) decides
         ts = datetime(2026, 1, 1, tzinfo=UTC)
@@ -795,10 +795,10 @@ class TestEngramSearchEnrichment:
     async def test_three_version_chain_newest_recommended(self) -> None:
         from datetime import UTC, datetime
 
-        from engram.core.models import ConflictRecord
+        from memnotary.core.models import ConflictRecord
 
         adapter = InMemoryAdapter()
-        eng = Engram(adapter, detector=_make_detector([]))
+        eng = Memnotary(adapter, detector=_make_detector([]))
 
         t1 = datetime(2026, 1, 1, tzinfo=UTC)
         t2 = datetime(2026, 2, 1, tzinfo=UTC)
@@ -831,14 +831,14 @@ class TestEngramSearchEnrichment:
 
 class TestEngramScanContradictions:
     async def test_without_detector_raises_value_error(self) -> None:
-        eng = Engram(InMemoryAdapter())
+        eng = Memnotary(InMemoryAdapter())
         with pytest.raises(ValueError, match="ContradictionDetector"):
             await eng.scan_contradictions("agent-1")
 
     async def test_with_detector_returns_list(self) -> None:
         adapter = InMemoryAdapter()
         det = _make_detector([_UNRELATED_RESP], cluster_threshold=0.80)
-        eng = Engram(adapter, detector=det)
+        eng = Memnotary(adapter, detector=det)
         mem_a = make_memory(embedding=[1.0, 0.01], text="fact A")
         mem_b = make_memory(embedding=[0.99, 0.02], text="fact B")
         await adapter.store(mem_a)
@@ -849,7 +849,7 @@ class TestEngramScanContradictions:
     async def test_with_detector_stores_new_conflicts(self) -> None:
         adapter = InMemoryAdapter()
         det = _make_detector([_CONTRADICTION_RESP], cluster_threshold=0.80)
-        eng = Engram(adapter, detector=det)
+        eng = Memnotary(adapter, detector=det)
         mem_a = make_memory(embedding=[1.0, 0.01], text="Rate limit is 100")
         mem_b = make_memory(embedding=[0.99, 0.02], text="Rate limit is 500")
         await adapter.store(mem_a)
@@ -861,11 +861,11 @@ class TestEngramScanContradictions:
 
 
 # ---------------------------------------------------------------------------
-# Engram.consolidate() — step 6.3
+# Memnotary.consolidate() — step 6.3
 # ---------------------------------------------------------------------------
 
-from engram.core.consolidator import Consolidator  # noqa: E402
-from engram.core.models import ConflictRecord  # noqa: E402
+from memnotary.core.consolidator import Consolidator  # noqa: E402
+from memnotary.core.models import ConflictRecord  # noqa: E402
 
 
 def _make_consolidator(responses: list[str], **kwargs: object) -> Consolidator:
@@ -892,13 +892,13 @@ def _make_temporal_conflict(
 class TestEngramConsolidate:
     async def test_without_consolidator_raises_value_error(self) -> None:
         adapter = InMemoryAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         with pytest.raises(ValueError, match="consolidator"):
             await eng.consolidate("agent-1")
 
     async def test_no_pending_conflicts_returns_none(self) -> None:
         adapter = InMemoryAdapter()
-        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([]))
         result = await eng.consolidate("agent-1")
         assert result is None
 
@@ -910,7 +910,7 @@ class TestEngramConsolidate:
         await adapter.store(m2)
         await adapter.store_conflict(_make_temporal_conflict(m1, m2))
 
-        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([]))
         plan = await eng.consolidate("agent-1")
 
         assert plan is not None
@@ -925,7 +925,7 @@ class TestEngramConsolidate:
         await adapter.store(m2)
         await adapter.store_conflict(_make_temporal_conflict(m1, m2))
 
-        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([]))
         await eng.consolidate("agent-1")
 
         older = await adapter.fetch("agent-1", m1.memory_id)
@@ -934,7 +934,7 @@ class TestEngramConsolidate:
 
 
 # ---------------------------------------------------------------------------
-# Engram.pending_review() — step 6.5
+# Memnotary.pending_review() — step 6.5
 # ---------------------------------------------------------------------------
 
 _FLAG_RESP = '{"action": "flag", "confidence": 0.50, "reasoning": "Ambiguous."}'
@@ -943,7 +943,7 @@ _FLAG_RESP = '{"action": "flag", "confidence": 0.50, "reasoning": "Ambiguous."}'
 class TestEngramPendingReview:
     async def test_empty_when_no_conflicts(self) -> None:
         adapter = InMemoryAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.pending_review("agent-1")
         assert result == []
 
@@ -962,7 +962,7 @@ class TestEngramPendingReview:
         )
         await adapter.store_conflict(conflict)
 
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.pending_review("agent-1")
         assert len(result) == 1
         assert result[0].conflict_id == conflict.conflict_id
@@ -975,7 +975,7 @@ class TestEngramPendingReview:
         await adapter.store(m2)
         await adapter.store_conflict(_make_temporal_conflict(m1, m2))
 
-        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([]))
         await eng.consolidate("agent-1")
 
         result = await eng.pending_review("agent-1")
@@ -997,7 +997,7 @@ class TestEngramPendingReview:
             )
         )
 
-        eng = Engram(adapter, consolidator=_make_consolidator([_FLAG_RESP]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([_FLAG_RESP]))
         await eng.consolidate("agent-1")
 
         result = await eng.pending_review("agent-1")
@@ -1005,17 +1005,17 @@ class TestEngramPendingReview:
 
     async def test_works_without_detector_or_consolidator(self) -> None:
         adapter = InMemoryAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.pending_review("agent-1")
         assert isinstance(result, list)
 
 
 # ---------------------------------------------------------------------------
-# Engram.provenance_for() + Engram.lineage() — step 7.2
+# Memnotary.provenance_for() + Memnotary.lineage() — step 7.2
 # ---------------------------------------------------------------------------
 
-from engram.core.constants import SourceType  # noqa: E402
-from engram.core.models import ProvenanceRecord  # noqa: E402
+from memnotary.core.constants import SourceType  # noqa: E402
+from memnotary.core.models import ProvenanceRecord  # noqa: E402
 
 
 def _attach_prov(mem: Memory, *, source_type: SourceType = SourceType.DOCUMENT) -> Memory:
@@ -1026,7 +1026,7 @@ def _attach_prov(mem: Memory, *, source_type: SourceType = SourceType.DOCUMENT) 
 
 class TestEngramProvenanceFor:
     async def test_returns_none_for_missing_memory(self) -> None:
-        eng = Engram(InMemoryAdapter())
+        eng = Memnotary(InMemoryAdapter())
         result = await eng.provenance_for("agent-1", "nonexistent")
         assert result is None
 
@@ -1034,7 +1034,7 @@ class TestEngramProvenanceFor:
         adapter = InMemoryAdapter()
         mem = Memory(agent_id="agent-1", text="no provenance")
         await adapter.store(mem)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.provenance_for("agent-1", mem.memory_id)
         assert result is None
 
@@ -1043,7 +1043,7 @@ class TestEngramProvenanceFor:
         mem = Memory(agent_id="agent-1", text="has provenance")
         _attach_prov(mem)
         await adapter.store(mem)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.provenance_for("agent-1", mem.memory_id)
         assert result is not None
         assert result.memory_id == mem.memory_id
@@ -1055,7 +1055,7 @@ class TestEngramProvenanceFor:
         m2 = _attach_prov(Memory(agent_id="agent-1", text="fact B"), source_type=SourceType.API)
         await adapter.store(m1)
         await adapter.store(m2)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.provenance_for("agent-1", m2.memory_id)
         assert result is not None
         assert result.source_type == SourceType.API
@@ -1063,7 +1063,7 @@ class TestEngramProvenanceFor:
 
 class TestEngramLineage:
     async def test_returns_empty_for_missing_memory(self) -> None:
-        eng = Engram(InMemoryAdapter())
+        eng = Memnotary(InMemoryAdapter())
         result = await eng.lineage("agent-1", "nonexistent")
         assert result == []
 
@@ -1071,7 +1071,7 @@ class TestEngramLineage:
         adapter = InMemoryAdapter()
         mem = Memory(agent_id="agent-1", text="standalone")
         await adapter.store(mem)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.lineage("agent-1", mem.memory_id)
         assert len(result) == 1
         assert result[0].memory_id == mem.memory_id
@@ -1085,7 +1085,7 @@ class TestEngramLineage:
         await adapter.store(new)
         await adapter.update(old)
 
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         chain = await eng.lineage("agent-1", old.memory_id)
         assert [m.memory_id for m in chain] == [old.memory_id, new.memory_id]
 
@@ -1098,7 +1098,7 @@ class TestEngramLineage:
         await adapter.store(new)
         await adapter.update(old)
 
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         chain = await eng.lineage("agent-1", new.memory_id)
         assert [m.memory_id for m in chain] == [old.memory_id, new.memory_id]
 
@@ -1115,7 +1115,7 @@ class TestEngramLineage:
         await adapter.store(m3)
         await adapter.update(m2)
 
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         chain = await eng.lineage("agent-1", m2.memory_id)
         assert [m.memory_id for m in chain] == [m1.memory_id, m2.memory_id, m3.memory_id]
 
@@ -1128,7 +1128,7 @@ class TestEngramLineage:
         await adapter.store(m2)
         await adapter.update(m1)
 
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         chain = await eng.lineage("agent-1", m2.memory_id)
         assert chain[0].text == "v1"
         assert chain[1].text == "v2"
@@ -1137,7 +1137,7 @@ class TestEngramLineage:
         adapter = InMemoryAdapter()
         mem = Memory(agent_id="agent-1", text="orphan", supersedes=["ghost-id"])
         await adapter.store(mem)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         chain = await eng.lineage("agent-1", mem.memory_id)
         assert len(chain) == 1
         assert chain[0].memory_id == mem.memory_id
@@ -1152,7 +1152,7 @@ class TestEngramLineage:
         m2.superseded_by = m1.memory_id  # artificial cycle
         await adapter.update(m1)
         await adapter.update(m2)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         chain = await eng.lineage("agent-1", m1.memory_id)
         assert len(chain) <= 3  # terminates, doesn't loop forever
 
@@ -1169,7 +1169,7 @@ class TestEngramLineage:
             supersedes=[newer.memory_id, older.memory_id],
         )
         await adapter.store(merged)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         chain = await eng.lineage("agent-1", merged.memory_id)
         # Root should be the older memory (smallest created_at)
         assert chain[0].memory_id == older.memory_id
@@ -1187,7 +1187,7 @@ class TestEngramLineage:
         await adapter.store(new)
         await adapter.store_conflict(_make_temporal_conflict(old, new))
 
-        eng = Engram(adapter, consolidator=_make_consolidator([]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([]))
         await eng.consolidate("agent-1")
 
         chain = await eng.lineage("agent-1", new.memory_id)
@@ -1198,15 +1198,15 @@ class TestEngramLineage:
 
 
 # ---------------------------------------------------------------------------
-# Engram.export_provenance() + Engram.export_provenance_json() — step 7.3
+# Memnotary.export_provenance() + Memnotary.export_provenance_json() — step 7.3
 # ---------------------------------------------------------------------------
 
-from engram.core.provenance import ProvenanceManifest  # noqa: E402
+from memnotary.core.provenance import ProvenanceManifest  # noqa: E402
 
 
 class TestEngramExportProvenance:
     async def test_returns_none_for_missing_memory(self) -> None:
-        eng = Engram(InMemoryAdapter())
+        eng = Memnotary(InMemoryAdapter())
         result = await eng.export_provenance("agent-1", "nonexistent")
         assert result is None
 
@@ -1214,7 +1214,7 @@ class TestEngramExportProvenance:
         adapter = InMemoryAdapter()
         mem = Memory(agent_id="agent-1", text="no provenance")
         await adapter.store(mem)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.export_provenance("agent-1", mem.memory_id)
         assert result is None
 
@@ -1222,7 +1222,7 @@ class TestEngramExportProvenance:
         adapter = InMemoryAdapter()
         mem = _attach_prov(Memory(agent_id="agent-1", text="has provenance"))
         await adapter.store(mem)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.export_provenance("agent-1", mem.memory_id)
         assert isinstance(result, ProvenanceManifest)
         assert result.memory_id == mem.memory_id
@@ -1234,7 +1234,7 @@ class TestEngramExportProvenance:
             Memory(agent_id="agent-1", text="check fields"), source_type=SourceType.API
         )
         await adapter.store(mem)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         manifest = await eng.export_provenance("agent-1", mem.memory_id)
         assert manifest is not None
         assert manifest.agent_id == "agent-1"
@@ -1245,7 +1245,7 @@ class TestEngramExportProvenance:
         adapter = InMemoryAdapter()
         mem = _attach_prov(Memory(agent_id="agent-1", text="frozen"))
         await adapter.store(mem)
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         manifest = await eng.export_provenance("agent-1", mem.memory_id)
         assert manifest is not None
         from pydantic import ValidationError
@@ -1256,7 +1256,7 @@ class TestEngramExportProvenance:
 
 class TestEngramExportProvenanceJson:
     async def test_returns_none_for_missing_memory(self) -> None:
-        eng = Engram(InMemoryAdapter())
+        eng = Memnotary(InMemoryAdapter())
         result = await eng.export_provenance_json("agent-1", "nonexistent")
         assert result is None
 
@@ -1264,14 +1264,14 @@ class TestEngramExportProvenanceJson:
         adapter = InMemoryAdapter()
         mem = Memory(agent_id="agent-1", text="no prov")
         await adapter.store(mem)
-        result = await Engram(adapter).export_provenance_json("agent-1", mem.memory_id)
+        result = await Memnotary(adapter).export_provenance_json("agent-1", mem.memory_id)
         assert result is None
 
     async def test_returns_json_string(self) -> None:
         adapter = InMemoryAdapter()
         mem = _attach_prov(Memory(agent_id="agent-1", text="json export"))
         await adapter.store(mem)
-        result = await Engram(adapter).export_provenance_json("agent-1", mem.memory_id)
+        result = await Memnotary(adapter).export_provenance_json("agent-1", mem.memory_id)
         assert isinstance(result, str)
 
     async def test_json_is_valid_and_contains_memory_id(self) -> None:
@@ -1280,7 +1280,7 @@ class TestEngramExportProvenanceJson:
         adapter = InMemoryAdapter()
         mem = _attach_prov(Memory(agent_id="agent-1", text="json valid"))
         await adapter.store(mem)
-        raw = await Engram(adapter).export_provenance_json("agent-1", mem.memory_id)
+        raw = await Memnotary(adapter).export_provenance_json("agent-1", mem.memory_id)
         assert raw is not None
         data = json.loads(raw)
         assert data["memory_id"] == mem.memory_id
@@ -1293,7 +1293,7 @@ class TestEngramExportProvenanceJson:
         adapter = InMemoryAdapter()
         mem = _attach_prov(Memory(agent_id="agent-1", text="roundtrip"), source_type=SourceType.API)
         await adapter.store(mem)
-        raw = await Engram(adapter).export_provenance_json("agent-1", mem.memory_id)
+        raw = await Memnotary(adapter).export_provenance_json("agent-1", mem.memory_id)
         assert raw is not None
         data = json.loads(raw)
         assert data["source_type"] == "api"
@@ -1323,7 +1323,7 @@ class TestMergeAttachesProvenance:
                 confidence=0.9,
             )
         )
-        eng = Engram(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
         plan = await eng.consolidate("agent-1")
 
         assert plan is not None
@@ -1349,7 +1349,7 @@ class TestMergeAttachesProvenance:
                 confidence=0.9,
             )
         )
-        eng = Engram(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
         plan = await eng.consolidate("agent-1")
 
         merged_id = plan.actions[0].result_memory_id
@@ -1372,7 +1372,7 @@ class TestMergeAttachesProvenance:
                 confidence=0.9,
             )
         )
-        eng = Engram(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
         plan = await eng.consolidate("agent-1")
 
         merged_id = plan.actions[0].result_memory_id
@@ -1395,7 +1395,7 @@ class TestMergeAttachesProvenance:
                 confidence=0.9,
             )
         )
-        eng = Engram(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
+        eng = Memnotary(adapter, consolidator=_make_consolidator([_MERGE_RESP]))
         plan = await eng.consolidate("agent-1")
 
         merged_id = plan.actions[0].result_memory_id

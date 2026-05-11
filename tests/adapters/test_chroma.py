@@ -14,8 +14,8 @@ import uuid
 import chromadb
 import pytest
 
-from engram.adapters.chroma import ChromaAdapter
-from engram.core.exceptions import NotFoundError
+from memnotary.adapters.chroma import ChromaAdapter
+from memnotary.core.exceptions import NotFoundError
 from tests.adapters.contract import AdapterContractTests, _m
 
 _VECTOR_SIZE = 2  # all contract tests use 2D embeddings
@@ -98,7 +98,7 @@ class TestChromaSpecific:
     async def test_update_wrong_agent_raises_not_found(self) -> None:
         m = _m("a1")
         await self.adapter.store(m)
-        from engram.core.models import Memory
+        from memnotary.core.models import Memory
 
         m_other = Memory(memory_id=m.memory_id, agent_id="a2", text="wrong tenant")
         with pytest.raises(NotFoundError):
@@ -112,6 +112,6 @@ class TestChromaSpecific:
         assert result is not None
 
     async def test_importable_from_root(self) -> None:
-        from engram import ChromaAdapter as CA
+        from memnotary import ChromaAdapter as CA
 
         assert CA is ChromaAdapter

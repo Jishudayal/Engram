@@ -52,7 +52,7 @@ def test_all_case_names_unique() -> None:
 
 @pytest.mark.parametrize("case_class", TEMPORAL_CASES)
 async def test_score_is_in_valid_range(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -66,7 +66,7 @@ async def test_score_is_in_valid_range(case_class) -> None:
 
 @pytest.mark.parametrize("case_class", TEMPORAL_CASES)
 async def test_teardown_clears_all_fixtures(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -81,7 +81,7 @@ async def test_teardown_clears_all_fixtures(case_class) -> None:
 
 
 async def test_newer_version_active_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = NewerVersionActive()
@@ -91,7 +91,7 @@ async def test_newer_version_active_scores_1() -> None:
 
 
 async def test_superseded_excluded_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = SupersededExcludedFromActive()
@@ -101,7 +101,7 @@ async def test_superseded_excluded_scores_1() -> None:
 
 
 async def test_three_versions_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ThreeVersionsOnlyLatestActive()
@@ -111,7 +111,7 @@ async def test_three_versions_scores_1() -> None:
 
 
 async def test_supersedes_link_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = SupersedesLinkRecorded()
@@ -121,7 +121,7 @@ async def test_supersedes_link_scores_1() -> None:
 
 
 async def test_superseded_by_link_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = SupersededByLinkRecorded()
@@ -131,7 +131,7 @@ async def test_superseded_by_link_scores_1() -> None:
 
 
 async def test_importance_roundtrip_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ImportanceFieldRoundtrips()
@@ -141,7 +141,7 @@ async def test_importance_roundtrip_scores_1() -> None:
 
 
 async def test_expiration_detectable_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ExpirationDetectable()
@@ -151,7 +151,7 @@ async def test_expiration_detectable_scores_1() -> None:
 
 
 async def test_access_tracking_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = AccessTrackingPersists()
@@ -161,7 +161,7 @@ async def test_access_tracking_scores_1() -> None:
 
 
 async def test_provenance_roundtrip_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ProvenanceRoundtrips()
@@ -171,7 +171,7 @@ async def test_provenance_roundtrip_scores_1() -> None:
 
 
 async def test_updated_at_roundtrip_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = UpdatedAtPreservedOnRoundtrip()

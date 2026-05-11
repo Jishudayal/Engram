@@ -25,10 +25,10 @@ from typing import Any
 
 import numpy as np
 
-from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus, ResolutionStatus
-from engram.core.exceptions import NotFoundError
-from engram.core.models import ConflictRecord, Memory, SearchResult
+from memnotary.adapters.base import AbstractAdapter
+from memnotary.core.constants import MemoryStatus, ResolutionStatus
+from memnotary.core.exceptions import NotFoundError
+from memnotary.core.models import ConflictRecord, Memory, SearchResult
 
 __all__ = ["InMemoryAdapter"]
 

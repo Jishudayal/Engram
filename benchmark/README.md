@@ -1,6 +1,6 @@
-# Engram Benchmark Suite
+# memnotary Benchmark Suite
 
-Two-track reliability benchmark for Engram and comparable memory systems.
+Two-track reliability benchmark for memnotary and comparable memory systems.
 
 ## Track 1 — Infrastructure Reliability Score
 
@@ -24,7 +24,7 @@ python benchmark/report.py       # prints comparison table + headline numbers
 
 ## Track 2 — Behavioral Contradiction Test
 
-Behavioral comparison across Mem0, raw Qdrant, and Engram+Qdrant using
+Behavioral comparison across Mem0, raw Qdrant, and memnotary+Qdrant using
 real LLM extraction pipelines.
 
 **Requirements:**
@@ -33,7 +33,7 @@ real LLM extraction pipelines.
   - `engram-qdrant-mem0` — Qdrant server for Mem0 (port 6333)
 
 ```bash
-# Start Qdrant (shared by Mem0, NaiveQdrant, and Engram adapters)
+# Start Qdrant (shared by Mem0, NaiveQdrant, and memnotary adapters)
 docker run -d --name engram-qdrant-mem0 -p 6333:6333 qdrant/qdrant
 
 # Smoke test — confirms Mem0 is wired correctly before running Track 2
@@ -50,9 +50,9 @@ OPENAI_API_KEY=sk-... python benchmark/run_track2.py
 | System | Description |
 |---|---|
 | `mem0` | Mem0 2.x — LLM extraction + OpenAI embeddings (black-box dedup) |
-| `naive-qdrant` | Raw Qdrant cosine search, no Engram data model |
-| `engram-detect` | Engram + ContradictionDetector — flags conflicts, no resolution |
-| `engram-consolidated` | Engram + ContradictionDetector + Consolidator — flags + resolves |
+| `naive-qdrant` | Raw Qdrant cosine search, no memnotary data model |
+| `engram-detect` | memnotary + ContradictionDetector — flags conflicts, no resolution |
+| `engram-consolidated` | memnotary + ContradictionDetector + Consolidator — flags + resolves |
 
 ### Scenarios
 
@@ -89,7 +89,7 @@ Per-scenario composite scores:
 | B6 — Explicit temporal language | 0.60 | 0.60 | 0.60 | 0.60 |
 | B7 — Metadata timestamp | 1.00 | 1.00 | 0.60 | 0.60 |
 
-**B6 note:** All four systems score 0.60 on B6. The two sentences in this scenario are phrased differently enough that their cosine similarity falls below Engram's 0.82 cluster threshold, so the LLM classifier is never invoked and no conflict is recorded. This is a known architectural trade-off: conflict detection requires sufficient semantic overlap at the embedding level before the more expensive LLM step is triggered. Varied real-world phrasing that expresses the same underlying fact can fall below this threshold.
+**B6 note:** All four systems score 0.60 on B6. The two sentences in this scenario are phrased differently enough that their cosine similarity falls below memnotary's 0.82 cluster threshold, so the LLM classifier is never invoked and no conflict is recorded. This is a known architectural trade-off: conflict detection requires sufficient semantic overlap at the embedding level before the more expensive LLM step is triggered. Varied real-world phrasing that expresses the same underlying fact can fall below this threshold.
 
 **Dependencies (benchmark-only, not in pyproject.toml extras):**
 
@@ -111,4 +111,4 @@ pip install mem0ai qdrant-client chromadb asyncpg pgvector
 | Container | Image | Port | Used by |
 |---|---|---|---|
 | `engram-pgvector-bench` | `pgvector/pgvector:pg16` | 5433 | Track 1 Step 1.4 |
-| `engram-qdrant-mem0` | `qdrant/qdrant` | 6333 | Track 2 (Mem0, NaiveQdrant, Engram) |
+| `engram-qdrant-mem0` | `qdrant/qdrant` | 6333 | Track 2 (Mem0, NaiveQdrant, memnotary) |

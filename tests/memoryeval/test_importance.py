@@ -57,7 +57,7 @@ def test_all_case_names_unique() -> None:
 
 @pytest.mark.parametrize("case_class", IMPORTANCE_CASES)
 async def test_score_is_in_valid_range(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -71,7 +71,7 @@ async def test_score_is_in_valid_range(case_class) -> None:
 
 @pytest.mark.parametrize("case_class", IMPORTANCE_CASES)
 async def test_teardown_clears_all_fixtures(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -86,7 +86,7 @@ async def test_teardown_clears_all_fixtures(case_class) -> None:
 
 
 async def test_importance_roundtrip_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ImportanceRoundtrip()
@@ -96,7 +96,7 @@ async def test_importance_roundtrip_scores_1() -> None:
 
 
 async def test_importance_default_in_range_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ImportanceDefaultInRange()
@@ -106,7 +106,7 @@ async def test_importance_default_in_range_scores_1() -> None:
 
 
 async def test_importance_update_persists_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ImportanceUpdatePersists()
@@ -116,7 +116,7 @@ async def test_importance_update_persists_scores_1() -> None:
 
 
 async def test_importance_not_used_in_search_filter_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ImportanceNotUsedInSearchFilter()
@@ -126,7 +126,7 @@ async def test_importance_not_used_in_search_filter_scores_1() -> None:
 
 
 async def test_multiple_importance_levels_all_preserved_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = MultipleImportanceLevelsAllPreserved()
@@ -143,7 +143,7 @@ async def test_multiple_importance_levels_all_preserved_scores_1() -> None:
 
 async def test_high_importance_ranks_above_low_scores_0_on_inmemory() -> None:
     """InMemoryAdapter is cosine-only; equal cosine → insertion order → low-importance wins."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = HighImportanceRanksAboveLow()
@@ -154,7 +154,7 @@ async def test_high_importance_ranks_above_low_scores_0_on_inmemory() -> None:
 
 async def test_top_k_sorted_by_importance_scores_0_on_inmemory() -> None:
     """InMemoryAdapter returns first 2 by insertion order (all low-importance); gap case."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = TopKSortedByImportance()
@@ -165,7 +165,7 @@ async def test_top_k_sorted_by_importance_scores_0_on_inmemory() -> None:
 
 async def test_access_count_boosted_retrieval_scores_0_on_inmemory() -> None:
     """InMemoryAdapter ignores access_count; untouched memory inserted first wins the tie."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = AccessCountBoostedRetrieval()
@@ -176,7 +176,7 @@ async def test_access_count_boosted_retrieval_scores_0_on_inmemory() -> None:
 
 async def test_recently_accessed_surfaces_scores_0_on_inmemory() -> None:
     """InMemoryAdapter ignores last_accessed; stale memory inserted first wins the tie."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = RecentlyAccessedSurfaces()
@@ -187,7 +187,7 @@ async def test_recently_accessed_surfaces_scores_0_on_inmemory() -> None:
 
 async def test_recency_breaks_importance_tie_scores_0_on_inmemory() -> None:
     """InMemoryAdapter ignores last_accessed; old memory inserted first wins the tie."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = RecencyBreaksImportanceTie()

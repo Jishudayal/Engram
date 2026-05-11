@@ -5,8 +5,8 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from engram.core.constants import ConflictType, MemoryType, ResolutionStatus, SourceType
-from engram.core.models import ConflictRecord, Memory, ProvenanceRecord
+from memnotary.core.constants import ConflictType, MemoryType, ResolutionStatus, SourceType
+from memnotary.core.models import ConflictRecord, Memory, ProvenanceRecord
 
 
 def make_provenance(**overrides: object) -> ProvenanceRecord:
@@ -167,7 +167,7 @@ class TestProvenanceRecordDerivedFrom:
 # ProvenanceManifest
 # ---------------------------------------------------------------------------
 
-from engram.core.provenance import ProvenanceManifest  # noqa: E402
+from memnotary.core.provenance import ProvenanceManifest  # noqa: E402
 
 
 def make_memory_with_provenance(**mem_overrides: object) -> Memory:
@@ -294,13 +294,13 @@ class TestProvenanceManifest:
         assert restored.memory_id == manifest.memory_id
         assert restored.source_type == manifest.source_type
 
-    def test_importable_from_engram_core(self) -> None:
-        from engram.core import ProvenanceManifest as PM
+    def test_importable_from_memnotary_core(self) -> None:
+        from memnotary.core import ProvenanceManifest as PM
 
         assert PM is ProvenanceManifest
 
-    def test_importable_from_engram_root(self) -> None:
-        from engram import ProvenanceManifest as PM
+    def test_importable_from_memnotary_root(self) -> None:
+        from memnotary import ProvenanceManifest as PM
 
         assert PM is ProvenanceManifest
 

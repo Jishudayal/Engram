@@ -7,11 +7,11 @@ from typing import Any
 
 import pytest
 
-from engram import Memory, MemoryStatus, MemoryType
-from engram.adapters._utils import map_adapter_errors, memory_to_payload, payload_to_memory
-from engram.core.constants import SourceType
-from engram.core.exceptions import AdapterError, NotFoundError
-from engram.core.models import ProvenanceRecord
+from memnotary import Memory, MemoryStatus, MemoryType
+from memnotary.adapters._utils import map_adapter_errors, memory_to_payload, payload_to_memory
+from memnotary.core.constants import SourceType
+from memnotary.core.exceptions import AdapterError, NotFoundError
+from memnotary.core.models import ProvenanceRecord
 
 
 def _m(**kw: Any) -> Memory:

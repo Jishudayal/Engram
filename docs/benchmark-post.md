@@ -1,6 +1,6 @@
 # We measured AI memory reliability across 4 systems. The results were uncomfortable.
 
-*A behavioral benchmark comparing Engram, Mem0, and raw Qdrant on contradiction detection, temporal reasoning, and false positive avoidance.*
+*A behavioral benchmark comparing memnotary, Mem0, and raw Qdrant on contradiction detection, temporal reasoning, and false positive avoidance.*
 
 ---
 
@@ -36,7 +36,7 @@ We ran two tracks.
 
 We tested three configurations:
 
-- **Engram** — our open-source reliability layer for AI memory. Wraps your existing vector backend; adds contradiction detection, health scoring, and consolidation.
+- **memnotary** — our open-source reliability layer for AI memory. Wraps your existing vector backend; adds contradiction detection, health scoring, and consolidation.
 - **Mem0** — the most widely deployed AI memory library (52K+ GitHub stars). Used default settings throughout.
 - **Naive Qdrant** — raw Qdrant with no memory data model. No lifecycle tracking, no conflict detection, no supersession. The baseline for "just store vectors."
 
@@ -46,35 +46,35 @@ We tested three configurations:
 
 | System | Overall | Correctness | Signal | Risk |
 |---|---|---|---|---|
-| **Engram** | **0.94** | 1.00 | 0.86 | LOW |
+| **memnotary** | **0.94** | 1.00 | 0.86 | LOW |
 | Mem0 | 0.77 | 1.00 | 0.43 | MEDIUM |
 | Naive Qdrant | 0.71 | 1.00 | 0.29 | MEDIUM |
 
 All three systems return the right answer. The divergence is entirely in signal.
 
-Engram flagged or suppressed the stale/contradicting memory in **6 of 7 scenarios**. Mem0 caught **3 of 7**. Raw Qdrant caught **2 of 7**.
+memnotary flagged or suppressed the stale/contradicting memory in **6 of 7 scenarios**. Mem0 caught **3 of 7**. Raw Qdrant caught **2 of 7**.
 
-The signal gap between Engram and Mem0 is not about correctness — it is about whether your agent knows it is uncertain. Mem0's signal score of 0.43 means that in the majority of conflict scenarios, the stale answer surfaces alongside the fresh answer with nothing to distinguish them. Your LLM is left to resolve the ambiguity on its own, silently.
+The signal gap between memnotary and Mem0 is not about correctness — it is about whether your agent knows it is uncertain. Mem0's signal score of 0.43 means that in the majority of conflict scenarios, the stale answer surfaces alongside the fresh answer with nothing to distinguish them. Your LLM is left to resolve the ambiguity on its own, silently.
 
 ---
 
 ## Scenario by scenario
 
-**B1 — Direct contradiction** (Engram 1.00, Mem0 0.60, Naive 0.60)
+**B1 — Direct contradiction** (memnotary 1.00, Mem0 0.60, Naive 0.60)
 
 We stored two memories for the same agent: "rate limit is 100 req/s" then "rate limit is 500 req/s." A week later, we retrieved "what is the rate limit?"
 
-All three systems returned the correct current value. But Mem0 and Naive Qdrant also returned the old value with no flag. Engram detected the conflict on store, recorded a ConflictRecord, and marked the older memory as stale at retrieval time. The agent using Engram received one recommendation, not two contradictory ones.
+All three systems returned the correct current value. But Mem0 and Naive Qdrant also returned the old value with no flag. memnotary detected the conflict on store, recorded a ConflictRecord, and marked the older memory as stale at retrieval time. The agent using memnotary received one recommendation, not two contradictory ones.
 
 **B2 — Retention** (all 1.00)
 
 Three unrelated facts about the same agent. All systems correctly preserved and retrieved all three. There is no false positive on standard multi-fact retrieval.
 
-**B3 — Temporal chain** (Engram 1.00, Mem0 0.60, Naive 0.60)
+**B3 — Temporal chain** (memnotary 1.00, Mem0 0.60, Naive 0.60)
 
 We stored three versions of the same fact across three dates: SLA 99.5%, then 99.9%, then 99.7%. Only the latest should be recommended.
 
-Engram's chain-aware consolidation detected all three as a connected temporal supersession cluster and resolved them in a single pass — the newest memory was kept, both predecessors were marked superseded, all pairwise conflicts were resolved. Mem0 and Naive Qdrant returned multiple versions with no ordering signal.
+memnotary's chain-aware consolidation detected all three as a connected temporal supersession cluster and resolved them in a single pass — the newest memory was kept, both predecessors were marked superseded, all pairwise conflicts were resolved. Mem0 and Naive Qdrant returned multiple versions with no ordering signal.
 
 **B4 — False positive guard** (all 1.00)
 
@@ -82,11 +82,11 @@ Two memories about different topics for the same agent. "Recommended stack for m
 
 This matters as much as the contradiction tests. An overly aggressive conflict detector that flags non-contradictions is not useful in production. All three systems avoid this failure mode.
 
-**B5 — Temporal language** (Engram 1.00, Mem0 1.00, Naive 0.60)
+**B5 — Temporal language** (memnotary 1.00, Mem0 1.00, Naive 0.60)
 
 "The team standup is on Wednesdays at 10am" then "Standup rescheduled to Thursdays at 2pm." We retrieved "when is the standup?"
 
-Engram and Mem0 both handled this correctly — the old schedule was flagged, the new one recommended. Naive Qdrant returned both schedules with no ordering signal. The advantage here for both structured systems is semantic detection of the temporal update pattern.
+memnotary and Mem0 both handled this correctly — the old schedule was flagged, the new one recommended. Naive Qdrant returned both schedules with no ordering signal. The advantage here for both structured systems is semantic detection of the temporal update pattern.
 
 **B6 — Lexically varied temporal** (all 0.60)
 
@@ -96,19 +96,19 @@ We stored "The annual planning meeting is in January" then "The annual strategy 
 
 All three systems scored 0.60. None flagged the conflict.
 
-The root cause for Engram: the two sentences are phrased differently enough that their cosine similarity falls below the 0.82 cluster threshold. The LLM classifier is never invoked because the embedding distance suggests these are unrelated facts, not conflicting ones. Engram never sees them as a candidate pair.
+The root cause for memnotary: the two sentences are phrased differently enough that their cosine similarity falls below the 0.82 cluster threshold. The LLM classifier is never invoked because the embedding distance suggests these are unrelated facts, not conflicting ones. memnotary never sees them as a candidate pair.
 
 This is a real architectural ceiling. Contradiction detection that depends on embedding similarity fails when the same fact is expressed with low lexical overlap. The refund policy scenario at the top of this post — if phrased as "We give 30 days to return items" and "Our return window is two weeks" — would likely fall through the same gap.
 
 We are working on a fuzzy-match layer that operates above the embedding threshold to catch these cases. It is not in the current release.
 
-**B7 — Metadata timestamp** (Engram 1.00, Mem0 0.60, Naive 0.60)
+**B7 — Metadata timestamp** (memnotary 1.00, Mem0 0.60, Naive 0.60)
 
 This one catches an easy implementation mistake.
 
 We stored the current policy first (return window is 60 days, created today), then an old policy second (return window was 90 days, with a `created_at` timestamp 30 days in the past). The insertion order is the opposite of the semantic order.
 
-Naive systems that rely on insertion order or recency-of-store would recommend the 90-day policy because it was stored last. Engram uses the `created_at` field from the memory's metadata — not when it was ingested — to determine which is newer. The 60-day current policy wins. Mem0 and Naive Qdrant both got this wrong.
+Naive systems that rely on insertion order or recency-of-store would recommend the 90-day policy because it was stored last. memnotary uses the `created_at` field from the memory's metadata — not when it was ingested — to determine which is newer. The 60-day current policy wins. Mem0 and Naive Qdrant both got this wrong.
 
 ---
 
@@ -124,11 +124,11 @@ Naive systems that rely on insertion order or recency-of-store would recommend t
 
 Three things stand out.
 
-First, the score is identical across all four Engram backends. The reliability properties come from the data model, not from which vector store is underneath. Qdrant, Chroma, pgvector, and in-memory all score 0.88. You can migrate backends without touching your reliability guarantees.
+First, the score is identical across all four memnotary backends. The reliability properties come from the data model, not from which vector store is underneath. Qdrant, Chroma, pgvector, and in-memory all score 0.88. You can migrate backends without touching your reliability guarantees.
 
 Second, temporal reliability for naive Qdrant collapses to 0.05. Without lifecycle tracking — status fields, superseded_by links, created_at metadata — a vector store has no way to know which version of a fact is current. Nineteen of the twenty temporal test cases fail outright. This is not a Qdrant problem; it would happen with any vector store used naively.
 
-Third, Engram's 6 failures are all in the importance category: ranking results by importance score, boosting by access count, surface recently-accessed memories first. These are features the current version explicitly defers. The failures are intentional, documented, and on the roadmap for 0.2.
+Third, memnotary's 6 failures are all in the importance category: ranking results by importance score, boosting by access count, surface recently-accessed memories first. These are features the current version explicitly defers. The failures are intentional, documented, and on the roadmap for 0.2.
 
 ---
 
@@ -142,7 +142,7 @@ A few concrete implications:
 
 **The failure mode is silent.** Mem0's MEDIUM risk rating is not because it returns wrong answers — it returns correct ones. The risk is that it returns correct and incorrect answers together, with equal weight, and your LLM has to sort it out. In most cases it will. In edge cases it will not. You will not know which situation you are in.
 
-**The data model matters more than the backend.** The jump from naive Qdrant (0.42) to any Engram adapter (0.88) comes entirely from the data model: status fields, supersession links, conflict records, created_at ordering. None of this requires a different vector store. It requires a layer between your agent and the vector store that tracks these properties.
+**The data model matters more than the backend.** The jump from naive Qdrant (0.42) to any memnotary adapter (0.88) comes entirely from the data model: status fields, supersession links, conflict records, created_at ordering. None of this requires a different vector store. It requires a layer between your agent and the vector store that tracks these properties.
 
 **No system solves lexically varied phrasing.** B6 is a hard problem. We are not claiming otherwise. Any system that relies on embedding similarity as the sole gate for conflict detection will miss rephrasing cases. The honest answer is that this is an open research problem.
 
@@ -154,7 +154,7 @@ Both benchmark tracks are in the repository and fully reproducible. Track 1 requ
 
 ```bash
 git clone https://github.com/Jishudayal/Engram
-cd Engram
+cd memnotary
 pip install -e ".[all]"
 python benchmark/run_track1.py
 python benchmark/report.py
@@ -171,12 +171,12 @@ Full results, scenario definitions, and scoring code are in [`benchmark/`](../be
 
 ---
 
-## What Engram is
+## What memnotary is
 
-Engram is an open-source reliability layer for AI memory. It wraps your existing vector backend — Qdrant, Chroma, pgvector, or in-memory — and adds contradiction detection, health scoring, automatic consolidation, and an audit trail. You do not replace your storage. You add a layer that makes it trustworthy.
+memnotary is an open-source reliability layer for AI memory. It wraps your existing vector backend — Qdrant, Chroma, pgvector, or in-memory — and adds contradiction detection, health scoring, automatic consolidation, and an audit trail. You do not replace your storage. You add a layer that makes it trustworthy.
 
 ```bash
-pip install engram
+pip install memnotary
 ```
 
 The repository is at [github.com/Jishudayal/Engram](https://github.com/Jishudayal/Engram). The benchmark code, all raw results, and the full scenario definitions are included.

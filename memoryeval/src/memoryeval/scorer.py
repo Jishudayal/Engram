@@ -39,7 +39,7 @@ class BenchmarkScorer:
 
     Usage::
 
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
         from memoryeval.scorer import BenchmarkScorer
 
         adapter = InMemoryAdapter()

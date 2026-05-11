@@ -1,21 +1,21 @@
-"""LangChain integration for Engram.
+"""LangChain integration for Memnotary.
 
 Provides two classes:
 
-  EngramVectorStore         — langchain_core VectorStore backed by any Engram adapter.
-  EngramChatMessageHistory  — BaseChatMessageHistory for per-session conversation storage.
+  MemnotaryVectorStore         — langchain_core VectorStore backed by any Memnotary adapter.
+  MemnotaryChatMessageHistory  — BaseChatMessageHistory for per-session conversation storage.
 
-Engram reliability features apply transparently:
+Memnotary reliability features apply transparently:
   - similarity_search returns conflict-enriched results when a detector is configured.
   - aadd_texts uses store_batch() semantics — per-document contradiction detection is
     skipped for bulk adds. Call engram.scan_contradictions(agent_id) after ingestion
     to detect conflicts across the batch in one pass.
-  - EngramChatMessageHistory stores messages without embeddings; vector contradiction
+  - MemnotaryChatMessageHistory stores messages without embeddings; vector contradiction
     detection does not fire. Call engram.scan_contradictions(session_id) explicitly
     if you embed messages separately and want conflict detection over chat history.
 
 Install:
-    pip install "engram[langchain]"
+    pip install "memnotary[langchain]"
 
 Sync methods work only outside a running event loop. In async applications use the
 async variants: aadd_texts, asimilarity_search, aget_messages, aadd_messages, etc.
@@ -45,14 +45,14 @@ try:
     from langchain_core.vectorstores import VectorStore
 except ImportError as exc:
     raise ImportError(
-        "EngramVectorStore and EngramChatMessageHistory require langchain-core. "
-        'Install it with: pip install "engram[langchain]"'
+        "MemnotaryVectorStore and MemnotaryChatMessageHistory require langchain-core. "
+        'Install it with: pip install "memnotary[langchain]"'
     ) from exc
 
-from engram.core.models import Memory
-from engram.engram import Engram
+from memnotary.core.models import Memory
+from memnotary.memnotary import Memnotary
 
-__all__ = ["EngramVectorStore", "EngramChatMessageHistory"]
+__all__ = ["MemnotaryVectorStore", "MemnotaryChatMessageHistory"]
 
 _T = TypeVar("_T")
 
@@ -80,30 +80,30 @@ def _run(coro: Coroutine[Any, Any, _T]) -> _T:
     return asyncio.run(coro)
 
 
-class EngramVectorStore(VectorStore):
-    """LangChain VectorStore backed by an Engram adapter.
+class MemnotaryVectorStore(VectorStore):
+    """LangChain VectorStore backed by a Memnotary adapter.
 
-    Wraps an already-open Engram instance so it can be plugged into any
+    Wraps an already-open Memnotary instance so it can be plugged into any
     LangChain component that consumes a VectorStore.
 
     Args:
-        engram:     An already-open Engram instance.
+        engram:     An already-open Memnotary instance.
         embeddings: LangChain Embeddings for text → vector conversion.
         agent_id:   Tenant scope — all documents are stored under this agent.
 
     Example (async)::
 
-        from engram import Engram, InMemoryAdapter
-        from engram.integrations.langchain import EngramVectorStore
+        from memnotary import Memnotary, InMemoryAdapter
+        from memnotary.integrations.langchain import MemnotaryVectorStore
         from langchain_openai import OpenAIEmbeddings
 
-        async with Engram(InMemoryAdapter()) as eng:
-            store = EngramVectorStore(eng, OpenAIEmbeddings(), agent_id="my-agent")
+        async with Memnotary(InMemoryAdapter()) as eng:
+            store = MemnotaryVectorStore(eng, OpenAIEmbeddings(), agent_id="my-agent")
             await store.aadd_texts(["Paris is the capital of France."])
             docs = await store.asimilarity_search("capital of France", k=3)
     """
 
-    def __init__(self, engram: Engram, embeddings: Embeddings, agent_id: str) -> None:
+    def __init__(self, engram: Memnotary, embeddings: Embeddings, agent_id: str) -> None:
         self._engram = engram
         self._embeddings = embeddings
         self._agent_id = agent_id
@@ -133,7 +133,7 @@ class EngramVectorStore(VectorStore):
 
     @staticmethod
     def _to_document(memory: Memory) -> Document:
-        # Mirror memory_id into metadata so callers can round-trip back to Engram.
+        # Mirror memory_id into metadata so callers can round-trip back to Memnotary.
         meta = {**memory.metadata, "_memory_id": memory.memory_id}
         return Document(page_content=memory.text, metadata=meta)
 
@@ -260,23 +260,23 @@ class EngramVectorStore(VectorStore):
         metadatas: list[dict[str, Any]] | None = None,
         ids: list[str] | None = None,
         **kwargs: Any,
-    ) -> EngramVectorStore:
+    ) -> MemnotaryVectorStore:
         """Create a store and immediately add texts.
 
         Required kwargs:
-            engram (Engram):   An already-open Engram instance.
+            engram (Memnotary):   An already-open Memnotary instance.
             agent_id (str):    Tenant scope for all documents.
 
         Example::
 
-            store = EngramVectorStore.from_texts(
+            store = MemnotaryVectorStore.from_texts(
                 ["Paris is the capital of France."],
                 OpenAIEmbeddings(),
                 engram=eng,
                 agent_id="my-agent",
             )
         """
-        engram: Engram | None = kwargs.pop("engram", None)
+        engram: Memnotary | None = kwargs.pop("engram", None)
         agent_id: str | None = kwargs.pop("agent_id", None)
         if engram is None or agent_id is None:
             raise ValueError("from_texts() requires 'engram' and 'agent_id' keyword arguments.")
@@ -285,30 +285,30 @@ class EngramVectorStore(VectorStore):
         return store
 
 
-class EngramChatMessageHistory(BaseChatMessageHistory):
-    """LangChain BaseChatMessageHistory backed by an Engram adapter.
+class MemnotaryChatMessageHistory(BaseChatMessageHistory):
+    """LangChain BaseChatMessageHistory backed by a Memnotary adapter.
 
     Stores each conversation message as a separate Memory under a session_id
-    (used as the Engram agent_id). Messages are retrieved in insertion order
+    (used as the Memnotary agent_id). Messages are retrieved in insertion order
     (list_all returns oldest-first by created_at).
 
-    Chat-history memories are stored without an embedding, so Engram's
+    Chat-history memories are stored without an embedding, so Memnotary's
     store-time vector contradiction detection does not fire. To detect conflicts
     across a conversation, embed the memories separately and call
     engram.scan_contradictions(session_id) explicitly.
 
     Args:
-        engram:     An already-open Engram instance.
+        engram:     An already-open Memnotary instance.
         session_id: Conversation scope — all messages are stored under this ID.
 
     Example (async)::
 
-        from engram import Engram, InMemoryAdapter
-        from engram.integrations.langchain import EngramChatMessageHistory
+        from memnotary import Memnotary, InMemoryAdapter
+        from memnotary.integrations.langchain import MemnotaryChatMessageHistory
         from langchain_core.messages import HumanMessage, AIMessage
 
-        async with Engram(InMemoryAdapter()) as eng:
-            history = EngramChatMessageHistory(eng, session_id="chat-42")
+        async with Memnotary(InMemoryAdapter()) as eng:
+            history = MemnotaryChatMessageHistory(eng, session_id="chat-42")
             await history.aadd_messages([
                 HumanMessage(content="What is the capital of France?"),
                 AIMessage(content="Paris."),
@@ -316,7 +316,7 @@ class EngramChatMessageHistory(BaseChatMessageHistory):
             msgs = await history.aget_messages()
     """
 
-    def __init__(self, engram: Engram, session_id: str) -> None:
+    def __init__(self, engram: Memnotary, session_id: str) -> None:
         self._engram = engram
         self._session_id = session_id
 
@@ -390,7 +390,7 @@ class EngramChatMessageHistory(BaseChatMessageHistory):
         return [self._to_message(m) for m in memories]
 
     async def aadd_messages(self, messages: Sequence[BaseMessage]) -> None:
-        """Store messages as Engram Memories (no embedding — vector detection does not fire)."""
+        """Store messages as Memnotary Memories (no embedding — vector detection does not fire)."""
         for message in messages:
             await self._engram.store(self._to_memory(message))
 

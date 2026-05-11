@@ -5,8 +5,14 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
-from engram.core.constants import ActionType, ConflictType, ConsolidationTier, RiskLevel, SourceType
-from engram.core.models import (
+from memnotary.core.constants import (
+    ActionType,
+    ConflictType,
+    ConsolidationTier,
+    RiskLevel,
+    SourceType,
+)
+from memnotary.core.models import (
     ConsolidationAction,
     ConsolidationPlan,
     HealthScore,
@@ -574,7 +580,7 @@ class TestHealthScorePendingReview:
         assert make_health_score().pending_review == ()
 
     def test_pending_review_accepts_conflict_records(self) -> None:
-        from engram.core.models import ConflictRecord
+        from memnotary.core.models import ConflictRecord
 
         cr = ConflictRecord(
             agent_id="agent-1",
@@ -591,7 +597,7 @@ class TestHealthScorePendingReview:
         assert isinstance(make_health_score().pending_review, tuple)
 
     def test_pending_review_survives_round_trip(self) -> None:
-        from engram.core.models import ConflictRecord
+        from memnotary.core.models import ConflictRecord
 
         cr = ConflictRecord(
             agent_id="agent-1",

@@ -1,4 +1,4 @@
-# Contributing to Engram
+# Contributing to memnotary
 
 ## Setup
 

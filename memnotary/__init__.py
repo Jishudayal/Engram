@@ -1,9 +1,9 @@
-"""Engram — memory traces you can trust."""
+"""Memnotary — memory traces you can trust."""
 
-from engram.adapters.base import AbstractAdapter
-from engram.adapters.memory import InMemoryAdapter
-from engram.core.consolidator import Consolidator, LLMConsolidateFn, PlanningResult
-from engram.core.constants import (
+from memnotary.adapters.base import AbstractAdapter
+from memnotary.adapters.memory import InMemoryAdapter
+from memnotary.core.consolidator import Consolidator, LLMConsolidateFn, PlanningResult
+from memnotary.core.constants import (
     ActionType,
     ConflictType,
     ConsolidationTier,
@@ -13,10 +13,10 @@ from engram.core.constants import (
     RiskLevel,
     SourceType,
 )
-from engram.core.contradiction import ClassificationResult, ContradictionDetector, LLMClassifyFn
-from engram.core.exceptions import AdapterError, EngramError, NotFoundError
-from engram.core.health import HealthScorer
-from engram.core.models import (
+from memnotary.core.contradiction import ClassificationResult, ContradictionDetector, LLMClassifyFn
+from memnotary.core.exceptions import AdapterError, MemnotaryError, NotFoundError
+from memnotary.core.health import HealthScorer
+from memnotary.core.models import (
     ConflictRecord,
     ConsolidationAction,
     ConsolidationPlan,
@@ -25,21 +25,25 @@ from engram.core.models import (
     ProvenanceRecord,
     SearchResult,
 )
-from engram.core.provenance import ProvenanceManifest
-from engram.engram import Engram
+from memnotary.core.provenance import ProvenanceManifest
+from memnotary.memnotary import Memnotary
 
 __version__ = "0.1.0-alpha"
 
 _OPTIONAL_ADAPTERS: dict[str, tuple[str, str, str]] = {
     # name: (module_path, dep_module_prefix, install_hint)
-    "QdrantAdapter": ("engram.adapters.qdrant", "qdrant_client", "engram[qdrant]"),
-    "ChromaAdapter": ("engram.adapters.chroma", "chromadb", "engram[chroma]"),
-    "PgVectorAdapter": ("engram.adapters.pgvector", "pgvector", "engram[pgvector]"),
-    "EngramVectorStore": ("engram.integrations.langchain", "langchain_core", "engram[langchain]"),
-    "EngramChatMessageHistory": (
-        "engram.integrations.langchain",
+    "QdrantAdapter": ("memnotary.adapters.qdrant", "qdrant_client", "memnotary[qdrant]"),
+    "ChromaAdapter": ("memnotary.adapters.chroma", "chromadb", "memnotary[chroma]"),
+    "PgVectorAdapter": ("memnotary.adapters.pgvector", "pgvector", "memnotary[pgvector]"),
+    "MemnotaryVectorStore": (
+        "memnotary.integrations.langchain",
         "langchain_core",
-        "engram[langchain]",
+        "memnotary[langchain]",
+    ),
+    "MemnotaryChatMessageHistory": (
+        "memnotary.integrations.langchain",
+        "langchain_core",
+        "memnotary[langchain]",
     ),
 }
 
@@ -62,13 +66,13 @@ def __getattr__(name: str) -> object:
                     f'Install it with: pip install "{install_hint}"'
                 ) from exc
             raise
-    raise AttributeError(f"module 'engram' has no attribute {name!r}")
+    raise AttributeError(f"module 'memnotary' has no attribute {name!r}")
 
 
 __all__ = [
     "__version__",
     # Main class
-    "Engram",
+    "Memnotary",
     "HealthScorer",
     "ContradictionDetector",
     "ClassificationResult",
@@ -82,10 +86,10 @@ __all__ = [
     "QdrantAdapter",
     "ChromaAdapter",
     "PgVectorAdapter",
-    "EngramVectorStore",
-    "EngramChatMessageHistory",
+    "MemnotaryVectorStore",
+    "MemnotaryChatMessageHistory",
     # Exceptions
-    "EngramError",
+    "MemnotaryError",
     "AdapterError",
     "NotFoundError",
     # Models

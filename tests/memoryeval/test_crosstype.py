@@ -52,7 +52,7 @@ def test_all_case_names_unique() -> None:
 
 @pytest.mark.parametrize("case_class", CROSSTYPE_CASES)
 async def test_score_is_in_valid_range(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -66,7 +66,7 @@ async def test_score_is_in_valid_range(case_class) -> None:
 
 @pytest.mark.parametrize("case_class", CROSSTYPE_CASES)
 async def test_teardown_clears_all_fixtures(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -81,7 +81,7 @@ async def test_teardown_clears_all_fixtures(case_class) -> None:
 
 
 async def test_active_and_superseded_count_correct_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ActiveAndSupersededCountCorrect()
@@ -91,7 +91,7 @@ async def test_active_and_superseded_count_correct_scores_1() -> None:
 
 
 async def test_all_four_statuses_storable_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = AllFourStatusesStorable()
@@ -101,7 +101,7 @@ async def test_all_four_statuses_storable_scores_1() -> None:
 
 
 async def test_provenance_and_supersession_combined_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ProvenanceAndSupersessionCombined()
@@ -111,7 +111,7 @@ async def test_provenance_and_supersession_combined_scores_1() -> None:
 
 
 async def test_expiry_and_importance_both_preserved_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ExpiryAndImportanceBothPreserved()
@@ -121,7 +121,7 @@ async def test_expiry_and_importance_both_preserved_scores_1() -> None:
 
 
 async def test_supersession_chain_with_provenance_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = SupersessionChainWithProvenance()
@@ -131,7 +131,7 @@ async def test_supersession_chain_with_provenance_scores_1() -> None:
 
 
 async def test_search_returns_all_statuses_by_default_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = SearchReturnsAllStatusesByDefault()
@@ -141,7 +141,7 @@ async def test_search_returns_all_statuses_by_default_scores_1() -> None:
 
 
 async def test_expired_memory_still_searchable_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ExpiredMemoryStillSearchable()
@@ -151,7 +151,7 @@ async def test_expired_memory_still_searchable_scores_1() -> None:
 
 
 async def test_touch_only_changes_access_fields_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = TouchOnlyChangesAccessFields()
@@ -161,7 +161,7 @@ async def test_touch_only_changes_access_fields_scores_1() -> None:
 
 
 async def test_memory_type_coexist_all_searchable_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = MemoryTypeCoexistAllSearchable()
@@ -171,7 +171,7 @@ async def test_memory_type_coexist_all_searchable_scores_1() -> None:
 
 
 async def test_all_optional_fields_roundtrip_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = AllOptionalFieldsRoundtrip()

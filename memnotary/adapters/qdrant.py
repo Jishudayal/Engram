@@ -2,7 +2,7 @@
 
 Requires the optional 'qdrant' extra::
 
-    pip install "engram[qdrant]"
+    pip install "memnotary[qdrant]"
 
 Call ``open()`` (or use ``async with``) before any other method.
 
@@ -58,16 +58,16 @@ from qdrant_client.models import (
     VectorParams,
 )
 
-from engram.adapters._utils import (
+from memnotary.adapters._utils import (
     POINT_NAMESPACE,
     map_adapter_errors,
     memory_to_payload,
     payload_to_memory,
 )
-from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus, ResolutionStatus
-from engram.core.exceptions import AdapterError, NotFoundError
-from engram.core.models import ConflictRecord, Memory, SearchResult
+from memnotary.adapters.base import AbstractAdapter
+from memnotary.core.constants import MemoryStatus, ResolutionStatus
+from memnotary.core.exceptions import AdapterError, NotFoundError
+from memnotary.core.models import ConflictRecord, Memory, SearchResult
 
 __all__ = ["QdrantAdapter"]
 
@@ -91,7 +91,7 @@ _DISTANCE_MAP: dict[str, Distance] = {
     "Manhattan": Distance.MANHATTAN,
 }
 
-_POINT_NAMESPACE = POINT_NAMESPACE  # shared Engram-specific namespace from _utils
+_POINT_NAMESPACE = POINT_NAMESPACE  # shared Memnotary-specific namespace from _utils
 
 
 def _point_id(agent_id: str, memory_id: str) -> str:

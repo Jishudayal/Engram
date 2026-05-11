@@ -52,7 +52,7 @@ def test_all_case_names_unique() -> None:
 
 @pytest.mark.parametrize("case_class", MULTIHOP_CASES)
 async def test_score_is_in_valid_range(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -66,7 +66,7 @@ async def test_score_is_in_valid_range(case_class) -> None:
 
 @pytest.mark.parametrize("case_class", MULTIHOP_CASES)
 async def test_teardown_clears_all_fixtures(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -81,7 +81,7 @@ async def test_teardown_clears_all_fixtures(case_class) -> None:
 
 
 async def test_related_facts_all_retrievable_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = RelatedFactsAllRetrievable()
@@ -91,7 +91,7 @@ async def test_related_facts_all_retrievable_scores_1() -> None:
 
 
 async def test_partial_query_surfaces_related_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = PartialQuerySurfacesRelated()
@@ -101,7 +101,7 @@ async def test_partial_query_surfaces_related_scores_1() -> None:
 
 
 async def test_relevance_ranking_correct_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = RelevanceRankingCorrect()
@@ -111,7 +111,7 @@ async def test_relevance_ranking_correct_scores_1() -> None:
 
 
 async def test_topic_isolation_by_threshold_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = TopicIsolationByThreshold()
@@ -121,7 +121,7 @@ async def test_topic_isolation_by_threshold_scores_1() -> None:
 
 
 async def test_two_hop_bridge_reachable_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = TwoHopBridgeReachable()
@@ -131,7 +131,7 @@ async def test_two_hop_bridge_reachable_scores_1() -> None:
 
 
 async def test_all_versions_surfaced_by_search_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = AllVersionsSurfacedBySearch()
@@ -141,7 +141,7 @@ async def test_all_versions_surfaced_by_search_scores_1() -> None:
 
 
 async def test_chained_facts_three_hop_surface_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ChainedFactsThreeHopSurface()
@@ -151,7 +151,7 @@ async def test_chained_facts_three_hop_surface_scores_1() -> None:
 
 
 async def test_high_threshold_captures_exact_matches_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = HighThresholdCapturesExactMatches()
@@ -161,7 +161,7 @@ async def test_high_threshold_captures_exact_matches_scores_1() -> None:
 
 
 async def test_orthogonal_query_returns_empty_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = OrthogonalQueryReturnsEmpty()
@@ -171,7 +171,7 @@ async def test_orthogonal_query_returns_empty_scores_1() -> None:
 
 
 async def test_cross_cluster_bridged_retrieval_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = CrossClusterBridgedRetrieval()

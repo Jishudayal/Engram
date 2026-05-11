@@ -90,7 +90,7 @@ def _headline_numbers(results: list[dict]) -> dict:
         sum(r["by_category"].get("temporal", 0) for r in naive) / len(naive) if naive else 0.0
     )
 
-    # Engram consistency: std dev across backends (lower = more consistent)
+    # Memnotary consistency: std dev across backends (lower = more consistent)
     if len(engram) > 1:
         mean = engram_avg
         variance = sum((r["overall_score"] - mean) ** 2 for r in engram) / len(engram)
@@ -118,19 +118,19 @@ def _print_headlines(h: dict) -> None:
     print("┌─────────────────────────────────────────────────────────┐")
     print("│  HEADLINE NUMBERS  (for blog post / launch content)     │")
     print("├─────────────────────────────────────────────────────────┤")
-    print(f"│  Engram adapter avg score    {h['engram_avg_score']:.4f}  (LOW risk)          │")
+    print(f"│  Memnotary adapter avg score    {h['engram_avg_score']:.4f}  (LOW risk)          │")
     print(f"│  Naive raw-Qdrant score      {h['naive_avg_score']:.4f}  (CRITICAL risk)     │")
     print(
         f"│  Reliability gap             +{h['reliability_gap_pct']:.0f} percentage points           │"
     )
     print("│                                                         │")
     print(
-        f"│  Temporal reliability        Engram {h['engram_temporal_score']:.2f} vs naive {h['naive_temporal_score']:.2f}   │"
+        f"│  Temporal reliability        Memnotary {h['engram_temporal_score']:.2f} vs naive {h['naive_temporal_score']:.2f}   │"
     )
     print(f"│  Temporal gap                +{h['temporal_gap_pct']:.0f} pp (lifecycle mgmt)      │")
     print("│                                                         │")
     print(
-        f"│  Engram score consistency    σ={h['engram_score_std_dev']:.4f} across {h['engram_backends_tested']} backends  │"
+        f"│  Memnotary score consistency    σ={h['engram_score_std_dev']:.4f} across {h['engram_backends_tested']} backends  │"
     )
     print(f"│  Benchmark size              {h['cases_total']} cases (MemoryEval)            │")
     print("└─────────────────────────────────────────────────────────┘")
@@ -142,16 +142,16 @@ def _print_narrative(h: dict) -> None:
     print("─" * 60)
     print(f"""We ran MemoryEval's {h["cases_total"]} test cases across 5 backends.
 
-Every Engram-backed adapter (InMemory, Qdrant, Chroma, pgvector)
+Every Memnotary-backed adapter (InMemory, Qdrant, Chroma, pgvector)
 scored {h["engram_avg_score"]} with LOW hallucination risk. Score is identical
-across all four backends — storage fidelity comes from Engram's
+across all four backends — storage fidelity comes from Memnotary's
 data model, not the choice of vector backend.
 
-A raw Qdrant wrapper without Engram's data model scored
+A raw Qdrant wrapper without Memnotary's data model scored
 {h["naive_avg_score"]} with CRITICAL risk — a {h["reliability_gap_pct"]:.0f}-point gap.
 
 The biggest single contributor: temporal reliability.
-Engram scores {h["engram_temporal_score"]:.2f}; naive Qdrant scores {h["naive_temporal_score"]:.2f}.
+Memnotary scores {h["engram_temporal_score"]:.2f}; naive Qdrant scores {h["naive_temporal_score"]:.2f}.
 Without lifecycle tracking, {h["temporal_gap_pct"]:.0f}% of memory lifecycle
 cases fail — superseded facts stay active, update history is
 lost, and access patterns are invisible to the retriever.

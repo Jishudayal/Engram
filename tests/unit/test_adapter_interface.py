@@ -5,11 +5,11 @@ from typing import Any
 
 import pytest
 
-from engram.adapters.base import AbstractAdapter
-from engram.adapters.memory import InMemoryAdapter
-from engram.core.constants import ConflictType, MemoryStatus, ResolutionStatus
-from engram.core.exceptions import AdapterError, EngramError, NotFoundError
-from engram.core.models import ConflictRecord, Memory, SearchResult
+from memnotary.adapters.base import AbstractAdapter
+from memnotary.adapters.memory import InMemoryAdapter
+from memnotary.core.constants import ConflictType, MemoryStatus, ResolutionStatus
+from memnotary.core.exceptions import AdapterError, MemnotaryError, NotFoundError
+from memnotary.core.models import ConflictRecord, Memory, SearchResult
 
 # ---------------------------------------------------------------------------
 # Minimal concrete adapter used across all tests
@@ -208,16 +208,16 @@ class TestExceptionHierarchy:
         assert isinstance(NotFoundError("x"), AdapterError)
 
     def test_not_found_error_is_engram_error(self) -> None:
-        assert isinstance(NotFoundError("x"), EngramError)
+        assert isinstance(NotFoundError("x"), MemnotaryError)
 
     def test_adapter_error_is_engram_error(self) -> None:
-        assert isinstance(AdapterError("x"), EngramError)
+        assert isinstance(AdapterError("x"), MemnotaryError)
 
     def test_not_found_error_is_exception(self) -> None:
         assert isinstance(NotFoundError("x"), Exception)
 
     def test_engram_error_message_preserved(self) -> None:
-        err = EngramError("something failed")
+        err = MemnotaryError("something failed")
         assert "something failed" in str(err)
 
     def test_adapter_error_message_preserved(self) -> None:
@@ -233,7 +233,7 @@ class TestExceptionHierarchy:
             raise NotFoundError("gone")
 
     def test_can_catch_adapter_error_as_engram_error(self) -> None:
-        with pytest.raises(EngramError):
+        with pytest.raises(MemnotaryError):
             raise AdapterError("io error")
 
 

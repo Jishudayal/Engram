@@ -23,8 +23,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
-from engram.core.constants import MemoryStatus, SourceType
-from engram.core.models import Memory, ProvenanceRecord
+from memnotary.core.constants import MemoryStatus, SourceType
+from memnotary.core.models import Memory, ProvenanceRecord
 from memoryeval.benchmark._embeddings import vec
 from memoryeval.case import TestCase
 from memoryeval.types import BenchmarkCategory

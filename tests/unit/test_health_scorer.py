@@ -5,9 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from engram.core.constants import MemoryStatus, SourceType
-from engram.core.health import HealthScorer
-from engram.core.models import Memory, ProvenanceRecord
+from memnotary.core.constants import MemoryStatus, SourceType
+from memnotary.core.health import HealthScorer
+from memnotary.core.models import Memory, ProvenanceRecord
 
 # ---------------------------------------------------------------------------
 # Shared factory
@@ -644,7 +644,7 @@ class TestContradictionScoreCustomThreshold:
         assert len(loose_pairs) >= len(default_pairs)
 
     def test_default_threshold_matches_constant(self) -> None:
-        from engram.core.constants import CLUSTER_SIMILARITY_THRESHOLD
+        from memnotary.core.constants import CLUSTER_SIMILARITY_THRESHOLD
 
         assert HealthScorer().CONTRADICTION_CLUSTER_THRESHOLD == CLUSTER_SIMILARITY_THRESHOLD
 
@@ -667,28 +667,28 @@ async def _store_memories(adapter: object, memories: list) -> None:
 
 class TestConfidenceAccuracyGapValidation:
     async def test_probe_count_zero_raises(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         with pytest.raises(ValueError, match="probe_count must be >= 1"):
             await HealthScorer().confidence_accuracy_gap("agent-1", adapter, probe_count=0)
 
     async def test_probe_count_negative_raises(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         with pytest.raises(ValueError, match="probe_count must be >= 1"):
             await HealthScorer().confidence_accuracy_gap("agent-1", adapter, probe_count=-1)
 
     async def test_top_k_zero_raises(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         with pytest.raises(ValueError, match="top_k must be >= 1"):
             await HealthScorer().confidence_accuracy_gap("agent-1", adapter, top_k=0)
 
     async def test_top_k_negative_raises(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         with pytest.raises(ValueError, match="top_k must be >= 1"):
@@ -702,7 +702,7 @@ class TestConfidenceAccuracyGapValidation:
 
 class TestConfidenceAccuracyGapEdgeCases:
     async def test_empty_agent_returns_zero(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         gap, n = await HealthScorer().confidence_accuracy_gap("agent-1", adapter)
@@ -710,7 +710,7 @@ class TestConfidenceAccuracyGapEdgeCases:
         assert n == 0
 
     async def test_no_embedded_memories_returns_zero(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(adapter, [make_memory(), make_memory(), make_memory()])
@@ -719,7 +719,7 @@ class TestConfidenceAccuracyGapEdgeCases:
         assert n == 0
 
     async def test_single_embedded_active_returns_zero(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(adapter, [make_embedded_memory(V_X)])
@@ -728,7 +728,7 @@ class TestConfidenceAccuracyGapEdgeCases:
         assert n == 0
 
     async def test_superseded_embedded_not_counted_as_probe(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -743,7 +743,7 @@ class TestConfidenceAccuracyGapEdgeCases:
         assert n == 0
 
     async def test_zero_norm_embedding_not_counted(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         # One valid, one zero-norm — only 1 valid embedded → below threshold
@@ -763,7 +763,7 @@ class TestConfidenceAccuracyGapEdgeCases:
 
 class TestConfidenceAccuracyGapNumProbed:
     async def test_num_probed_equals_active_embedded_count(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -776,7 +776,7 @@ class TestConfidenceAccuracyGapNumProbed:
         assert n == 3
 
     async def test_sampling_caps_probe_count(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -789,7 +789,7 @@ class TestConfidenceAccuracyGapNumProbed:
         assert n == 3
 
     async def test_returns_int_num_probed(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -813,7 +813,7 @@ class TestConfidenceAccuracyGapScoreFormula:
         pairs, so retrieval_confidence = 1.0 and measured_precision = 1.0,
         giving gap = 0.0 per probe.
         """
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -833,7 +833,7 @@ class TestConfidenceAccuracyGapScoreFormula:
         before any ACTIVE memory (all embeddings identical, scores all = 1.0,
         stable sort preserves insertion order).
         """
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         # Store SUPERSEDED first — they appear first in equal-score results.
@@ -849,7 +849,7 @@ class TestConfidenceAccuracyGapScoreFormula:
         assert n == 2
 
     async def test_gap_score_in_unit_interval(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -860,7 +860,7 @@ class TestConfidenceAccuracyGapScoreFormula:
         assert 0.0 <= gap <= 1.0
 
     async def test_gap_is_float(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -872,7 +872,7 @@ class TestConfidenceAccuracyGapScoreFormula:
 
     async def test_isolated_memories_still_probed(self) -> None:
         """Orthogonal memories have zero cosine, but are still valid probes."""
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         # m1 and m2 are orthogonal — cosine = 0.0, but the probe still runs.
@@ -894,8 +894,8 @@ class TestConfidenceAccuracyGapScoreFormula:
 
 class TestComputeBasic:
     async def test_compute_returns_health_score(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.models import HealthScore
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.models import HealthScore
 
         adapter = InMemoryAdapter()
         await _store_memories(adapter, [make_embedded_memory(V_X), make_embedded_memory(V_Y)])
@@ -903,8 +903,8 @@ class TestComputeBasic:
         assert isinstance(result, HealthScore)
 
     async def test_compute_empty_collection_is_healthy(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.constants import RiskLevel
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.constants import RiskLevel
 
         adapter = InMemoryAdapter()
         result = await HealthScorer().compute("agent-1", adapter)
@@ -913,14 +913,14 @@ class TestComputeBasic:
         assert result.risk_level == RiskLevel.LOW
 
     async def test_compute_agent_id_set_correctly(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         result = await HealthScorer().compute("my-agent", adapter)
         assert result.agent_id == "my-agent"
 
     async def test_compute_pending_review_is_empty_tuple(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         result = await HealthScorer().compute("agent-1", adapter)
@@ -934,7 +934,7 @@ class TestComputeBasic:
 
 class TestComputeCounts:
     async def test_total_memories_counts_active_only(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -949,7 +949,7 @@ class TestComputeCounts:
         assert result.total_memories == 2
 
     async def test_stale_count_from_freshness(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -960,7 +960,7 @@ class TestComputeCounts:
         assert result.stale_count == 1
 
     async def test_conflict_count_from_similar_pairs(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         # Identical embeddings → cosine = 1.0 > 0.82 threshold → 1 pair
@@ -972,7 +972,7 @@ class TestComputeCounts:
         assert result.conflict_count == 1
 
     async def test_avg_importance_correct(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -983,7 +983,7 @@ class TestComputeCounts:
         assert result.avg_importance == pytest.approx(0.5, abs=1e-9)
 
     async def test_oldest_age_days_set(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -994,14 +994,14 @@ class TestComputeCounts:
         assert result.oldest_memory_age_days == pytest.approx(10.0, abs=0.01)
 
     async def test_oldest_age_days_none_for_empty(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         result = await HealthScorer().compute("agent-1", adapter)
         assert result.oldest_memory_age_days is None
 
     async def test_empty_collection_zero_avg_importance(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         result = await HealthScorer().compute("agent-1", adapter)
@@ -1015,7 +1015,7 @@ class TestComputeCounts:
 
 class TestComputeScore:
     async def test_score_in_unit_interval(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(adapter, [make_embedded_memory(V_X), make_embedded_memory(V_Y)])
@@ -1030,7 +1030,7 @@ class TestComputeScore:
           contradiction = 1.0 (all 4 form pairs)   cag = 0.0 (all ACTIVE, score=1.0)
           score = 0.25*1.0 + 0.25*0.0 + 0.25*(1-1.0) + 0.25*(1-0.0) = 0.50
         """
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -1041,8 +1041,8 @@ class TestComputeScore:
         assert result.score == pytest.approx(0.50, abs=0.01)
 
     async def test_risk_level_consistent_with_score(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.constants import RiskLevel
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.constants import RiskLevel
 
         adapter = InMemoryAdapter()
         await _store_memories(adapter, [make_embedded_memory(V_X), make_embedded_memory(V_Y)])
@@ -1059,7 +1059,7 @@ class TestComputeScore:
             assert result.risk_level == RiskLevel.CRITICAL
 
     async def test_custom_weights_change_score(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         # Two identical embeddings → contradiction_score = 1.0
@@ -1081,8 +1081,8 @@ class TestComputeScore:
         assert heavy_result.score < default_result.score
 
     async def test_custom_risk_thresholds_applied(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.constants import RiskLevel
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.constants import RiskLevel
 
         adapter = InMemoryAdapter()
         await _store_memories(
@@ -1104,7 +1104,7 @@ class TestComputeScore:
 
 class TestComputeConfigValidation:
     async def test_negative_weight_raises(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         scorer = HealthScorer()
         scorer.SCORE_WEIGHT_FRESHNESS = -0.1
@@ -1112,7 +1112,7 @@ class TestComputeConfigValidation:
             await scorer.compute("agent-1", InMemoryAdapter())
 
     async def test_all_zero_weights_raise(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         scorer = HealthScorer()
         scorer.SCORE_WEIGHT_FRESHNESS = 0.0
@@ -1123,7 +1123,7 @@ class TestComputeConfigValidation:
             await scorer.compute("agent-1", InMemoryAdapter())
 
     async def test_risk_threshold_out_of_range_raises(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         scorer = HealthScorer()
         scorer.RISK_THRESHOLD_LOW = 1.1
@@ -1131,7 +1131,7 @@ class TestComputeConfigValidation:
             await scorer.compute("agent-1", InMemoryAdapter())
 
     async def test_risk_thresholds_must_be_ordered(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         scorer = HealthScorer()
         scorer.RISK_THRESHOLD_LOW = 0.60
@@ -1147,30 +1147,30 @@ class TestComputeConfigValidation:
 
 class TestEngramHealth:
     async def test_health_returns_health_score(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.models import HealthScore
-        from engram.engram import Engram
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.models import HealthScore
+        from memnotary.memnotary import Memnotary
 
         adapter = InMemoryAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.health("agent-1")
         assert isinstance(result, HealthScore)
 
     async def test_health_uses_correct_agent_id(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.engram import Engram
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.memnotary import Memnotary
 
         adapter = InMemoryAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         result = await eng.health("my-agent")
         assert result.agent_id == "my-agent"
 
     async def test_health_sees_stored_memories(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.engram import Engram
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.memnotary import Memnotary
 
         adapter = InMemoryAdapter()
-        eng = Engram(adapter)
+        eng = Memnotary(adapter)
         await eng.store(make_memory(agent_id="agent-1"))
         await eng.store(make_memory(agent_id="agent-1"))
         result = await eng.health("agent-1")
@@ -1184,7 +1184,7 @@ class TestEngramHealth:
 
 class TestComputePendingReview:
     async def test_pending_review_empty_when_no_conflicts(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         await adapter.store(make_memory(agent_id="agent-1"))
@@ -1193,9 +1193,9 @@ class TestComputePendingReview:
         assert result.pending_review == ()
 
     async def test_pending_review_populated_from_adapter(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.constants import ConflictType
-        from engram.core.models import ConflictRecord
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.constants import ConflictType
+        from memnotary.core.models import ConflictRecord
 
         adapter = InMemoryAdapter()
         await adapter.store(make_memory(agent_id="agent-1"))
@@ -1215,9 +1215,9 @@ class TestComputePendingReview:
 
     async def test_pending_review_excludes_resolved_conflicts(self) -> None:
 
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.constants import ConflictType, ResolutionStatus
-        from engram.core.models import ConflictRecord
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.constants import ConflictType, ResolutionStatus
+        from memnotary.core.models import ConflictRecord
 
         adapter = InMemoryAdapter()
         await adapter.store(make_memory(agent_id="agent-1"))
@@ -1247,9 +1247,9 @@ class TestComputePendingReview:
         assert result.pending_review[0].conflict_id == pending.conflict_id
 
     async def test_conflict_count_uses_confirmed_conflicts_when_available(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.constants import ConflictType
-        from engram.core.models import ConflictRecord
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.constants import ConflictType
+        from memnotary.core.models import ConflictRecord
 
         adapter = InMemoryAdapter()
         await adapter.store(make_memory(agent_id="agent-1"))
@@ -1269,9 +1269,9 @@ class TestComputePendingReview:
     async def test_pending_review_empty_when_adapter_not_implemented(self) -> None:
         from typing import Any
 
-        from engram.adapters.base import AbstractAdapter
-        from engram.core.constants import MemoryStatus
-        from engram.core.models import Memory, SearchResult
+        from memnotary.adapters.base import AbstractAdapter
+        from memnotary.core.constants import MemoryStatus
+        from memnotary.core.models import Memory, SearchResult
 
         class _NoConflictAdapter(AbstractAdapter):
             @property

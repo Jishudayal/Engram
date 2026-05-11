@@ -1,24 +1,24 @@
-# Engram
+# memnotary
 
 Memory your AI agents can actually trust.
 
-[![Python](https://img.shields.io/pypi/pyversions/engram.svg)](https://pypi.org/project/engram/)
+[![Python](https://img.shields.io/pypi/pyversions/memnotary.svg)](https://pypi.org/project/memnotary/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/engram.svg)](https://pypi.org/project/engram/)
+[![PyPI](https://img.shields.io/pypi/v/memnotary.svg)](https://pypi.org/project/memnotary/)
 
 ---
 
 AI agents accumulate memories over time, and some will contradict each other. Your agent stored "refund policy is 30 days" in January, then "refund policy is 14 days" in March. Both sit in your vector store. When retrieved together, your LLM picks one — silently, often wrongly, with no flag that a contradiction exists.
 
-Engram wraps your existing vector backend and adds what's missing: contradiction detection, memory health scoring, automatic consolidation, and an audit trail. You don't replace anything. You just stop trusting your memory blindly.
+memnotary wraps your existing vector backend and adds what's missing: contradiction detection, memory health scoring, automatic consolidation, and an audit trail. You don't replace anything. You just stop trusting your memory blindly.
 
-## What Engram is not
+## What memnotary is not
 
-Engram is not a vector database and does not replace Qdrant, Chroma, or Postgres. It is the reliability layer on top: health checks, conflict detection, consolidation, and provenance. Your existing storage stays exactly where it is.
+memnotary is not a vector database and does not replace Qdrant, Chroma, or Postgres. It is the reliability layer on top: health checks, conflict detection, consolidation, and provenance. Your existing storage stays exactly where it is.
 
-## When to use Engram
+## When to use memnotary
 
-Use Engram if your agent stores long-lived memories and you need to know:
+Use memnotary if your agent stores long-lived memories and you need to know:
 
 - whether two memories contradict each other
 - whether old facts are still being retrieved when they shouldn't be
@@ -28,7 +28,7 @@ Use Engram if your agent stores long-lived memories and you need to know:
 
 ## 30-second example
 
-Engram is provider-agnostic. Bring your own LLM and embedding function:
+memnotary is provider-agnostic. Bring your own LLM and embedding function:
 
 ```python
 async def your_llm(prompt: str) -> str:
@@ -42,9 +42,9 @@ def embed(text: str) -> list[float]:
 ```
 
 ```python
-from engram import Engram, ContradictionDetector, Consolidator, Memory, InMemoryAdapter
+from memnotary import memnotary, ContradictionDetector, Consolidator, Memory, InMemoryAdapter
 
-eng = Engram(
+eng = memnotary(
     InMemoryAdapter(),
     detector=ContradictionDetector(llm_fn=your_llm),
     consolidator=Consolidator(llm_fn=your_llm),
@@ -53,7 +53,7 @@ eng = Engram(
 async with eng:
     await eng.store(Memory(agent_id="bot", text="Refund policy is 30 days", embedding=embed("Refund policy is 30 days")))
     await eng.store(Memory(agent_id="bot", text="Refund policy changed to 14 days", embedding=embed("Refund policy changed to 14 days")))
-    # ↑ Conflict detected on the second store. Engram saved a ConflictRecord.
+    # ↑ Conflict detected on the second store. memnotary saved a ConflictRecord.
 
     results = await eng.search("bot", embed("refund policy"), top_k=5)
     for result in results:
@@ -62,7 +62,7 @@ async with eng:
             print(result.recommended)       # False if a higher-ranked result already covers this
 
     await eng.consolidate("bot")
-    # Engram supersedes, merges, or flags the conflict depending on type and confidence.
+    # memnotary supersedes, merges, or flags the conflict depending on type and confidence.
 ```
 
 ## What it does
@@ -77,7 +77,7 @@ async with eng:
 
 ## How it compares
 
-|  | Engram | Mem0 | Zep | Raw vector DB |
+|  | memnotary | Mem0 | Zep | Raw vector DB |
 |---|---|---|---|---|
 | Stores memories | wraps yours | yes | yes | yes |
 | Detects contradictions | **yes** | partial | no | no |
@@ -86,24 +86,24 @@ async with eng:
 | Bring your own backend | **yes** | no | no | — |
 | Bring your own LLM | **yes** | partial | yes | — |
 
-Engram doesn't replace Mem0 or Zep — you can run it on top of either. It replaces the blind trust in whatever is already storing your memories.
+memnotary doesn't replace Mem0 or Zep — you can run it on top of either. It replaces the blind trust in whatever is already storing your memories.
 
 ## LangChain bridge
 
-Drop-in `VectorStore` and `BaseChatMessageHistory` backed by Engram. Bulk adds skip per-document detection — call `scan_contradictions()` after loading to catch conflicts across the batch.
+Drop-in `VectorStore` and `BaseChatMessageHistory` backed by memnotary. Bulk adds skip per-document detection — call `scan_contradictions()` after loading to catch conflicts across the batch.
 
 ```python
-from engram.integrations.langchain import EngramVectorStore, EngramChatMessageHistory
+from memnotary.integrations.langchain import MemnotaryVectorStore, MemnotaryChatMessageHistory
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.messages import HumanMessage, AIMessage
 
-store = EngramVectorStore(eng, embeddings=OpenAIEmbeddings(), agent_id="bot")
+store = MemnotaryVectorStore(eng, embeddings=OpenAIEmbeddings(), agent_id="bot")
 await store.aadd_texts(["Refund policy is 30 days", "Refund policy changed to 14 days"])
 await eng.scan_contradictions("bot")  # detect conflicts across the batch
 docs = await store.asimilarity_search("what is the refund policy", k=3)
 # docs[0].metadata["_memory_id"] lets you trace back to the original Memory
 
-history = EngramChatMessageHistory(eng, session_id="conv-42")
+history = MemnotaryChatMessageHistory(eng, session_id="conv-42")
 await history.aadd_messages([
     HumanMessage(content="What's the refund policy?"),
     AIMessage(content="It's 14 days."),
@@ -116,24 +116,24 @@ msgs = await history.aget_messages()
 | Backend | Best for | Install |
 |---|---|---|
 | In-memory | tests, local development | built-in |
-| Qdrant | production deployments, hybrid search | `pip install "engram[qdrant]"` |
-| Chroma | local-first apps, prototypes | `pip install "engram[chroma]"` |
-| pgvector | teams already on Postgres | `pip install "engram[pgvector]"` |
+| Qdrant | production deployments, hybrid search | `pip install "memnotary[qdrant]"` |
+| Chroma | local-first apps, prototypes | `pip install "memnotary[chroma]"` |
+| pgvector | teams already on Postgres | `pip install "memnotary[pgvector]"` |
 
 Every backend is a subclass of `AbstractAdapter`. Adding your own takes one file.
 
 ## Installation
 
 ```bash
-pip install engram                   # core + in-memory adapter
-pip install "engram[qdrant]"         # + Qdrant
-pip install "engram[chroma]"         # + Chroma
-pip install "engram[pgvector]"       # + pgvector (requires asyncpg)
-pip install "engram[langchain]"      # + LangChain bridge
-pip install "engram[all]"            # everything
+pip install memnotary                   # core + in-memory adapter
+pip install "memnotary[qdrant]"         # + Qdrant
+pip install "memnotary[chroma]"         # + Chroma
+pip install "memnotary[pgvector]"       # + pgvector (requires asyncpg)
+pip install "memnotary[langchain]"      # + LangChain bridge
+pip install "memnotary[all]"            # everything
 ```
 
-Requires Python 3.11+. Engram is fully async.
+Requires Python 3.11+. memnotary is fully async.
 
 ## Benchmark
 
@@ -141,13 +141,13 @@ Two tracks. Track 1 is infrastructure correctness. Track 2 is behavioral — how
 
 ### Track 2 — Behavioral (the headline numbers)
 
-We ran 7 real-world conflict scenarios against Engram, Mem0, and raw Qdrant. Each scenario was scored on:
+We ran 7 real-world conflict scenarios against memnotary, Mem0, and raw Qdrant. Each scenario was scored on:
 
 - **Correctness** (weight 0.4) — did the right answer come back?
 - **Signal** (weight 0.4) — was the stale or conflicting memory flagged or suppressed?
 - **Preservation** (weight 0.2) — were unrelated facts left untouched?
 
-> **Engram flagged 6 of 7 contradiction scenarios. Mem0 flagged 3. Raw Qdrant flagged 2.**
+> **memnotary flagged 6 of 7 contradiction scenarios. Mem0 flagged 3. Raw Qdrant flagged 2.**
 > All three systems returned the right answer — the difference is whether the wrong answer was also surfaced silently alongside it.
 
 | System | Overall | Correctness | Signal | Preservation | Risk |
@@ -170,7 +170,7 @@ Per-scenario breakdown:
 | B6 — Lexically varied temporal | 0.60 | 0.60 | 0.60 | Same fact, different phrasing |
 | B7 — Metadata timestamp | **1.00** | 0.60 | 0.60 | Structured timestamps override insertion order |
 
-**B6:** All three systems score 0.60 here. The two sentences are phrased differently enough that their cosine similarity falls below Engram's 0.82 cluster threshold, so the LLM classifier is never invoked. This is a known trade-off: conflict detection requires semantic overlap at the embedding level before the more expensive LLM step fires. Varied real-world phrasing that expresses the same underlying fact can fall below this threshold.
+**B6:** All three systems score 0.60 here. The two sentences are phrased differently enough that their cosine similarity falls below memnotary's 0.82 cluster threshold, so the LLM classifier is never invoked. This is a known trade-off: conflict detection requires semantic overlap at the embedding level before the more expensive LLM step fires. Varied real-world phrasing that expresses the same underlying fact can fall below this threshold.
 
 To reproduce (requires `OPENAI_API_KEY` and Docker):
 
@@ -181,7 +181,7 @@ OPENAI_API_KEY=sk-... python benchmark/run_track2.py
 
 ### Track 1 — Infrastructure Reliability
 
-50 deterministic test cases across five backends — four Engram-backed adapters and one raw Qdrant wrapper with no Engram data model. No API key required.
+50 deterministic test cases across five backends — four memnotary-backed adapters and one raw Qdrant wrapper with no memnotary data model. No API key required.
 
 | Backend | Score | Risk | Pass |
 |---|---|---|---|
@@ -191,7 +191,7 @@ OPENAI_API_KEY=sk-... python benchmark/run_track2.py
 | engram-pgvector | 0.88 | LOW | 44/50 |
 | naive-qdrant | 0.42 | CRITICAL | 20/50 |
 
-Score is identical across all four Engram backends — reliability comes from the data model, not the choice of vector backend. The largest gap is in temporal reliability: Engram scores **1.00**, naive Qdrant scores **0.05**.
+Score is identical across all four memnotary backends — reliability comes from the data model, not the choice of vector backend. The largest gap is in temporal reliability: memnotary scores **1.00**, naive Qdrant scores **0.05**.
 
 To reproduce:
 

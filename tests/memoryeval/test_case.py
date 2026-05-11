@@ -177,8 +177,8 @@ class TestPassThreshold:
 
 class TestTeardown:
     async def test_teardown_deletes_all_agent_memories(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.models import Memory
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.models import Memory
 
         adapter = InMemoryAdapter()
         case = ValidCase()
@@ -193,7 +193,7 @@ class TestTeardown:
         assert await adapter.count(case.agent_id) == 0
 
     async def test_teardown_is_no_op_when_already_empty(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         adapter = InMemoryAdapter()
         case = ValidCase()
@@ -203,8 +203,8 @@ class TestTeardown:
         assert await adapter.count(case.agent_id) == 0
 
     async def test_teardown_only_removes_own_agent_memories(self) -> None:
-        from engram.adapters.memory import InMemoryAdapter
-        from engram.core.models import Memory
+        from memnotary.adapters.memory import InMemoryAdapter
+        from memnotary.core.models import Memory
 
         adapter = InMemoryAdapter()
         case_a = ValidCase()

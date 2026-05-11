@@ -1,10 +1,10 @@
-"""Health scoring engine for Engram.
+"""Health scoring engine for Memnotary.
 
 Step 4 sub-steps:
   4.1 — HealthScorer skeleton; freshness_score, provenance_completeness
   4.2 — contradiction_score (embedding similarity clustering)
   4.3 — confidence_accuracy_gap (probe-based measurement)
-  4.4 — compose compute(), wire Engram.health()
+  4.4 — compose compute(), wire Memnotary.health()
 """
 
 from __future__ import annotations
@@ -17,11 +17,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from engram.core.constants import CLUSTER_SIMILARITY_THRESHOLD, ResolutionStatus
+from memnotary.core.constants import CLUSTER_SIMILARITY_THRESHOLD, ResolutionStatus
 
 if TYPE_CHECKING:
-    from engram.adapters.base import AbstractAdapter
-    from engram.core.models import HealthScore, Memory
+    from memnotary.adapters.base import AbstractAdapter
+    from memnotary.core.models import HealthScore, Memory
 
 __all__ = ["HealthScorer"]
 
@@ -514,8 +514,8 @@ class HealthScorer:
         HealthScore.pending_review is empty until Step 5 wires in the LLM
         contradiction classifier.
         """
-        from engram.core.constants import RiskLevel
-        from engram.core.models import HealthScore as _HealthScore
+        from memnotary.core.constants import RiskLevel
+        from memnotary.core.models import HealthScore as _HealthScore
 
         self._validate_composite_config()
 

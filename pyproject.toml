@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "engram"
+name = "memnotary"
 version = "0.1.0-alpha"
 description = "Memory traces you can trust — the open-source memory reliability layer for production AI agents"
 readme = "README.md"
@@ -43,16 +43,16 @@ dev = [
     "anthropic>=0.30",
 ]
 all = [
-    "engram[qdrant,chroma,weaviate,pgvector,langchain,llm]",
+    "memnotary[qdrant,chroma,weaviate,pgvector,langchain,llm]",
 ]
 
 [project.urls]
-Homepage = "https://github.com/engram-ai/engram"
-Repository = "https://github.com/engram-ai/engram"
-Issues = "https://github.com/engram-ai/engram/issues"
+Homepage = "https://github.com/Jishudayal/Engram"
+Repository = "https://github.com/Jishudayal/Engram"
+Issues = "https://github.com/Jishudayal/Engram/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["engram"]
+packages = ["memnotary"]
 
 [tool.ruff]
 line-length = 100

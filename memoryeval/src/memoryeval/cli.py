@@ -46,13 +46,13 @@ def _build_adapter(cfg: MemoryEvalConfig) -> Any:
     name = bc.name.lower()
 
     if name == "memory":
-        from engram.adapters.memory import InMemoryAdapter
+        from memnotary.adapters.memory import InMemoryAdapter
 
         return InMemoryAdapter()
 
     if name == "qdrant":
         try:
-            from engram.adapters.qdrant import QdrantAdapter
+            from memnotary.adapters.qdrant import QdrantAdapter
         except ImportError as exc:
             raise click.UsageError(
                 "qdrant backend requires 'qdrant-client': pip install qdrant-client"
@@ -71,7 +71,7 @@ def _build_adapter(cfg: MemoryEvalConfig) -> Any:
         try:
             import chromadb
 
-            from engram.adapters.chroma import ChromaAdapter
+            from memnotary.adapters.chroma import ChromaAdapter
         except ImportError as exc:
             raise click.UsageError(
                 "chroma backend requires 'chromadb': pip install chromadb"

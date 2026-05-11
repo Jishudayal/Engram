@@ -52,7 +52,7 @@ def test_all_case_names_unique() -> None:
 
 @pytest.mark.parametrize("case_class", CONTRADICTION_CASES)
 async def test_score_is_in_valid_range(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -66,7 +66,7 @@ async def test_score_is_in_valid_range(case_class) -> None:
 
 @pytest.mark.parametrize("case_class", CONTRADICTION_CASES)
 async def test_teardown_clears_all_fixtures(case_class) -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = case_class()
@@ -82,7 +82,7 @@ async def test_teardown_clears_all_fixtures(case_class) -> None:
 
 async def test_both_claims_active_scores_0() -> None:
     """C1 is the bad baseline — naive adapters score 0.0 (contradiction unresolved)."""
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = BothClaimsActiveIsContradiction()
@@ -92,7 +92,7 @@ async def test_both_claims_active_scores_0() -> None:
 
 
 async def test_resolved_contradiction_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ResolvedContradictionHasOneActive()
@@ -102,7 +102,7 @@ async def test_resolved_contradiction_scores_1() -> None:
 
 
 async def test_embedding_fidelity_high_precision_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = EmbeddingFidelityHighPrecision()
@@ -112,7 +112,7 @@ async def test_embedding_fidelity_high_precision_scores_1() -> None:
 
 
 async def test_three_claims_one_active_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ThreeClaimsOneActive()
@@ -122,7 +122,7 @@ async def test_three_claims_one_active_scores_1() -> None:
 
 
 async def test_flagged_status_persistable_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = FlaggedStatusPersistable()
@@ -132,7 +132,7 @@ async def test_flagged_status_persistable_scores_1() -> None:
 
 
 async def test_contradiction_detectable_via_search_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ContradictionDetectableViaSearch()
@@ -142,7 +142,7 @@ async def test_contradiction_detectable_via_search_scores_1() -> None:
 
 
 async def test_supersession_links_intact_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = SupersessionLinksIntact()
@@ -152,7 +152,7 @@ async def test_supersession_links_intact_scores_1() -> None:
 
 
 async def test_embedding_fidelity_distinct_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = EmbeddingFidelityDistinct()
@@ -162,7 +162,7 @@ async def test_embedding_fidelity_distinct_scores_1() -> None:
 
 
 async def test_resolution_reduces_active_count_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = ResolutionReducesActiveCount()
@@ -172,7 +172,7 @@ async def test_resolution_reduces_active_count_scores_1() -> None:
 
 
 async def test_all_conflicting_claims_searchable_scores_1() -> None:
-    from engram.adapters.memory import InMemoryAdapter
+    from memnotary.adapters.memory import InMemoryAdapter
 
     adapter = InMemoryAdapter()
     case = AllConflictingClaimsSearchable()

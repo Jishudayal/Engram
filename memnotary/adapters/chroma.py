@@ -2,7 +2,7 @@
 
 Requires the optional 'chroma' extra::
 
-    pip install "engram[chroma]"
+    pip install "memnotary[chroma]"
 
 Chroma's Python client is synchronous. Every collection call is wrapped in
 ``asyncio.to_thread`` to avoid blocking the event loop. Each adapter call
@@ -52,16 +52,16 @@ from chromadb.api import ClientAPI
 from chromadb.api.models.Collection import Collection as ChromaCollection
 from chromadb.errors import ChromaError
 
-from engram.adapters._utils import (
+from memnotary.adapters._utils import (
     POINT_NAMESPACE,
     map_adapter_errors,
     memory_to_payload,
     payload_to_memory,
 )
-from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus
-from engram.core.exceptions import AdapterError, NotFoundError
-from engram.core.models import Memory, SearchResult
+from memnotary.adapters.base import AbstractAdapter
+from memnotary.core.constants import MemoryStatus
+from memnotary.core.exceptions import AdapterError, NotFoundError
+from memnotary.core.models import Memory, SearchResult
 
 __all__ = ["ChromaAdapter"]
 
@@ -73,7 +73,7 @@ _STATUS_KEY = "status"
 
 _CHROMA_ERRORS = (ChromaError,)
 
-_POINT_NAMESPACE = POINT_NAMESPACE  # shared Engram-specific namespace from _utils
+_POINT_NAMESPACE = POINT_NAMESPACE  # shared Memnotary-specific namespace from _utils
 
 # When user filters are present, fetch more results than top_k from Chroma to
 # compensate for client-side elimination. The final slice is still capped at top_k.

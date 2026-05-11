@@ -6,7 +6,7 @@ renaming an enum value or shifting a threshold is a contract change that
 affects stored data and downstream integrations.
 """
 
-from engram.core.constants import (
+from memnotary.core.constants import (
     AUTO_FLAG_THRESHOLD,
     AUTO_MERGE_THRESHOLD,
     CLUSTER_SIMILARITY_THRESHOLD,

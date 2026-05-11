@@ -2,15 +2,15 @@
 
 import pytest
 
-from engram.adapters.memory import InMemoryAdapter
-from engram.core.constants import (
+from memnotary.adapters.memory import InMemoryAdapter
+from memnotary.core.constants import (
     CLUSTER_SIMILARITY_THRESHOLD,
     CONTRADICTION_CONFIDENCE_THRESHOLD,
     ConflictType,
     ResolutionStatus,
 )
-from engram.core.contradiction import _DEFAULT_MODEL, ClassificationResult, ContradictionDetector
-from engram.core.models import ConflictRecord, Memory
+from memnotary.core.contradiction import _DEFAULT_MODEL, ClassificationResult, ContradictionDetector
+from memnotary.core.models import ConflictRecord, Memory
 
 # ---------------------------------------------------------------------------
 # Factories

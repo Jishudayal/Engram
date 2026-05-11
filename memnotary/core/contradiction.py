@@ -38,7 +38,7 @@ Two entry points:
 
   detect(new_memory, candidate_memories)
     Pure classification — no adapter I/O. For store-time use in Step 5.2:
-    the caller (Engram.store) supplies pre-filtered candidates and stores
+    the caller (Memnotary.store) supplies pre-filtered candidates and stores
     the returned ConflictRecords.
 
   scan(agent_id, adapter)
@@ -49,7 +49,7 @@ Two entry points:
 
 Requires the Anthropic extra for the default LLM callable::
 
-    pip install "engram[llm]"
+    pip install "memnotary[llm]"
 """
 
 from __future__ import annotations
@@ -61,17 +61,17 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from engram.core.constants import (
+from memnotary.core.constants import (
     CLUSTER_SIMILARITY_THRESHOLD,
     CONTRADICTION_CONFIDENCE_THRESHOLD,
     ConflictType,
     ResolutionStatus,
 )
-from engram.core.models import ConflictRecord
+from memnotary.core.models import ConflictRecord
 
 if TYPE_CHECKING:
-    from engram.adapters.base import AbstractAdapter
-    from engram.core.models import Memory
+    from memnotary.adapters.base import AbstractAdapter
+    from memnotary.core.models import Memory
 
 __all__ = ["ClassificationResult", "ContradictionDetector", "LLMClassifyFn"]
 
@@ -138,7 +138,7 @@ def _build_anthropic_fn(model: str) -> LLMClassifyFn:
     except ImportError as exc:
         raise ImportError(
             "ContradictionDetector requires the 'anthropic' package when no "
-            'llm_fn is provided. Install it with: pip install "engram[llm]" '
+            'llm_fn is provided. Install it with: pip install "memnotary[llm]" '
             "or supply your own: ContradictionDetector(llm_fn=my_async_fn)"
         ) from exc
 
@@ -318,7 +318,7 @@ class ContradictionDetector:
         """Classify new_memory against a pre-filtered list of candidate memories.
 
         Pure classification — no adapter I/O. Designed for store-time use in
-        Step 5.2: the caller (Engram.store) supplies candidates already filtered
+        Step 5.2: the caller (Memnotary.store) supplies candidates already filtered
         by cosine similarity and stores the returned ConflictRecords.
 
         Skips candidates that have no embedding, or that are the same memory
@@ -389,7 +389,7 @@ class ContradictionDetector:
         Returns the list of newly emitted and stored ConflictRecords.
         Raises NotImplementedError if the adapter does not implement conflict storage.
         """
-        from engram.core.health import HealthScorer
+        from memnotary.core.health import HealthScorer
 
         all_memories = await adapter.list_all(agent_id)
         active = [m for m in all_memories if m.is_usable()]

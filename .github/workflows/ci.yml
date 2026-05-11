@@ -32,7 +32,7 @@ jobs:
           cache: "pip"
       - run: pip install --upgrade pip
       - run: pip install -e ".[dev,qdrant,chroma,pgvector,langchain,llm]"
-      - run: pytest tests/ --cov=engram --cov-report=term-missing
+      - run: pytest tests/ --cov=memnotary --cov-report=term-missing
 
   test-memoryeval:
     runs-on: ubuntu-latest
@@ -58,4 +58,4 @@ jobs:
           cache: "pip"
       - run: pip install --upgrade pip
       - run: pip install -e ".[dev,qdrant,chroma,pgvector,langchain,llm]"
-      - run: mypy engram/
+      - run: mypy memnotary/

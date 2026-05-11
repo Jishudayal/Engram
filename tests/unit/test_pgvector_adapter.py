@@ -13,17 +13,17 @@ from unittest.mock import AsyncMock, patch
 import asyncpg
 import pytest
 
-from engram.adapters._utils import POINT_NAMESPACE, memory_to_payload
-from engram.adapters.pgvector import (
+from memnotary.adapters._utils import POINT_NAMESPACE, memory_to_payload
+from memnotary.adapters.pgvector import (
     PgVectorAdapter,
     _conflict_row_id,
     _row_id,
     _to_float_list,
     _validate_table,
 )
-from engram.core.constants import ConflictType, MemoryStatus, ResolutionStatus
-from engram.core.exceptions import AdapterError, NotFoundError
-from engram.core.models import ConflictRecord, Memory
+from memnotary.core.constants import ConflictType, MemoryStatus, ResolutionStatus
+from memnotary.core.exceptions import AdapterError, NotFoundError
+from memnotary.core.models import ConflictRecord, Memory
 
 # ---------------------------------------------------------------------------
 # Shared test helpers
@@ -251,7 +251,7 @@ class TestOpen:
                 "asyncpg.create_pool",
                 side_effect=asyncpg.PostgresError("connection refused"),
             ),
-            patch("engram.adapters.pgvector.register_vector"),
+            patch("memnotary.adapters.pgvector.register_vector"),
         ):
             adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=3)
             with pytest.raises(AdapterError, match="connection refused"):
@@ -280,7 +280,7 @@ class TestOpen:
 
         with (
             patch("asyncpg.create_pool", new=AsyncMock(return_value=mock_pool)),
-            patch("engram.adapters.pgvector.register_vector"),
+            patch("memnotary.adapters.pgvector.register_vector"),
         ):
             adapter = PgVectorAdapter("postgresql://localhost/db", vector_size=3)
             with pytest.raises(asyncpg.PostgresError):
@@ -616,13 +616,13 @@ class TestDeleteConflict:
 
 
 # ---------------------------------------------------------------------------
-# pyproject wiring — PgVectorAdapter importable from engram root
+# pyproject wiring — PgVectorAdapter importable from memnotary root
 # ---------------------------------------------------------------------------
 
 
 class TestPyprojectWiring:
-    def test_importable_from_engram_root(self) -> None:
-        from engram import PgVectorAdapter as PVA
+    def test_importable_from_memnotary_root(self) -> None:
+        from memnotary import PgVectorAdapter as PVA
 
         assert PVA is PgVectorAdapter
 
@@ -632,20 +632,20 @@ class TestPyprojectWiring:
         # Temporarily hide pgvector so the lazy importer's error path fires.
         pgvector_mod = sys.modules.pop("pgvector", None)
         pgvector_asyncpg_mod = sys.modules.pop("pgvector.asyncpg", None)
-        adapter_mod = sys.modules.pop("engram.adapters.pgvector", None)
+        adapter_mod = sys.modules.pop("memnotary.adapters.pgvector", None)
         try:
             sys.modules["pgvector"] = None  # type: ignore[assignment]
             sys.modules["pgvector.asyncpg"] = None  # type: ignore[assignment]
-            import engram
+            import memnotary
 
-            with pytest.raises(ImportError, match="engram\\[pgvector\\]"):
-                engram.__getattr__("PgVectorAdapter")
+            with pytest.raises(ImportError, match="memnotary\\[pgvector\\]"):
+                memnotary.__getattr__("PgVectorAdapter")
         finally:
             # Restore everything
             for key, mod in [
                 ("pgvector", pgvector_mod),
                 ("pgvector.asyncpg", pgvector_asyncpg_mod),
-                ("engram.adapters.pgvector", adapter_mod),
+                ("memnotary.adapters.pgvector", adapter_mod),
             ]:
                 if mod is None:
                     sys.modules.pop(key, None)

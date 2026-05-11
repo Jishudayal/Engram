@@ -1,6 +1,6 @@
 """AbstractAdapter — the contract all storage backends must satisfy.
 
-Every Engram backend (Qdrant, Chroma, Weaviate, pgvector, in-memory) is
+Every Memnotary backend (Qdrant, Chroma, Weaviate, pgvector, in-memory) is
 a concrete subclass of AbstractAdapter. The interface is intentionally async:
 all production backends have async clients, and synchronous adapters can
 trivially wrap their operations in async methods.
@@ -28,7 +28,7 @@ Semantic notes:
   - search() applies score_threshold first, then returns up to top_k results.
     If fewer matches meet the threshold, fewer than top_k results are returned.
   - adapters return SearchResult with conflict fields at their defaults;
-    the Engram wrapper populates conflict information after retrieval.
+    the Memnotary wrapper populates conflict information after retrieval.
   - list_all() results are ordered by created_at ascending. This stable
     ordering makes offset-based pagination consistent across calls.
   - store_batch() default is NOT all-or-nothing; override for atomic bulk
@@ -41,8 +41,8 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from engram.core.constants import MemoryStatus, ResolutionStatus
-from engram.core.models import ConflictRecord, Memory, SearchResult
+from memnotary.core.constants import MemoryStatus, ResolutionStatus
+from memnotary.core.models import ConflictRecord, Memory, SearchResult
 
 __all__ = ["AbstractAdapter"]
 
@@ -136,7 +136,7 @@ class AbstractAdapter(ABC):
             Pass None for no metadata filtering.
 
         Conflict fields on SearchResult (conflict_flag, conflicts_with, etc.)
-        are left at their defaults. The Engram wrapper populates them.
+        are left at their defaults. The Memnotary wrapper populates them.
         Raises AdapterError on backend failure.
         """
 
@@ -245,7 +245,7 @@ class AbstractAdapter(ABC):
     # ------------------------------------------------------------------
     # These methods are NOT abstract so existing adapters are not broken.
     # Override all five in a concrete adapter to enable contradiction storage.
-    # Step 5 wires these into ContradictionDetector.scan() and Engram.store().
+    # Step 5 wires these into ContradictionDetector.scan() and Memnotary.store().
     # Step 6.2 adds update_conflict() for executor use in Consolidator.execute().
 
     async def store_conflict(self, conflict: ConflictRecord) -> None:

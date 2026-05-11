@@ -1,4 +1,4 @@
-"""Core data models for Engram.
+"""Core data models for Memnotary.
 
 Models are built incrementally across sub-steps 1.4 → 1.6:
   1.4 — Memory
@@ -25,7 +25,7 @@ from pydantic import (
     model_validator,
 )
 
-from engram.core.constants import (
+from memnotary.core.constants import (
     DEFAULT_IMPORTANCE,
     ActionType,
     ConflictType,
@@ -237,7 +237,7 @@ class ConflictRecord(BaseModel):
 class Memory(BaseModel):
     """A single stored memory record.
 
-    The fundamental unit in Engram. Every piece of knowledge stored in a
+    The fundamental unit in Memnotary. Every piece of knowledge stored in a
     backend — whether it came from a conversation, a document, or a custom
     ingestion — is represented as a Memory.
 
@@ -654,7 +654,7 @@ class ConsolidationPlan(BaseModel):
 
         These are typically FLAG actions produced when confidence was below the
         AUTO_FLAG threshold. After execute(), the corresponding ConflictRecords
-        remain PENDING and are surfaced by Engram.pending_review().
+        remain PENDING and are surfaced by Memnotary.pending_review().
         """
         return tuple(a for a in self.actions if a.tier == ConsolidationTier.HUMAN_REVIEW)
 

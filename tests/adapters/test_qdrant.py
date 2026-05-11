@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import pytest
 
-from engram.adapters.qdrant import QdrantAdapter
-from engram.core.exceptions import NotFoundError
+from memnotary.adapters.qdrant import QdrantAdapter
+from memnotary.core.exceptions import NotFoundError
 from tests.adapters.contract import AdapterContractTests, _m
 
 _COLLECTION = "test_engram"
@@ -78,7 +78,7 @@ class TestQdrantSpecific:
     async def test_update_wrong_agent_raises_not_found(self) -> None:
         m = _m("a1")
         await self.adapter.store(m)
-        from engram.core.models import Memory
+        from memnotary.core.models import Memory
 
         m_other = Memory(memory_id=m.memory_id, agent_id="a2", text="wrong tenant")
         with pytest.raises(NotFoundError):
@@ -99,6 +99,6 @@ class TestQdrantSpecific:
         assert results[0].score >= 0.0
 
     async def test_importable_from_root(self) -> None:
-        from engram import QdrantAdapter as QA
+        from memnotary import QdrantAdapter as QA
 
         assert QA is QdrantAdapter

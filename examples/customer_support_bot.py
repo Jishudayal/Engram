@@ -1,17 +1,17 @@
 """
 Customer support bot with six months of accumulated memories.
 
-This is the scenario that motivated Engram.
+This is the scenario that motivated Memnotary.
 
 A support bot ingests company policies and product facts as they're written.
 Over six months the team updates pricing, revises policies, and fixes mistakes.
 Each update gets stored — but nothing removes the old version. By month six,
 the bot has three live contradictions it has no way to know about.
 
-Engram detects them, scores the memory health, and resolves them in one pass.
+Memnotary detects them, scores the memory health, and resolves them in one pass.
 
 Run:
-    pip install engram
+    pip install memnotary
     python examples/customer_support_bot.py
 """
 
@@ -19,11 +19,11 @@ import asyncio
 import json
 from datetime import UTC, datetime, timedelta
 
-from engram import (
+from memnotary import (
     Consolidator,
     ContradictionDetector,
-    Engram,
     InMemoryAdapter,
+    Memnotary,
     Memory,
     MemoryStatus,
 )
@@ -98,7 +98,7 @@ MEMORIES = [
 
 
 async def main() -> None:
-    eng = Engram(
+    eng = Memnotary(
         InMemoryAdapter(),
         detector=ContradictionDetector(llm_fn=my_llm),
         consolidator=Consolidator(llm_fn=my_consolidate_llm),
@@ -146,7 +146,7 @@ async def main() -> None:
             print(f"  [{flag}]  {r.memory.text}")
         print()
         print("  The bot has three different prices in memory.")
-        print("  Without Engram, retrieval can surface any of these as the answer.\n")
+        print("  Without Memnotary, retrieval can surface any of these as the answer.\n")
 
         # --- Consolidate ---
 

@@ -4,7 +4,7 @@ Track 2 — BehavioralSystem Protocol and concrete implementations.
 Four systems under comparison:
   - Mem0System          : Mem0 2.x with OpenAI extraction + embeddings
   - NaiveQdrantSystem   : raw Qdrant, cosine-only, no data model
-  - EngramSystem        : Engram + QdrantAdapter + ContradictionDetector (OpenAI gpt-4o-mini)
+  - MemnotarySystem        : Memnotary + QdrantAdapter + ContradictionDetector (OpenAI gpt-4o-mini)
                           use_consolidator=False  → detect-only
                           use_consolidator=True   → detect + consolidate
 
@@ -42,12 +42,12 @@ from qdrant_client.http.models import (
     VectorParams,
 )
 
-from engram.adapters.qdrant import QdrantAdapter
-from engram.core.contradiction import ContradictionDetector
-from engram.core.consolidator import Consolidator
-from engram.core.constants import MemoryStatus
-from engram.core.models import Memory
-from engram.engram import Engram
+from memnotary.adapters.qdrant import QdrantAdapter
+from memnotary.core.contradiction import ContradictionDetector
+from memnotary.core.consolidator import Consolidator
+from memnotary.core.constants import MemoryStatus
+from memnotary.core.models import Memory
+from memnotary.memnotary import Memnotary
 
 _QDRANT_URL = "http://localhost:6333"
 _EMBED_MODEL = "text-embedding-3-small"
@@ -80,7 +80,7 @@ class BehavioralSystem(Protocol):
         """Store one fact into the namespace.
 
         created_at is an optional explicit timestamp for the stored memory.
-        Systems that support structured timestamps (e.g. EngramSystem) use it
+        Systems that support structured timestamps (e.g. MemnotarySystem) use it
         to override the default now(). Systems that don't (Mem0, NaiveQdrant)
         accept the argument and ignore it.
         """
@@ -184,7 +184,7 @@ class Mem0System:
 
 
 class NaiveQdrantSystem:
-    """Raw Qdrant: cosine search only, no Engram data model."""
+    """Raw Qdrant: cosine search only, no Memnotary data model."""
 
     name = "naive-qdrant"
 
@@ -271,12 +271,12 @@ class NaiveQdrantSystem:
 
 
 # ---------------------------------------------------------------------------
-# EngramSystem
+# MemnotarySystem
 # ---------------------------------------------------------------------------
 
 
-class EngramSystem:
-    """Engram + QdrantAdapter + ContradictionDetector (OpenAI gpt-4o-mini).
+class MemnotarySystem:
+    """Memnotary + QdrantAdapter + ContradictionDetector (OpenAI gpt-4o-mini).
 
     use_consolidator=False  → name "engram-detect"
     use_consolidator=True   → name "engram-consolidated"
@@ -287,11 +287,11 @@ class EngramSystem:
         self._use_consolidator = use_consolidator
         self._oai = openai.AsyncOpenAI(api_key=api_key)
         self._adapter: QdrantAdapter | None = None
-        self._engram: Engram | None = None
+        self._engram: Memnotary | None = None
 
     @property
-    def _e(self) -> Engram:
-        assert self._engram is not None, "call reset() before using EngramSystem"
+    def _e(self) -> Memnotary:
+        assert self._engram is not None, "call reset() before using MemnotarySystem"
         return self._engram
 
     def _collection(self, namespace: str) -> str:
@@ -326,7 +326,7 @@ class EngramSystem:
         )
         await self._adapter.open()
 
-        self._engram = Engram(
+        self._engram = Memnotary(
             adapter=self._adapter,
             detector=detector,
             consolidator=consolidator,
@@ -383,6 +383,6 @@ def build_systems(openai_api_key: str | None = None) -> list[BehavioralSystem]:
     return [
         Mem0System(api_key=api_key),
         NaiveQdrantSystem(api_key=api_key),
-        EngramSystem(api_key=api_key, use_consolidator=False),
-        EngramSystem(api_key=api_key, use_consolidator=True),
+        MemnotarySystem(api_key=api_key, use_consolidator=False),
+        MemnotarySystem(api_key=api_key, use_consolidator=True),
     ]

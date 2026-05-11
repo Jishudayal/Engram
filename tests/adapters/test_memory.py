@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pytest
 
-from engram import MemoryStatus
-from engram.adapters.memory import InMemoryAdapter
+from memnotary import MemoryStatus
+from memnotary.adapters.memory import InMemoryAdapter
 from tests.adapters.contract import AdapterContractTests, _m
 
 
@@ -85,6 +85,6 @@ class TestInMemorySpecific:
         assert result2.status == MemoryStatus.ACTIVE
 
     async def test_importable_from_root(self) -> None:
-        from engram import InMemoryAdapter as IMA
+        from memnotary import InMemoryAdapter as IMA
 
         assert IMA is InMemoryAdapter

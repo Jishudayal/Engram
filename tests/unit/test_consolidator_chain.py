@@ -13,17 +13,17 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from engram.adapters.memory import InMemoryAdapter
-from engram.core.consolidator import Consolidator
-from engram.core.constants import (
+from memnotary.adapters.memory import InMemoryAdapter
+from memnotary.core.consolidator import Consolidator
+from memnotary.core.constants import (
     ActionType,
     ConflictType,
     ConsolidationTier,
     MemoryStatus,
     ResolutionStatus,
 )
-from engram.core.exceptions import NotFoundError
-from engram.core.models import ConflictRecord, ConsolidationAction, ConsolidationPlan, Memory
+from memnotary.core.exceptions import NotFoundError
+from memnotary.core.models import ConflictRecord, ConsolidationAction, ConsolidationPlan, Memory
 
 # ---------------------------------------------------------------------------
 # Shared helpers

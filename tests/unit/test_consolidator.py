@@ -4,9 +4,9 @@ from datetime import UTC, datetime
 
 import pytest
 
-from engram.adapters.memory import InMemoryAdapter
-from engram.core.consolidator import _DEFAULT_MODEL, Consolidator, PlanningResult
-from engram.core.constants import (
+from memnotary.adapters.memory import InMemoryAdapter
+from memnotary.core.consolidator import _DEFAULT_MODEL, Consolidator, PlanningResult
+from memnotary.core.constants import (
     AUTO_FLAG_THRESHOLD,
     AUTO_MERGE_THRESHOLD,
     ActionType,
@@ -14,8 +14,8 @@ from engram.core.constants import (
     ConsolidationTier,
     ResolutionStatus,
 )
-from engram.core.exceptions import NotFoundError
-from engram.core.models import ConflictRecord, ConsolidationAction, ConsolidationPlan, Memory
+from memnotary.core.exceptions import NotFoundError
+from memnotary.core.models import ConflictRecord, ConsolidationAction, ConsolidationPlan, Memory
 
 # ---------------------------------------------------------------------------
 # Factories
@@ -537,7 +537,7 @@ class TestPlan:
         assert isinstance(plan.actions, tuple)
 
     async def test_importable_from_root(self) -> None:
-        from engram import Consolidator as C
+        from memnotary import Consolidator as C
 
         assert C is not None
 

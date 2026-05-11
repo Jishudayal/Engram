@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from engram.core.constants import MemoryStatus, SourceType
-from engram.core.models import Memory, UTCDatetime
+from memnotary.core.constants import MemoryStatus, SourceType
+from memnotary.core.models import Memory, UTCDatetime
 
 __all__ = ["ProvenanceManifest"]
 

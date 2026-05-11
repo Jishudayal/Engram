@@ -34,7 +34,7 @@ prompt string and returns text works::
 
 Requires the Anthropic extra for the default LLM callable::
 
-    pip install "engram[llm]"
+    pip install "memnotary[llm]"
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from engram.core.constants import (
+from memnotary.core.constants import (
     DEFAULT_IMPORTANCE,
     ActionType,
     ConflictType,
@@ -57,12 +57,12 @@ from engram.core.constants import (
     ResolutionStatus,
     SourceType,
 )
-from engram.core.exceptions import NotFoundError
-from engram.core.models import ConsolidationAction, ConsolidationPlan, Memory, ProvenanceRecord
+from memnotary.core.exceptions import NotFoundError
+from memnotary.core.models import ConsolidationAction, ConsolidationPlan, Memory, ProvenanceRecord
 
 if TYPE_CHECKING:
-    from engram.adapters.base import AbstractAdapter
-    from engram.core.models import ConflictRecord
+    from memnotary.adapters.base import AbstractAdapter
+    from memnotary.core.models import ConflictRecord
 
 __all__ = ["Consolidator", "LLMConsolidateFn", "PlanningResult"]
 
@@ -124,7 +124,7 @@ def _build_anthropic_fn(model: str) -> LLMConsolidateFn:
     except ImportError as exc:
         raise ImportError(
             "Consolidator requires the 'anthropic' package when no "
-            'llm_fn is provided. Install it with: pip install "engram[llm]" '
+            'llm_fn is provided. Install it with: pip install "memnotary[llm]" '
             "or supply your own: Consolidator(llm_fn=my_async_fn)"
         ) from exc
 

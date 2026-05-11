@@ -1,8 +1,8 @@
-"""NaiveQdrantAdapter — raw Qdrant wrapper without Engram's data model.
+"""NaiveQdrantAdapter — raw Qdrant wrapper without Memnotary's data model.
 
-Represents a realistic "before Engram" baseline: a developer who reached
+Represents a realistic "before Memnotary" baseline: a developer who reached
 for Qdrant directly and stored text + embedding, but none of the reliability
-machinery that Engram's AbstractAdapter preserves.
+machinery that Memnotary's AbstractAdapter preserves.
 
 What it stores (Qdrant payload):
     memory_id, agent_id, text
@@ -34,10 +34,10 @@ from qdrant_client.http.models import (
     VectorParams,
 )
 
-from engram.adapters.base import AbstractAdapter
-from engram.core.constants import MemoryStatus
-from engram.core.exceptions import NotFoundError
-from engram.core.models import Memory, SearchResult
+from memnotary.adapters.base import AbstractAdapter
+from memnotary.core.constants import MemoryStatus
+from memnotary.core.exceptions import NotFoundError
+from memnotary.core.models import Memory, SearchResult
 
 _COLLECTION = "naive_memoryeval"
 _NS = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")

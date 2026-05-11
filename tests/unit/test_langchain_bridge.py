@@ -1,6 +1,6 @@
 """Mock-based tests for the LangChain bridge (steps 8.2.1–8.2.3).
 
-Covers EngramVectorStore and EngramChatMessageHistory. No real LangChain
+Covers MemnotaryVectorStore and MemnotaryChatMessageHistory. No real LangChain
 chains or backends are exercised — Engram and Embeddings are replaced with
 AsyncMock / MagicMock so the suite runs without any backend or LLM.
 """
@@ -23,8 +23,8 @@ from langchain_core.messages import (
 )
 from langchain_core.vectorstores import VectorStore
 
-from engram.core.models import Memory, SearchResult
-from engram.integrations.langchain import EngramChatMessageHistory, EngramVectorStore
+from memnotary.core.models import Memory, SearchResult
+from memnotary.integrations.langchain import MemnotaryChatMessageHistory, MemnotaryVectorStore
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -48,16 +48,16 @@ def _make_embeddings() -> MagicMock:
     return emb
 
 
-def _make_store(engram=None, embeddings=None, agent_id="agent-1") -> EngramVectorStore:
-    return EngramVectorStore(
+def _make_store(engram=None, embeddings=None, agent_id="agent-1") -> MemnotaryVectorStore:
+    return MemnotaryVectorStore(
         engram or _make_engram(),
         embeddings or _make_embeddings(),
         agent_id=agent_id,
     )
 
 
-def _make_history(engram=None, session_id="sess-1") -> EngramChatMessageHistory:
-    return EngramChatMessageHistory(engram or _make_engram(), session_id=session_id)
+def _make_history(engram=None, session_id="sess-1") -> MemnotaryChatMessageHistory:
+    return MemnotaryChatMessageHistory(engram or _make_engram(), session_id=session_id)
 
 
 def _search_result(
@@ -88,11 +88,11 @@ def _mem_with_meta(
 
 
 # ===========================================================================
-# EngramVectorStore — add_texts
+# MemnotaryVectorStore — add_texts
 # ===========================================================================
 
 
-class TestEngramVectorStoreAddTexts:
+class TestMemnotaryVectorStoreAddTexts:
     async def test_embeds_then_stores_batch(self) -> None:
         eng = _make_engram()
         emb = _make_embeddings()
@@ -141,11 +141,11 @@ class TestEngramVectorStoreAddTexts:
 
 
 # ===========================================================================
-# EngramVectorStore — search
+# MemnotaryVectorStore — search
 # ===========================================================================
 
 
-class TestEngramVectorStoreSearch:
+class TestMemnotaryVectorStoreSearch:
     async def test_similarity_search_returns_documents(self) -> None:
         eng = _make_engram()
         eng.search.return_value = [_search_result("Paris is a city", "m1", 0.95)]
@@ -204,11 +204,11 @@ class TestEngramVectorStoreSearch:
 
 
 # ===========================================================================
-# EngramVectorStore — delete
+# MemnotaryVectorStore — delete
 # ===========================================================================
 
 
-class TestEngramVectorStoreDelete:
+class TestMemnotaryVectorStoreDelete:
     async def test_adelete_calls_delete_batch_with_ids(self) -> None:
         eng = _make_engram()
         eng.delete_batch.return_value = 2
@@ -235,35 +235,35 @@ class TestEngramVectorStoreDelete:
 
 
 # ===========================================================================
-# EngramVectorStore — from_texts classmethod
+# MemnotaryVectorStore — from_texts classmethod
 # ===========================================================================
 
 
-class TestEngramVectorStoreFromTexts:
+class TestMemnotaryVectorStoreFromTexts:
     def test_creates_store_and_calls_add_texts(self) -> None:
         eng = _make_engram()
         emb = _make_embeddings()
-        with patch.object(EngramVectorStore, "add_texts", return_value=["id-1"]) as mock_add:
-            store = EngramVectorStore.from_texts(["hello"], emb, engram=eng, agent_id="agent-1")
+        with patch.object(MemnotaryVectorStore, "add_texts", return_value=["id-1"]) as mock_add:
+            store = MemnotaryVectorStore.from_texts(["hello"], emb, engram=eng, agent_id="agent-1")
         mock_add.assert_called_once_with(["hello"], metadatas=None, ids=None)
-        assert isinstance(store, EngramVectorStore)
+        assert isinstance(store, MemnotaryVectorStore)
         assert store._agent_id == "agent-1"
 
     def test_missing_engram_raises(self) -> None:
         with pytest.raises(ValueError, match="engram"):
-            EngramVectorStore.from_texts(["x"], _make_embeddings(), agent_id="a")
+            MemnotaryVectorStore.from_texts(["x"], _make_embeddings(), agent_id="a")
 
     def test_missing_agent_id_raises(self) -> None:
         with pytest.raises(ValueError, match="agent_id"):
-            EngramVectorStore.from_texts(["x"], _make_embeddings(), engram=_make_engram())
+            MemnotaryVectorStore.from_texts(["x"], _make_embeddings(), engram=_make_engram())
 
 
 # ===========================================================================
-# EngramVectorStore — sync shims
+# MemnotaryVectorStore — sync shims
 # ===========================================================================
 
 
-class TestEngramVectorStoreSyncShims:
+class TestMemnotaryVectorStoreSyncShims:
     def test_add_texts_delegates_to_aadd_texts(self) -> None:
         store = _make_store()
         with patch.object(store, "aadd_texts", new=AsyncMock(return_value=["x"])) as mock:
@@ -290,16 +290,16 @@ class TestEngramVectorStoreSyncShims:
 
 
 # ===========================================================================
-# EngramVectorStore — ABC contract
+# MemnotaryVectorStore — ABC contract
 # ===========================================================================
 
 
-class TestEngramVectorStoreContract:
+class TestMemnotaryVectorStoreContract:
     def test_is_vectorstore_subclass(self) -> None:
-        assert issubclass(EngramVectorStore, VectorStore)
+        assert issubclass(MemnotaryVectorStore, VectorStore)
 
     def test_no_unimplemented_abstract_methods(self) -> None:
-        assert not EngramVectorStore.__abstractmethods__
+        assert not MemnotaryVectorStore.__abstractmethods__
 
     def test_embeddings_property(self) -> None:
         emb = _make_embeddings()
@@ -308,11 +308,11 @@ class TestEngramVectorStoreContract:
 
 
 # ===========================================================================
-# EngramChatMessageHistory — add_messages
+# MemnotaryChatMessageHistory — add_messages
 # ===========================================================================
 
 
-class TestEngramChatMessageHistoryAddMessages:
+class TestMemnotaryChatMessageHistoryAddMessages:
     async def test_human_message_stored_with_lc_type(self) -> None:
         eng = _make_engram()
         history = _make_history(eng)
@@ -366,11 +366,11 @@ class TestEngramChatMessageHistoryAddMessages:
 
 
 # ===========================================================================
-# EngramChatMessageHistory — get_messages
+# MemnotaryChatMessageHistory — get_messages
 # ===========================================================================
 
 
-class TestEngramChatMessageHistoryGetMessages:
+class TestMemnotaryChatMessageHistoryGetMessages:
     async def test_returns_messages_in_insertion_order(self) -> None:
         eng = _make_engram()
         eng.list_all.return_value = [
@@ -415,11 +415,11 @@ class TestEngramChatMessageHistoryGetMessages:
 
 
 # ===========================================================================
-# EngramChatMessageHistory — structured content + kwargs safety
+# MemnotaryChatMessageHistory — structured content + kwargs safety
 # ===========================================================================
 
 
-class TestEngramChatMessageHistoryContentHandling:
+class TestMemnotaryChatMessageHistoryContentHandling:
     async def test_structured_content_serialised_with_marker(self) -> None:
         eng = _make_engram()
         history = _make_history(eng)
@@ -485,11 +485,11 @@ class TestEngramChatMessageHistoryContentHandling:
 
 
 # ===========================================================================
-# EngramChatMessageHistory — clear
+# MemnotaryChatMessageHistory — clear
 # ===========================================================================
 
 
-class TestEngramChatMessageHistoryClear:
+class TestMemnotaryChatMessageHistoryClear:
     async def test_deletes_all_messages_by_id(self) -> None:
         eng = _make_engram()
         eng.list_all.return_value = [
@@ -509,11 +509,11 @@ class TestEngramChatMessageHistoryClear:
 
 
 # ===========================================================================
-# EngramChatMessageHistory — sync shims
+# MemnotaryChatMessageHistory — sync shims
 # ===========================================================================
 
 
-class TestEngramChatMessageHistorySyncShims:
+class TestMemnotaryChatMessageHistorySyncShims:
     def test_add_message_delegates_to_aadd_messages(self) -> None:
         history = _make_history()
         msg = HumanMessage(content="test")
@@ -543,16 +543,16 @@ class TestEngramChatMessageHistorySyncShims:
 
 
 # ===========================================================================
-# EngramChatMessageHistory — ABC contract
+# MemnotaryChatMessageHistory — ABC contract
 # ===========================================================================
 
 
-class TestEngramChatMessageHistoryContract:
+class TestMemnotaryChatMessageHistoryContract:
     def test_is_base_chat_message_history_subclass(self) -> None:
-        assert issubclass(EngramChatMessageHistory, BaseChatMessageHistory)
+        assert issubclass(MemnotaryChatMessageHistory, BaseChatMessageHistory)
 
     def test_no_unimplemented_abstract_methods(self) -> None:
-        assert not EngramChatMessageHistory.__abstractmethods__
+        assert not MemnotaryChatMessageHistory.__abstractmethods__
 
 
 # ===========================================================================
@@ -562,32 +562,32 @@ class TestEngramChatMessageHistoryContract:
 
 class TestPyprojectWiring:
     def test_both_classes_in_root_all(self) -> None:
-        import engram
+        import memnotary
 
-        assert "EngramVectorStore" in engram.__all__
-        assert "EngramChatMessageHistory" in engram.__all__
+        assert "MemnotaryVectorStore" in memnotary.__all__
+        assert "MemnotaryChatMessageHistory" in memnotary.__all__
 
     def test_root_import_resolves_both_classes(self) -> None:
-        from engram import EngramChatMessageHistory as ECMH
-        from engram import EngramVectorStore as EVS
+        from memnotary import MemnotaryChatMessageHistory as ECMH
+        from memnotary import MemnotaryVectorStore as EVS
 
         assert issubclass(EVS, VectorStore)
         assert issubclass(ECMH, BaseChatMessageHistory)
 
     def test_missing_dep_gives_install_hint(self) -> None:
-        import engram
+        import memnotary
 
         # Null only langchain_core so the integration module re-imports and
         # hits our ImportError rewrite in __getattr__ (not Python's own "halted" error).
         lc_null = {k: None for k in sys.modules if k.startswith("langchain_core")}
-        saved_integration = sys.modules.pop("engram.integrations.langchain", None)
+        saved_integration = sys.modules.pop("memnotary.integrations.langchain", None)
         try:
             with patch.dict(sys.modules, lc_null):
                 try:
-                    engram.__getattr__("EngramVectorStore")
+                    memnotary.__getattr__("MemnotaryVectorStore")
                     raise AssertionError("should have raised ImportError")
                 except ImportError as exc:
-                    assert "engram[langchain]" in str(exc)
+                    assert "memnotary[langchain]" in str(exc)
         finally:
             if saved_integration is not None:
-                sys.modules["engram.integrations.langchain"] = saved_integration
+                sys.modules["memnotary.integrations.langchain"] = saved_integration

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     # AbstractAdapter is only needed for type checking; importing it at runtime
     # would make memoryeval hard-depend on engram. At runtime the adapter is
     # whatever duck-typed object the scorer passes in.
-    from engram.adapters.base import AbstractAdapter
+    from memnotary.adapters.base import AbstractAdapter
 
 
 __all__ = ["TestCase"]

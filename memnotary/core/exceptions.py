@@ -1,27 +1,27 @@
-"""Engram exception hierarchy.
+"""Memnotary exception hierarchy.
 
-Exceptions raised by Engram's adapter and core layers are subclasses of
-EngramError. Note: model construction raises Pydantic's ValidationError and
+Exceptions raised by Memnotary's adapter and core layers are subclasses of
+MemnotaryError. Note: model construction raises Pydantic's ValidationError and
 helper methods raise ValueError — those are not wrapped here.
 
 Hierarchy:
-  EngramError
+  MemnotaryError
     AdapterError          — any backend storage failure
       NotFoundError       — requested record does not exist in the backend
 """
 
 __all__ = [
-    "EngramError",
+    "MemnotaryError",
     "AdapterError",
     "NotFoundError",
 ]
 
 
-class EngramError(Exception):
-    """Base class for all Engram exceptions."""
+class MemnotaryError(Exception):
+    """Base class for all Memnotary exceptions."""
 
 
-class AdapterError(EngramError):
+class AdapterError(MemnotaryError):
     """Raised when a backend adapter operation fails.
 
     Covers connection failures, I/O errors, and serialization problems.

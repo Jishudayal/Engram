@@ -2,7 +2,7 @@
 Track 2 — Behavioral contradiction scenarios.
 
 Five scenarios that expose reliability gaps between raw vector search and
-Engram's contradiction-detection layer. Each scenario runs a small sequence
+Memnotary's contradiction-detection layer. Each scenario runs a small sequence
 of facts through a system, then scores the resulting retrieval behavior on
 three dimensions:
 
@@ -413,7 +413,7 @@ async def scenario_b6(systems: list[BehavioralSystem]) -> list[ScenarioResult]:
 # created_at = today. The outdated fact (90-day) is stored SECOND but carries
 # created_at = 30 days ago. Native storage order therefore gives the wrong
 # answer — "90-day" appears newer by insertion time. Only a system that reads
-# structured created_at metadata (Engram via rule 3) gets this right.
+# structured created_at metadata (Memnotary via rule 3) gets this right.
 # Systems without timestamp awareness (Naive, Mem0) will likely recommend the
 # 90-day fact because it was stored last.
 # ---------------------------------------------------------------------------

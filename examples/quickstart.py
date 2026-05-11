@@ -1,27 +1,27 @@
 """
-Engram quickstart.
+Memnotary quickstart.
 
 Scenario: A support bot stores company policies over time. The refund policy
-changes, but both versions end up in memory. Without Engram, the bot gives
-inconsistent answers. With Engram, the contradiction is caught and resolved.
+changes, but both versions end up in memory. Without Memnotary, the bot gives
+inconsistent answers. With Memnotary, the contradiction is caught and resolved.
 
 Run:
-    pip install engram
+    pip install memnotary
     python examples/quickstart.py
 
 No API key needed — this example uses stub LLM functions so you can see
 the full loop without any setup. Swap them out for your real LLM to use
-Engram in production.
+Memnotary in production.
 """
 
 import asyncio
 import json
 
-from engram import (
+from memnotary import (
     Consolidator,
     ContradictionDetector,
-    Engram,
     InMemoryAdapter,
+    Memnotary,
     Memory,
 )
 
@@ -71,7 +71,7 @@ def embed(text: str) -> list[float]:
 
 
 async def main() -> None:
-    eng = Engram(
+    eng = Memnotary(
         InMemoryAdapter(),
         detector=ContradictionDetector(llm_fn=my_llm),
         consolidator=Consolidator(llm_fn=my_consolidate_llm),
@@ -99,7 +99,7 @@ async def main() -> None:
             )
         )
         print("  [Mar]  Stored: 'As of March 1st, the refund window is now 14 days.'")
-        print("         └─ Engram detected a conflict on this store.\n")
+        print("         └─ Memnotary detected a conflict on this store.\n")
 
         # --- 2. See what the bot sees ---
 
@@ -110,7 +110,7 @@ async def main() -> None:
             flag = "⚠  conflict" if r.conflict_flag else "✓  ok      "
             print(f"  [{flag}]  {r.memory.text}")
         print()
-        # Both are flagged. When conflicting results are returned together, Engram also
+        # Both are flagged. When conflicting results are returned together, Memnotary also
         # sets recommended=False on the lower-ranked result so you know which to suppress.
 
         # --- 3. Fix it ---

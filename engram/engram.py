@@ -446,7 +446,6 @@ class Engram:
     def _prefer_in_conflict(
         result_a: SearchResult,
         result_b: SearchResult,
-        conflict: ConflictRecord,
     ) -> str:
         """Return the memory_id of the result that should be marked not_recommended.
 
@@ -467,9 +466,9 @@ class Engram:
            current information regardless of conflict type. The older one loses.
            Falls through to rule 4 only when timestamps are exactly equal.
         4. Fallback — the result with the worse cosine rank (higher rank number)
-           loses. This is the pre-existing behavior, preserved for
-           DIRECT_CONTRADICTION and PARTIAL_CONFLICT where neither memory is
-           structurally "older" than the other.
+           loses. In practice this fires only when both memories share an identical
+           timestamp (e.g. bulk ingestion or unit tests), since rule 3 handles all
+           other cases regardless of conflict type.
         """
         mem_a, mem_b = result_a.memory, result_b.memory
 
@@ -573,7 +572,7 @@ class Engram:
                     if other_result.rank > result.rank:
                         not_recommended.add(other_id)
                     continue
-                loser_id = self._prefer_in_conflict(result, other_result, record)
+                loser_id = self._prefer_in_conflict(result, other_result)
                 not_recommended.add(loser_id)
 
         # Third pass — build enriched SearchResult instances

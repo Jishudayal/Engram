@@ -8,10 +8,10 @@ Provides two classes:
 Memnotary reliability features apply transparently:
   - similarity_search returns conflict-enriched results when a detector is configured.
   - aadd_texts uses store_batch() semantics — per-document contradiction detection is
-    skipped for bulk adds. Call engram.scan_contradictions(agent_id) after ingestion
+    skipped for bulk adds. Call eng.scan_contradictions(agent_id) after ingestion
     to detect conflicts across the batch in one pass.
   - MemnotaryChatMessageHistory stores messages without embeddings; vector contradiction
-    detection does not fire. Call engram.scan_contradictions(session_id) explicitly
+    detection does not fire. Call eng.scan_contradictions(session_id) explicitly
     if you embed messages separately and want conflict detection over chat history.
 
 Install:
@@ -151,7 +151,7 @@ class MemnotaryVectorStore(VectorStore):
         """Embed and store texts. Returns the IDs assigned to each document.
 
         Uses store_batch() — per-document contradiction detection is skipped.
-        Call engram.scan_contradictions(agent_id) after ingestion to detect
+        Call eng.scan_contradictions(agent_id) after ingestion to detect
         conflicts across the batch.
         """
         text_list = list(texts)

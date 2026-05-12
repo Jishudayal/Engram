@@ -4,7 +4,7 @@
 
 ```bash
 git clone https://github.com/Jishudayal/Engram
-cd engram
+cd memnotary
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
@@ -25,8 +25,8 @@ make format  # fix
 
 ## Adding a storage adapter
 
-1. Create `engram/adapters/your_backend.py`
-2. Implement all methods from `engram.core.adapter.AbstractAdapter`
+1. Create `memnotary/adapters/your_backend.py`
+2. Implement all methods from `memnotary.core.adapters.base.AbstractAdapter`
 3. Add optional dependency group to `pyproject.toml`
 4. Add tests under `tests/unit/adapters/`
 

@@ -28,7 +28,7 @@ from memnotary.core.models import (
 from memnotary.core.provenance import ProvenanceManifest
 from memnotary.memnotary import Memnotary
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
 
 _OPTIONAL_ADAPTERS: dict[str, tuple[str, str, str]] = {
     # name: (module_path, dep_module_prefix, install_hint)

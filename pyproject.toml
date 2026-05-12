@@ -47,9 +47,9 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Jishudayal/Engram"
-Repository = "https://github.com/Jishudayal/Engram"
-Issues = "https://github.com/Jishudayal/Engram/issues"
+Homepage = "https://github.com/Jishudayal/MemNotary"
+Repository = "https://github.com/Jishudayal/MemNotary"
+Issues = "https://github.com/Jishudayal/MemNotary/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["memnotary"]

@@ -1,0 +1,24 @@
+cff-version: 1.2.0
+message: "If you use memnotary in your research or project, please cite it as below."
+type: software
+title: "memnotary"
+abstract: "The open-source memory reliability layer for AI agents — contradiction detection, health scoring, and consolidation that wraps your existing vector backend."
+version: "0.1.2"
+date-released: "2026-05-12"
+license: MIT
+url: "https://memnotary.dev"
+repository-code: "https://github.com/Jishudayal/MemNotary"
+authors:
+  - family-names: Dayal
+    given-names: Jishu
+    alias: Jishudayal
+    website: "https://www.linkedin.com/in/jishu-dayal/"
+keywords:
+  - ai
+  - agents
+  - memory
+  - reliability
+  - contradiction-detection
+  - llm
+  - rag
+  - vector-database

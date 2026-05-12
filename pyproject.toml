@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "memnotary"
-version = "0.1.1"
+version = "0.1.2"
 description = "Memory traces you can trust — the open-source memory reliability layer for production AI agents"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -47,9 +47,10 @@ all = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Jishudayal/MemNotary"
+Homepage = "https://memnotary.dev"
 Repository = "https://github.com/Jishudayal/MemNotary"
 Issues = "https://github.com/Jishudayal/MemNotary/issues"
+Documentation = "https://memnotary.dev"
 
 [tool.hatch.build.targets.wheel]
 packages = ["memnotary"]

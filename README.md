@@ -6,6 +6,8 @@ Memory your AI agents can actually trust.
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/memnotary.svg)](https://pypi.org/project/memnotary/)
 
+> Created by [Jishu Dayal](https://www.linkedin.com/in/jishu-dayal/)
+
 ---
 
 AI agents accumulate memories over time, and some will contradict each other. Your agent stored "refund policy is 30 days" in January, then "refund policy is 14 days" in March. Both sit in your vector store. When retrieved together, your LLM picks one — silently, often wrongly, with no flag that a contradiction exists.
@@ -224,4 +226,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) if you want to help build it.
 
 ## License
 
-MIT
+MIT © [Jishu Dayal](https://www.linkedin.com/in/jishu-dayal/)
+
+See [LICENSE](LICENSE) and [AUTHORS.md](AUTHORS.md) for details.

@@ -12,6 +12,8 @@ AI agents accumulate memories over time, and some will contradict each other. Yo
 
 memnotary wraps your existing vector backend and adds what's missing: contradiction detection, memory health scoring, automatic consolidation, and an audit trail. You don't replace anything. You just stop trusting your memory blindly.
 
+![memnotary demo: contradiction detection in action](assets/demo-readme.gif)
+
 ## What memnotary is not
 
 memnotary is not a vector database and does not replace Qdrant, Chroma, or Postgres. It is the reliability layer on top: health checks, conflict detection, consolidation, and provenance. Your existing storage stays exactly where it is.
@@ -42,26 +44,26 @@ def embed(text: str) -> list[float]:
 ```
 
 ```python
-from memnotary import memnotary, ContradictionDetector, Consolidator, Memory, InMemoryAdapter
+from memnotary import Memnotary, ContradictionDetector, Consolidator, Memory, InMemoryAdapter
 
-eng = memnotary(
+mn = Memnotary(
     InMemoryAdapter(),
     detector=ContradictionDetector(llm_fn=your_llm),
     consolidator=Consolidator(llm_fn=your_llm),
 )
 
-async with eng:
-    await eng.store(Memory(agent_id="bot", text="Refund policy is 30 days", embedding=embed("Refund policy is 30 days")))
-    await eng.store(Memory(agent_id="bot", text="Refund policy changed to 14 days", embedding=embed("Refund policy changed to 14 days")))
+async with mn:
+    await mn.store(Memory(agent_id="bot", text="Refund policy is 30 days", embedding=embed("Refund policy is 30 days")))
+    await mn.store(Memory(agent_id="bot", text="Refund policy changed to 14 days", embedding=embed("Refund policy changed to 14 days")))
     # ↑ Conflict detected on the second store. memnotary saved a ConflictRecord.
 
-    results = await eng.search("bot", embed("refund policy"), top_k=5)
+    results = await mn.search("bot", embed("refund policy"), top_k=5)
     for result in results:
         if result.conflict_flag:
             print(result.conflict_summary)  # one-sentence explanation of the conflict
             print(result.recommended)       # False if a higher-ranked result already covers this
 
-    await eng.consolidate("bot")
+    await mn.consolidate("bot")
     # memnotary supersedes, merges, or flags the conflict depending on type and confidence.
 ```
 
@@ -69,11 +71,11 @@ async with eng:
 
 **Contradiction detection.** Every `store()` call runs a similarity search against existing memories. If potential conflicts are found, your LLM classifies them. Confirmed contradictions become `ConflictRecord` objects you can inspect, act on, or queue for review.
 
-**Health scoring.** `await eng.health(agent_id)` returns a snapshot with signals like `contradiction_score`, `freshness_score`, and `confidence_accuracy_gap`. Useful for dashboards or for deciding when to run consolidation.
+**Health scoring.** `await mn.health(agent_id)` returns a snapshot with signals like `contradiction_score`, `freshness_score`, and `confidence_accuracy_gap`. Useful for dashboards or for deciding when to run consolidation.
 
-**Consolidation.** `await eng.consolidate(agent_id)` reads all pending conflicts and plans a batch of actions: supersede the outdated memory, merge duplicates, or flag uncertain cases for a human. Then it executes them.
+**Consolidation.** `await mn.consolidate(agent_id)` reads all pending conflicts and plans a batch of actions: supersede the outdated memory, merge duplicates, or flag uncertain cases for a human. Then it executes them.
 
-**Provenance.** Memories can carry a `ProvenanceRecord` — where it came from, who ingested it, what it was derived from. `await eng.export_provenance_json(agent_id, memory_id)` gives you a compliance-ready audit trail.
+**Provenance.** Memories can carry a `ProvenanceRecord` — where it came from, who ingested it, what it was derived from. `await mn.export_provenance_json(agent_id, memory_id)` gives you a compliance-ready audit trail.
 
 ## How it compares
 
@@ -97,13 +99,13 @@ from memnotary.integrations.langchain import MemnotaryVectorStore, MemnotaryChat
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.messages import HumanMessage, AIMessage
 
-store = MemnotaryVectorStore(eng, embeddings=OpenAIEmbeddings(), agent_id="bot")
+store = MemnotaryVectorStore(mn, embeddings=OpenAIEmbeddings(), agent_id="bot")
 await store.aadd_texts(["Refund policy is 30 days", "Refund policy changed to 14 days"])
-await eng.scan_contradictions("bot")  # detect conflicts across the batch
+await mn.scan_contradictions("bot")  # detect conflicts across the batch
 docs = await store.asimilarity_search("what is the refund policy", k=3)
 # docs[0].metadata["_memory_id"] lets you trace back to the original Memory
 
-history = MemnotaryChatMessageHistory(eng, session_id="conv-42")
+history = MemnotaryChatMessageHistory(mn, session_id="conv-42")
 await history.aadd_messages([
     HumanMessage(content="What's the refund policy?"),
     AIMessage(content="It's 14 days."),

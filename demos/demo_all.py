@@ -55,7 +55,7 @@ async def main() -> None:
 
     print(f"{DIM}─────────────────────────────────────────────{RESET}")
     print(f"  {BOLD}pip install memnotary{RESET}")
-    print(f"  {DIM}github.com/Jishudayal/Engram{RESET}")
+    print(f"  {DIM}github.com/Jishudayal/MemNotary{RESET}")
     print()
     pause(2.0)
 

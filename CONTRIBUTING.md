@@ -3,7 +3,7 @@
 ## Setup
 
 ```bash
-git clone https://github.com/engram-ai/engram
+git clone https://github.com/Jishudayal/Engram
 cd engram
 python -m venv .venv
 source .venv/bin/activate
@@ -39,4 +39,4 @@ make format  # fix
 
 ## Good first issues
 
-Check the [issues](https://github.com/engram-ai/engram/issues) tab for tickets labeled `good first issue`.
+Check the [issues](https://github.com/Jishudayal/Engram/issues) tab for tickets labeled `good first issue`.

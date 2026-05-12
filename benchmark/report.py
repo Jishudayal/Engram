@@ -23,10 +23,10 @@ _RISK_LABEL = {
 }
 
 _ENGRAM_BACKENDS = {
-    "engram-inmemory-adapter",
-    "engram-qdrant-adapter",
-    "engram-chroma-adapter",
-    "engram-pgvector-adapter",
+    "memnotary-inmemory-adapter",
+    "memnotary-qdrant-adapter",
+    "memnotary-chroma-adapter",
+    "memnotary-pgvector-adapter",
 }
 
 _NAIVE_BACKENDS = {

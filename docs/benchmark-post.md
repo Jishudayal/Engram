@@ -116,10 +116,10 @@ Naive systems that rely on insertion order or recency-of-store would recommend t
 
 | Backend | Overall | Temporal | Contradiction | Multihop | Importance | Cross-type |
 |---|---|---|---|---|---|---|
-| engram-inmemory | 0.88 | **1.00** | 0.90 | 1.00 | 0.50 | 1.00 |
-| engram-qdrant | 0.88 | **1.00** | 0.90 | 1.00 | 0.50 | 1.00 |
-| engram-chroma | 0.88 | **1.00** | 0.90 | 1.00 | 0.50 | 1.00 |
-| engram-pgvector | 0.88 | **1.00** | 0.90 | 1.00 | 0.50 | 1.00 |
+| memnotary-inmemory | 0.88 | **1.00** | 0.90 | 1.00 | 0.50 | 1.00 |
+| memnotary-qdrant | 0.88 | **1.00** | 0.90 | 1.00 | 0.50 | 1.00 |
+| memnotary-chroma | 0.88 | **1.00** | 0.90 | 1.00 | 0.50 | 1.00 |
+| memnotary-pgvector | 0.88 | **1.00** | 0.90 | 1.00 | 0.50 | 1.00 |
 | naive-qdrant | 0.42 | 0.05 | 0.50 | 1.00 | 0.22 | 0.33 |
 
 Three things stand out.
@@ -163,7 +163,7 @@ python benchmark/report.py
 Track 2 requires an OpenAI API key and a running Qdrant container:
 
 ```bash
-docker run -d --name engram-qdrant-mem0 -p 6333:6333 qdrant/qdrant
+docker run -d --name memnotary-qdrant-mem0 -p 6333:6333 qdrant/qdrant
 OPENAI_API_KEY=sk-... python benchmark/run_track2.py
 ```
 

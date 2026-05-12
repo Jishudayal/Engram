@@ -7,4 +7,4 @@ pip install memoryeval
 memoryeval run --backend qdrant --config config.yaml
 ```
 
-Part of the [Engram](https://github.com/engram-ai/engram) project.
+Part of the [Engram](https://github.com/Jishudayal/Engram) project.

@@ -152,7 +152,7 @@ We ran 7 real-world conflict scenarios against memnotary, Mem0, and raw Qdrant. 
 
 | System | Overall | Correctness | Signal | Preservation | Risk |
 |---|---|---|---|---|---|
-| **engram** | **0.94** | 1.00 | 0.86 | 1.00 | LOW |
+| **memnotary** | **0.94** | 1.00 | 0.86 | 1.00 | LOW |
 | mem0 | 0.77 | 1.00 | 0.43 | 1.00 | MEDIUM |
 | naive-qdrant | 0.71 | 1.00 | 0.29 | 1.00 | MEDIUM |
 
@@ -160,7 +160,7 @@ Every system eventually surfaces the right answer in the top-k. But Mem0 and raw
 
 Per-scenario breakdown:
 
-| Scenario | engram | mem0 | naive-qdrant | What it tests |
+| Scenario | memnotary | mem0 | naive-qdrant | What it tests |
 |---|---|---|---|---|
 | B1 — Direct contradiction | **1.00** | 0.60 | 0.60 | Old fact superseded by new |
 | B2 — Retention | **1.00** | 1.00 | 1.00 | Three unrelated facts all survive |
@@ -175,7 +175,7 @@ Per-scenario breakdown:
 To reproduce (requires `OPENAI_API_KEY` and Docker):
 
 ```bash
-docker run -d --name engram-qdrant-mem0 -p 6333:6333 qdrant/qdrant
+docker run -d --name memnotary-qdrant-mem0 -p 6333:6333 qdrant/qdrant
 OPENAI_API_KEY=sk-... python benchmark/run_track2.py
 ```
 
@@ -185,10 +185,10 @@ OPENAI_API_KEY=sk-... python benchmark/run_track2.py
 
 | Backend | Score | Risk | Pass |
 |---|---|---|---|
-| engram-inmemory | 0.88 | LOW | 44/50 |
-| engram-qdrant | 0.88 | LOW | 44/50 |
-| engram-chroma | 0.88 | LOW | 44/50 |
-| engram-pgvector | 0.88 | LOW | 44/50 |
+| memnotary-inmemory | 0.88 | LOW | 44/50 |
+| memnotary-qdrant | 0.88 | LOW | 44/50 |
+| memnotary-chroma | 0.88 | LOW | 44/50 |
+| memnotary-pgvector | 0.88 | LOW | 44/50 |
 | naive-qdrant | 0.42 | CRITICAL | 20/50 |
 
 Score is identical across all four memnotary backends — reliability comes from the data model, not the choice of vector backend. The largest gap is in temporal reliability: memnotary scores **1.00**, naive Qdrant scores **0.05**.

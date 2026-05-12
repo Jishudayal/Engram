@@ -105,7 +105,7 @@ async def main() -> None:
 
     # ── Step 1.1 ── InMemoryAdapter (baseline, no dependencies) ──────────────
     print("\nRunning Step 1.1 — InMemoryAdapter (baseline)...")
-    result = await run_adapter(InMemoryAdapter(), backend_name="engram-inmemory-adapter")
+    result = await run_adapter(InMemoryAdapter(), backend_name="memnotary-inmemory-adapter")
     results.append(result)
     print_result(result)
 
@@ -118,7 +118,7 @@ async def main() -> None:
     )
     await qdrant_adapter.open()
     try:
-        result = await run_adapter(qdrant_adapter, backend_name="engram-qdrant-adapter")
+        result = await run_adapter(qdrant_adapter, backend_name="memnotary-qdrant-adapter")
     finally:
         await qdrant_adapter.close()
     results.append(result)
@@ -130,7 +130,7 @@ async def main() -> None:
     chroma_adapter = ChromaAdapter(chroma_client, "memoryeval_benchmark", vector_size=16)
     await chroma_adapter.open()
     try:
-        result = await run_adapter(chroma_adapter, backend_name="engram-chroma-adapter")
+        result = await run_adapter(chroma_adapter, backend_name="memnotary-chroma-adapter")
     finally:
         await chroma_adapter.close()
     results.append(result)
@@ -139,12 +139,12 @@ async def main() -> None:
     # ── Step 1.4 ── PgVectorAdapter (dedicated Docker container, port 5433) ───
     print("\nRunning Step 1.4 — PgVectorAdapter (pgvector/pgvector:pg16)...")
     pg_adapter = PgVectorAdapter(
-        "postgresql://engram:engram@localhost:5433/engram_bench",
+        "postgresql://memnotary:memnotary@localhost:5433/memnotary_bench",
         vector_size=16,
     )
     await pg_adapter.open()
     try:
-        result = await run_adapter(pg_adapter, backend_name="engram-pgvector-adapter")
+        result = await run_adapter(pg_adapter, backend_name="memnotary-pgvector-adapter")
     finally:
         await pg_adapter.close()
     results.append(result)

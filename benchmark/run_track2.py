@@ -6,7 +6,7 @@ EngramConsolidated) and saves results to benchmark/results/.
 
 Requirements:
   OPENAI_API_KEY env var
-  Docker: engram-qdrant-mem0 running on port 6333
+  Docker: memnotary-qdrant-mem0 running on port 6333
 
 Usage:
     OPENAI_API_KEY=sk-... python benchmark/run_track2.py
@@ -28,7 +28,7 @@ from behavioral_system import build_systems
 from scenarios_track2 import ScenarioResult, run_all
 
 _RESULTS_DIR = Path(__file__).parent / "results"
-_SYSTEM_ORDER = ["mem0", "naive-qdrant", "engram-detect", "engram-consolidated"]
+_SYSTEM_ORDER = ["mem0", "naive-qdrant", "memnotary-detect", "memnotary-consolidated"]
 
 # Risk band: overall score ≥ threshold → label
 _RISK_BANDS = [(0.85, "LOW"), (0.65, "MEDIUM"), (0.40, "HIGH"), (0.0, "CRITICAL")]

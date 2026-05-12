@@ -26,7 +26,7 @@ import os
 # ---------------------------------------------------------------------------
 
 _QDRANT_HOST = "localhost"
-_QDRANT_PORT = 6333  # engram-qdrant-mem0 Docker container
+_QDRANT_PORT = 6333  # memnotary-qdrant-mem0 Docker container
 
 
 def build_mem0_config(collection: str) -> dict:

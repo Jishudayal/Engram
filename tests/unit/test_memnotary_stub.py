@@ -506,7 +506,7 @@ class TestPublicImports:
     def test_version_available(self) -> None:
         import memnotary
 
-        assert memnotary.__version__ == "0.1.0-alpha"
+        assert memnotary.__version__ == "0.1.0a1"
 
     def test_contradiction_detector_importable_from_root(self) -> None:
         from memnotary import ClassificationResult, ContradictionDetector, LLMClassifyFn

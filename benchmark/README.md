@@ -9,11 +9,11 @@ No API key required — all embeddings are synthetic 16-dim vectors.
 
 ```bash
 # Start the pgvector container (required for Step 1.4)
-docker run -d --name engram-pgvector-bench \
-  -e POSTGRES_USER=engram -e POSTGRES_PASSWORD=engram -e POSTGRES_DB=engram_bench \
+docker run -d --name memnotary-pgvector-bench \
+  -e POSTGRES_USER=memnotary -e POSTGRES_PASSWORD=memnotary -e POSTGRES_DB=memnotary_bench \
   -p 5433:5432 pgvector/pgvector:pg16
 
-docker exec engram-pgvector-bench psql -U engram -d engram_bench \
+docker exec memnotary-pgvector-bench psql -U memnotary -d memnotary_bench \
   -c "CREATE EXTENSION IF NOT EXISTS vector;"
 
 python benchmark/run_track1.py   # runs all 5 adapters
@@ -30,11 +30,11 @@ real LLM extraction pipelines.
 **Requirements:**
 - `OPENAI_API_KEY` environment variable (used by Mem0 for extraction + embeddings)
 - Docker containers:
-  - `engram-qdrant-mem0` — Qdrant server for Mem0 (port 6333)
+  - `memnotary-qdrant-mem0` — Qdrant server for Mem0 (port 6333)
 
 ```bash
 # Start Qdrant (shared by Mem0, NaiveQdrant, and memnotary adapters)
-docker run -d --name engram-qdrant-mem0 -p 6333:6333 qdrant/qdrant
+docker run -d --name memnotary-qdrant-mem0 -p 6333:6333 qdrant/qdrant
 
 # Smoke test — confirms Mem0 is wired correctly before running Track 2
 OPENAI_API_KEY=sk-... python benchmark/smoke_mem0.py
@@ -51,8 +51,8 @@ OPENAI_API_KEY=sk-... python benchmark/run_track2.py
 |---|---|
 | `mem0` | Mem0 2.x — LLM extraction + OpenAI embeddings (black-box dedup) |
 | `naive-qdrant` | Raw Qdrant cosine search, no memnotary data model |
-| `engram-detect` | memnotary + ContradictionDetector — flags conflicts, no resolution |
-| `engram-consolidated` | memnotary + ContradictionDetector + Consolidator — flags + resolves |
+| `memnotary-detect` | memnotary + ContradictionDetector — flags conflicts, no resolution |
+| `memnotary-consolidated` | memnotary + ContradictionDetector + Consolidator — flags + resolves |
 
 ### Scenarios
 
@@ -72,14 +72,14 @@ Scoring dimensions: **correctness** (right answer returned, weight 0.4) · **sig
 
 | System | Overall | Correctness | Signal | Preservation | Risk |
 |---|---|---|---|---|---|
-| `engram-detect` | **0.9429** | 1.00 | 0.86 | 1.00 | LOW |
-| `engram-consolidated` | **0.9429** | 1.00 | 0.86 | 1.00 | LOW |
+| `memnotary-detect` | **0.9429** | 1.00 | 0.86 | 1.00 | LOW |
+| `memnotary-consolidated` | **0.9429** | 1.00 | 0.86 | 1.00 | LOW |
 | `mem0` | 0.7714 | 1.00 | 0.43 | 1.00 | MEDIUM |
 | `naive-qdrant` | 0.7143 | 1.00 | 0.29 | 1.00 | MEDIUM |
 
 Per-scenario composite scores:
 
-| Scenario | engram-detect | engram-consolidated | mem0 | naive-qdrant |
+| Scenario | memnotary-detect | memnotary-consolidated | mem0 | naive-qdrant |
 |---|---|---|---|---|
 | B1 — Direct contradiction | 1.00 | 1.00 | 0.60 | 0.60 |
 | B2 — Retention | 1.00 | 1.00 | 1.00 | 1.00 |
@@ -110,5 +110,5 @@ pip install mem0ai qdrant-client chromadb asyncpg pgvector
 
 | Container | Image | Port | Used by |
 |---|---|---|---|
-| `engram-pgvector-bench` | `pgvector/pgvector:pg16` | 5433 | Track 1 Step 1.4 |
-| `engram-qdrant-mem0` | `qdrant/qdrant` | 6333 | Track 2 (Mem0, NaiveQdrant, memnotary) |
+| `memnotary-pgvector-bench` | `pgvector/pgvector:pg16` | 5433 | Track 1 Step 1.4 |
+| `memnotary-qdrant-mem0` | `qdrant/qdrant` | 6333 | Track 2 (Mem0, NaiveQdrant, memnotary) |

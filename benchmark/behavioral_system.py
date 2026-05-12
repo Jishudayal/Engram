@@ -278,12 +278,12 @@ class NaiveQdrantSystem:
 class MemnotarySystem:
     """Memnotary + QdrantAdapter + ContradictionDetector (OpenAI gpt-4o-mini).
 
-    use_consolidator=False  → name "engram-detect"
-    use_consolidator=True   → name "engram-consolidated"
+    use_consolidator=False  → name "memnotary-detect"
+    use_consolidator=True   → name "memnotary-consolidated"
     """
 
     def __init__(self, api_key: str, *, use_consolidator: bool = False) -> None:
-        self.name = "engram-consolidated" if use_consolidator else "engram-detect"
+        self.name = "memnotary-consolidated" if use_consolidator else "memnotary-detect"
         self._use_consolidator = use_consolidator
         self._oai = openai.AsyncOpenAI(api_key=api_key)
         self._adapter: QdrantAdapter | None = None

@@ -212,7 +212,7 @@ See [`benchmark/README.md`](benchmark/README.md) for full setup and Docker requi
 
 ## Status
 
-`0.1.0-alpha` — the core reliability loop (store → detect → score → consolidate → provenance) is complete and covered by 880+ unit tests. The pgvector adapter and LangChain bridge are included.
+`0.1.0a1` — the core reliability loop (store → detect → score → consolidate → provenance) is complete and covered by 880+ unit tests. The pgvector adapter and LangChain bridge are included.
 
 Not production-tested yet. The API is stable but may have breaking changes before 1.0.
 

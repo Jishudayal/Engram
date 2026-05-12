@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "memoryeval"
-version = "0.1.0-alpha"
+version = "0.1.0a1"
 description = "Benchmark suite for measuring AI memory system reliability"
 readme = "README.md"
 license = { text = "MIT" }

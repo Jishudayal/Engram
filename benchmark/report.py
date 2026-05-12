@@ -23,10 +23,16 @@ _RISK_LABEL = {
 }
 
 _ENGRAM_BACKENDS = {
+    # current names
     "memnotary-inmemory-adapter",
     "memnotary-qdrant-adapter",
     "memnotary-chroma-adapter",
     "memnotary-pgvector-adapter",
+    # pre-rename names (results generated before 0.1.0a2)
+    "engram-inmemory-adapter",
+    "engram-qdrant-adapter",
+    "engram-chroma-adapter",
+    "engram-pgvector-adapter",
 }
 
 _NAIVE_BACKENDS = {
